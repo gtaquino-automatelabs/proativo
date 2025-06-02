@@ -1,0 +1,69 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+```yaml
+description:
+globs:
+alwaysApply: false
+```
+
+---
+
+# Regra: Geração de Documento de Requisitos de Produto (PRD)
+
+## Objetivo
+
+Orientar um assistente de IA na criação de um Documento de Requisitos de Produto (PRD) detalhado, em formato Markdown, com base em uma solicitação inicial do usuário. O PRD deve ser claro, acionável e adequado para que um desenvolvedor júnior possa entender e implementar a funcionalidade.
+
+## Processo
+
+1.  **Receber a Solicitação Inicial:** O usuário fornece uma breve descrição ou solicitação de uma nova funcionalidade.
+2.  **Fazer Perguntas de Esclarecimento:** Antes de redigir o PRD, a IA *deve* fazer perguntas de esclarecimento para obter detalhes suficientes. O objetivo é entender o "o quê" e o "por quê" da funcionalidade, não necessariamente o "como" (que será definido pelo desenvolvedor).
+3.  **Gerar o PRD:** Com base na solicitação inicial e nas respostas do usuário às perguntas de esclarecimento, gerar um PRD utilizando a estrutura definida abaixo.
+4.  **Salvar o PRD:** Salvar o documento gerado como `prd-[nome-da-funcionalidade].md` dentro do diretório `/tarefas`.
+
+## Perguntas de Esclarecimento (Exemplos)
+
+A IA deve adaptar suas perguntas com base na solicitação, mas aqui estão algumas áreas comuns a explorar:
+
+*   **Problema/Objetivo:** "Que problema essa funcionalidade resolve para o usuário?" ou "Qual é o principal objetivo que queremos atingir com essa funcionalidade?"
+*   **Usuário-Alvo:** "Quem é o principal usuário dessa funcionalidade?"
+*   **Funcionalidade Principal:** "Você pode descrever as ações principais que o usuário deve conseguir realizar com essa funcionalidade?"
+*   **Histórias de Usuário:** "Você poderia fornecer algumas histórias de usuário? (ex.: Como [tipo de usuário], quero [realizar uma ação] para que [benefício])."
+*   **Critérios de Aceitação:** "Como saberemos que essa funcionalidade foi implementada com sucesso? Quais são os principais critérios de sucesso?"
+*   **Escopo/Limitações:** "Há algo que essa funcionalidade *não deve* fazer (não objetivos)?"
+*   **Requisitos de Dados:** "Que tipo de dados essa funcionalidade precisa exibir ou manipular?"
+*   **Design/UI:** "Existem mockups ou diretrizes de UI a seguir?" ou "Você pode descrever o visual e a experiência desejados?"
+*   **Casos Limite:** "Há algum caso extremo ou condição de erro que devemos considerar?"
+
+## Estrutura do PRD
+
+O PRD gerado deve conter as seguintes seções:
+
+1.  **Introdução/Visão Geral:** Descreva brevemente a funcionalidade e o problema que ela resolve. Indique o objetivo.
+2.  **Objetivos:** Liste os objetivos específicos e mensuráveis para essa funcionalidade.
+3.  **Histórias de Usuário:** Detalhe as narrativas de uso da funcionalidade e os benefícios esperados.
+4.  **Requisitos Funcionais:** Liste as funcionalidades específicas que a funcionalidade deve possuir. Use linguagem clara e concisa (ex.: "O sistema deve permitir que o usuário envie uma foto de perfil."). Numere esses requisitos.
+5.  **Não Objetivos (Fora de Escopo):** Declare claramente o que essa funcionalidade *não* incluirá, para controle de escopo.
+6.  **Considerações de Design (Opcional):** Link para mockups, descrição de requisitos de UI/UX ou menção a componentes/estilos relevantes, se aplicável.
+7.  **Considerações Técnicas (Opcional):** Mencione restrições técnicas conhecidas, dependências ou sugestões (ex.: "Deve integrar-se ao módulo de autenticação já existente").
+8.  **Métricas de Sucesso:** Como o sucesso dessa funcionalidade será medido? (ex.: "Aumentar o engajamento do usuário em 10%", "Reduzir os chamados de suporte relacionados à funcionalidade X").
+9.  **Perguntas em Aberto:** Liste quaisquer dúvidas remanescentes ou áreas que precisam de mais esclarecimentos.
+
+## Público-Alvo
+
+Assuma que o principal leitor do PRD será um **desenvolvedor júnior**. Portanto, os requisitos devem ser explícitos, sem ambiguidade, e evitar jargões sempre que possível. Forneça detalhes suficientes para que o leitor compreenda o propósito e a lógica principal da funcionalidade.
+
+## Saída
+
+*   **Formato:** Markdown (`.md`)
+*   **Local:** `/tarefas/`
+*   **Nome do Arquivo:** `prd-[nome-da-funcionalidade].md`
+
+## Instruções Finais
+
+1. NÃO inicie a implementação do PRD.
+2. Certifique-se de fazer perguntas de esclarecimento ao usuário.
+3. Utilize as respostas do usuário para melhorar o PRD.
