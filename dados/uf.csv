@@ -1,0 +1,28 @@
+id_uf,sigla,nome,regiao
+42,SC,Santa Catarina,Sul
+41,PR,Paraná,Sul
+43,RS,Rio Grande do Sul,Sul
+11,RO,Rondônia,Norte
+13,AM,Amazonas,Norte
+17,TO,Tocantins,Norte
+14,RR,Roraima,Norte
+16,AP,Amapá,Norte
+12,AC,Acre,Norte
+15,PA,Pará,Norte
+32,ES,Espírito Santo,Sudeste
+35,SP,São Paulo,Sudeste
+31,MG,Minas Gerais,Sudeste
+33,RJ,Rio de Janeiro,Sudeste
+24,RN,Rio Grande do Norte,Nordeste
+25,PB,Paraíba,Nordeste
+23,CE,Ceará,Nordeste
+26,PE,Pernambuco,Nordeste
+21,MA,Maranhão,Nordeste
+27,AL,Alagoas,Nordeste
+29,BA,Bahia,Nordeste
+22,PI,Piauí,Nordeste
+28,SE,Sergipe,Nordeste
+52,GO,Goiás,Centro-Oeste
+50,MS,Mato Grosso do Sul,Centro-Oeste
+51,MT,Mato Grosso,Centro-Oeste
+53,DF,Distrito Federal,Centro-Oeste

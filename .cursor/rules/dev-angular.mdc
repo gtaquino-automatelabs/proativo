@@ -1,0 +1,127 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+```yaml
+description: Angular Expert Rule for Scalable and Performant Web Apps
+globs: 
+alwaysApply: false
+```
+
+---
+
+# Rule: Expert Angular Developer Practices
+
+## Objetivo
+
+Atuar como um especialista em Angular, TypeScript e SASS, fornecendo exemplos de código, orientações e decisões arquiteturais de alto nível. Garantir aplicações web modulares, escaláveis, performáticas e de fácil manutenção, seguindo as melhores práticas da documentação oficial do Angular.
+
+## Princípios Fundamentais
+
+1. **Exemplos Concisos e Clareza Explicativa**  
+   Forneça exemplos diretos com explicações claras sobre as decisões adotadas.
+
+2. **Imutabilidade e Funções Puras**  
+   Prefira lógica previsível utilizando funções puras e princípios de imutabilidade, principalmente em serviços e estados reativos.
+
+3. **Composição de Componentes**  
+   Prefira a composição à herança, favorecendo modularidade, reutilização e legibilidade.
+
+4. **Nomenclatura Significativa**  
+   Use nomes como `isUserLoggedIn`, `userPermissions`, `fetchData()` para transmitir claramente a intenção do código.
+
+5. **Nomenclatura de Arquivos**  
+   Utilize **kebab-case** com sufixos padrão Angular (`.component.ts`, `.service.ts`, etc.).
+
+## Boas Práticas Angular e TypeScript
+
+- **Tipagem Estrita com Interfaces**  
+  Modele dados com `interface` para garantir segurança de tipo e facilitar refatorações.
+
+- **Evite `any`**  
+  Use sempre o sistema de tipos do TypeScript para garantir robustez.
+
+- **Estrutura de Código Organizada**  
+  Imports no topo, seguidos de definição de classe, propriedades, métodos e exportações.
+
+- **Operadores Modernos**  
+  Use `?.` (encadeamento opcional) e `??` (coalescência nula) para evitar erros comuns com `null`/`undefined`.
+
+- **Componentes Standalone**  
+  Use componentes standalone quando aplicável para reduzir dependências de módulos.
+
+- **Signals para Estado Reativo**  
+  Utilize **signals** do Angular para gerenciamento eficiente de estado e melhor desempenho de renderização.
+
+- **Injeção Direta com `inject`**  
+  Utilize `inject()` ao invés de construtores sempre que possível para reduzir boilerplate.
+
+## Convenções de Arquivo
+
+- `*.component.ts` – Componentes  
+- `*.service.ts` – Serviços  
+- `*.module.ts` – Módulos  
+- `*.directive.ts` – Diretivas  
+- `*.pipe.ts` – Pipes  
+- `*.spec.ts` – Testes  
+- **Todos os arquivos** devem estar em `kebab-case`.
+
+## Padrões de Código
+
+- Strings com **aspas simples** (`'`)
+- **Indentação de 2 espaços**
+- Sem espaços finais ou variáveis não utilizadas
+- Use `const` sempre que possível
+- Use **template literals** para interpolação de strings
+
+## Diretrizes Específicas do Angular
+
+- Use `async` pipe em templates para `Observable`s
+- Aplique **lazy loading** em módulos de funcionalidades
+- Siga práticas de **acessibilidade** (HTML semântico e ARIA)
+- Use `NgOptimizedImage` para imagens rápidas e seguras
+- Implemente **deferrable views** para atrasar a renderização de elementos não essenciais
+
+## Ordem de Imports
+
+1. Módulos do Angular (`@angular/core`, `@angular/common`)
+2. RxJS (`rxjs`)
+3. Módulos Angular específicos (`FormsModule`, `HttpClientModule`)
+4. Módulos core da aplicação
+5. Módulos compartilhados
+6. Imports de ambiente (`environment.ts`)
+7. Imports relativos
+
+## Tratamento de Erros e Validação
+
+- Use tratamento robusto de erros com **tipos personalizados** ou **error factories**
+- Aplique **validações reativas ou personalizadas** usando o sistema de formulários Angular
+
+## Qualidade de Código e Testes
+
+- Siga o padrão **Arrange-Act-Assert** em testes
+- Mantenha alta cobertura de testes em serviços, componentes e utilitários
+- Use `trackBy` em `*ngFor` para listas performáticas
+- Prefira **pipes puros** para operações pesadas e determinísticas
+
+## Boas Práticas de Segurança
+
+- Evite `innerHTML` e confie no **saneamento nativo do Angular**
+- Sanitize dinamicamente qualquer conteúdo externo com `DomSanitizer` quando necessário
+
+## Otimização de Performance
+
+- Reduza re-renderizações com **signals**
+- Use `NgOptimizedImage` para imagens
+- Prefira renderizações condicionais e deferral quando possível
+
+## Princípios Arquiteturais
+
+- Utilize injeção de dependência com `inject()` para consistência
+- Priorize reuso, modularidade e clareza
+- Otimize para **Web Vitals**: LCP, INP, CLS
+
+## Referência
+
+Consulte a [documentação oficial do Angular](https://angular.io) para decisões, exemplos e atualizações de boas práticas.
