@@ -11,11 +11,11 @@ alwaysApply: false
 
 ---
 
-# Regra: Geração de Lista de Tarefas a partir de um PRD
+# Regra: Geração de Lista de Tarefas a partir de um PRD e a arquitetura do projeto
 
 ## Objetivo
 
-Orientar um assistente de IA na criação de uma lista de tarefas detalhada e passo a passo, em formato Markdown, com base em um Documento de Requisitos de Produto (PRD) existente. A lista de tarefas deve orientar um desenvolvedor durante a implementação.
+Orientar um assistente de IA na criação de uma lista de tarefas detalhada e passo a passo, em formato Markdown, com base em um Documento de Requisitos de Produto (PRD) e a arquitetura do projeto existente. A lista de tarefas deve orientar um desenvolvedor durante a implementação.
 
 ## Saída Esperada
 
