@@ -1,0 +1,21 @@
+id,part_number,description,manufacturer,unit_cost,stock_quantity,minimum_stock,lead_time_days
+SP-001,BCH-138-25A,Bucha de Passagem 138kV 25A,ABB,12500.00,4,2,45
+SP-002,VLV-SF6-145,Válvula de SF6 para Disjuntor 145kV,Schneider Electric,2800.00,8,3,30
+SP-003,CTT-500A-15KV,Conjunto de Contatos 500A 15kV,Siemens,4200.00,12,5,21
+SP-004,OIL-TR-MINERAL,Óleo Mineral Isolante para Transformador,Shell,180.00,150,50,7
+SP-005,VED-NBR-EPDM,Vedação EPDM para Tanque de Transformador,Nacional,45.00,80,20,14
+SP-006,VAR-144KV-10KA,Varistor de ZnO 144kV 10kA,Balestro,3500.00,6,2,60
+SP-007,ROL-VENTILADOR,Rolamento para Ventilador de Transformador,SKF,320.00,25,10,15
+SP-008,FIL-SF6-DESSEC,Filtro Dessecante para Sistema SF6,WEG,890.00,15,5,28
+SP-009,ISO-72KV-POLI,Isolador Polimérico 72kV,Balestro,650.00,30,10,35
+SP-010,CTR-HIDRAULICO,Cilindro Hidráulico para Disjuntor,Parker,5600.00,3,1,42
+SP-011,CAB-COMANDO-16MM,Cabo de Comando 16mm² Flexível,Nexans,25.00,500,100,10
+SP-012,REL-SOBRECORR,Relé de Sobrecorrente Digital,SEL,8900.00,2,1,75
+SP-013,TER-BI-METALICO,Terminal Bimetálico Cu-Al 240mm²,Burndy,180.00,40,15,12
+SP-014,MAN-PRESSAO-SF6,Manômetro de Pressão SF6,Wika,1200.00,8,3,25
+SP-015,GAS-SF6-PURO,Gás SF6 Puro em Cilindro 50kg,Air Liquide,2800.00,10,3,14
+SP-016,LUB-MECAN-GRAF,Lubrificante Grafitado para Seccionadoras,Mobil,85.00,25,8,7
+SP-017,PAR-MOTOR-VENT,Par de Escovas para Motor de Ventilador,Carbon,45.00,60,20,21
+SP-018,KIT-VED-DJ-SF6,Kit de Vedações para Disjuntor SF6,Freudenberg,1250.00,5,2,35
+SP-019,TRA-COMANDO-12V,Transformador de Comando 220/12V,Romagnole,350.00,8,3,18
+SP-020,CAP-TRIP-125VDC,Capacitor de Trip 125VDC,Cornell Dubilier,420.00,15,5,30 
