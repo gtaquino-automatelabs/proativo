@@ -1,0 +1,16 @@
+id,equipment_id,tipo,data_programada,data_inicio,data_fim,status,prioridade,descricao,responsavel,responsavel_email,custo,tempo_estimado_horas,tempo_real_horas,observacoes
+MNT-0001,TR-0001,PREVENTIVA,2024-01-15,2024-01-15,2024-01-16,CONCLUIDA,ALTA,Manutenção preventiva anual do transformador principal,João Silva,joao.silva@empresa.com,15000.00,24,20,Trocado óleo isolante e realizado ensaios dielétricos
+MNT-0002,DJ-0001,PREVENTIVA,2024-02-10,2024-02-10,2024-02-10,CONCLUIDA,MEDIA,Inspeção e limpeza de contatos do disjuntor,Maria Santos,maria.santos@empresa.com,3500.00,8,6,Contatos em bom estado. Realizada limpeza preventiva
+MNT-0003,TR-0001,CORRETIVA,2024-03-05,2024-03-05,2024-03-07,CONCLUIDA,CRITICA,Correção de vazamento de óleo no radiador,Pedro Costa,pedro.costa@empresa.com,8500.00,48,52,Substituído radiador danificado e recompletado óleo
+MNT-0004,CH-0001,PREVENTIVA,2024-03-20,2024-03-20,,EM_ANDAMENTO,BAIXA,Lubrificação de mecanismo de acionamento,Ana Oliveira,ana.oliveira@empresa.com,1200.00,4,,Manutenção em progresso
+MNT-0005,DJ-0002,PREVENTIVA,2024-04-15,,,PLANEJADA,MEDIA,Substituição preventiva de gaxetas e vedações,Carlos Lima,carlos.lima@empresa.com,4200.00,12,,Agendada conforme plano anual
+MNT-0006,PR-0001,PREDITIVA,2024-04-20,,,PLANEJADA,ALTA,Medição de corrente de fuga e resistência,Roberto Alves,roberto.alves@empresa.com,2800.00,6,,Monitoramento de degradação do para-raios
+MNT-0007,TR-0002,PREVENTIVA,2024-05-10,,,PLANEJADA,MEDIA,Análise físico-química do óleo isolante,João Silva,joao.silva@empresa.com,3200.00,8,,Análise anual programada
+MNT-0008,CP-0001,CORRETIVA,2024-01-25,2024-01-25,2024-01-26,CONCLUIDA,ALTA,Substituição de unidades capacitivas queimadas,Maria Santos,maria.santos@empresa.com,12000.00,16,18,Substituídas 3 unidades capacitivas danificadas
+MNT-0009,RT-0001,PREVENTIVA,2024-06-15,,,PLANEJADA,BAIXA,Termografia e análise de vibrações,Pedro Costa,pedro.costa@empresa.com,2500.00,6,,Inspeção termográfica preventiva
+MNT-0010,RG-0001,PREVENTIVA,2024-02-28,2024-02-28,2024-03-01,CONCLUIDA,MEDIA,Teste de comutação sob carga e ajuste de taps,Ana Oliveira,ana.oliveira@empresa.com,4800.00,16,14,Todos os taps testados e funcionando corretamente
+MNT-0011,DJ-0003,EMERGENCIAL,2024-03-12,2024-03-12,2024-03-13,CONCLUIDA,CRITICA,Falha no mecanismo de acionamento,Carlos Lima,carlos.lima@empresa.com,9500.00,24,28,Substituído motor de acionamento e realinhado mecanismo
+MNT-0012,TR-0003,PREVENTIVA,2024-07-20,,,PLANEJADA,MEDIA,Ensaio de relação de transformação e resistência,Roberto Alves,roberto.alves@empresa.com,3800.00,10,,Ensaios elétricos programados
+MNT-0013,MD-0001,PREVENTIVA,2024-01-30,2024-01-30,2024-01-30,CONCLUIDA,BAIXA,Atualização de firmware e calibração,João Silva,joao.silva@empresa.com,1500.00,4,3,Firmware atualizado para versão 2.5.1
+MNT-0014,TR-0001,PREDITIVA,2024-08-10,,,PLANEJADA,ALTA,Análise de gases dissolvidos no óleo (DGA),Maria Santos,maria.santos@empresa.com,4500.00,8,,Monitoramento de condição do transformador
+MNT-0015,DJ-0001,PREVENTIVA,2024-09-05,,,ADIADA,MEDIA,Substituição de kit de vedação,Pedro Costa,pedro.costa@empresa.com,3200.00,10,,Adiada devido a indisponibilidade de peças

@@ -51,17 +51,17 @@
   - [x] 1.6 Criar arquivo README.md com instruções de setup e execução
   - [x] 1.7 Configurar estrutura de logging básica (src/utils/logger.py)
 
-- [ ] 2.0 Implementar Camada de Dados e Pipeline ETL
-  - [ ] 2.1 Configurar conexão com PostgreSQL usando SQLAlchemy async (src/database/connection.py)
-  - [ ] 2.2 Definir modelos SQLAlchemy para equipamentos, manutenções e histórico (src/database/models.py)
-  - [ ] 2.3 Implementar repositories usando padrão Repository (src/database/repositories.py)
-  - [ ] 2.4 Criar processador para arquivos CSV usando Pandas (src/etl/processors/csv_processor.py)
-  - [ ] 2.5 Criar processador para arquivos XML (src/etl/processors/xml_processor.py)
-  - [ ] 2.6 Criar processador para arquivos XLSX usando OpenPyXL (src/etl/processors/xlsx_processor.py)
-  - [ ] 2.7 Implementar classe principal do pipeline ETL (src/etl/data_processor.py)
-  - [ ] 2.8 Criar orquestrador de ingestão automatizada (src/etl/data_ingestion.py)
-  - [ ] 2.9 Implementar validações de integridade de dados (src/utils/validators.py)
-  - [ ] 2.10 Criar dados de exemplo para testes (data/samples/)
+- [x] 2.0 Implementar Camada de Dados e Pipeline ETL
+  - [x] 2.1 Configurar conexão com PostgreSQL usando SQLAlchemy async (src/database/connection.py)
+  - [x] 2.2 Definir modelos SQLAlchemy para equipamentos, manutenções e histórico (src/database/models.py)
+  - [x] 2.3 Implementar repositories usando padrão Repository (src/database/repositories.py)
+  - [x] 2.4 Criar processador para arquivos CSV usando Pandas (src/etl/processors/csv_processor.py)
+  - [x] 2.5 Criar processador para arquivos XML (src/etl/processors/xml_processor.py)
+  - [x] 2.6 Criar processador para arquivos XLSX usando OpenPyXL (src/etl/processors/xlsx_processor.py)
+  - [x] 2.7 Implementar classe principal do pipeline ETL (src/etl/data_processor.py)
+  - [x] 2.8 Criar orquestrador de ingestão automatizada (src/etl/data_ingestion.py)
+  - [x] 2.9 Implementar validações de integridade de dados (src/utils/validators.py)
+  - [x] 2.10 Criar dados de exemplo para testes (data/samples/)
 
 - [ ] 3.0 Desenvolver API Backend com FastAPI
   - [ ] 3.1 Configurar aplicação FastAPI principal com CORS e middleware (src/api/main.py)

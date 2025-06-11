@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<equipamentos>
+    <equipamento>
+        <id>TR-0004</id>
+        <tipo>TRANSFORMADOR</tipo>
+        <nome>Transformador Auxiliar SE-SUL</nome>
+        <fabricante>Toshiba</fabricante>
+        <modelo>TTR-69-10</modelo>
+        <numero_serie>TSH2022001</numero_serie>
+        <data_instalacao>2022-05-20</data_instalacao>
+        <data_fabricacao>2022-03-01</data_fabricacao>
+        <especificacoes>
+            <tensao_nominal>69</tensao_nominal>
+            <potencia_nominal>10</potencia_nominal>
+            <corrente_nominal>83.67</corrente_nominal>
+        </especificacoes>
+        <localizacao>
+            <subestacao>SE-SUL</subestacao>
+            <bay>BAY-AUX</bay>
+            <latitude>-23.6505</latitude>
+            <longitude>-46.7333</longitude>
+        </localizacao>
+        <status>OPERACIONAL</status>
+        <observacoes>Transformador auxiliar para serviços da subestação</observacoes>
+    </equipamento>
+    
+    <equipamento>
+        <id>DJ-0004</id>
+        <tipo>DISJUNTOR</tipo>
+        <nome>Disjuntor 69kV Alimentador 01</nome>
+        <fabricante>Schneider</fabricante>
+        <modelo>GL312F</modelo>
+        <numero_serie>SCH2022D001</numero_serie>
+        <data_instalacao>2022-06-15</data_instalacao>
+        <data_fabricacao>2022-04-10</data_fabricacao>
+        <especificacoes>
+            <tensao_nominal>72.5</tensao_nominal>
+            <corrente_nominal>1250</corrente_nominal>
+        </especificacoes>
+        <localizacao>
+            <subestacao>SE-SUL</subestacao>
+            <bay>AL-01</bay>
+            <latitude>-23.6507</latitude>
+            <longitude>-46.7335</longitude>
+        </localizacao>
+        <status>OPERACIONAL</status>
+        <observacoes>Disjuntor de média tensão a vácuo</observacoes>
+    </equipamento>
+    
+    <equipamento>
+        <id>TC-0001</id>
+        <tipo>OUTROS</tipo>
+        <nome>TC Medição 500kV Fase A</nome>
+        <fabricante>ABB</fabricante>
+        <modelo>IMB-550</modelo>
+        <numero_serie>ABB2022TC001</numero_serie>
+        <data_instalacao>2022-07-10</data_instalacao>
+        <data_fabricacao>2022-05-15</data_fabricacao>
+        <especificacoes>
+            <tensao_nominal>550</tensao_nominal>
+            <relacao>2000-1</relacao>
+            <classe_exatidao>0.2</classe_exatidao>
+        </especificacoes>
+        <localizacao>
+            <subestacao>SE-CENTRO</subestacao>
+            <bay>BAY-01</bay>
+            <latitude>-23.5506</latitude>
+            <longitude>-46.6334</longitude>
+        </localizacao>
+        <status>OPERACIONAL</status>
+        <observacoes>Transformador de corrente para medição de faturamento</observacoes>
+    </equipamento>
+    
+    <equipamento>
+        <id>TP-0001</id>
+        <tipo>OUTROS</tipo>
+        <nome>TP Medição 500kV</nome>
+        <fabricante>Siemens</fabricante>
+        <modelo>4MR12</modelo>
+        <numero_serie>SIE2022TP001</numero_serie>
+        <data_instalacao>2022-07-10</data_instalacao>
+        <data_fabricacao>2022-05-20</data_fabricacao>
+        <especificacoes>
+            <tensao_nominal>550</tensao_nominal>
+            <relacao>500000-115</relacao>
+            <classe_exatidao>0.2</classe_exatidao>
+        </especificacoes>
+        <localizacao>
+            <subestacao>SE-CENTRO</subestacao>
+            <bay>BAY-01</bay>
+            <latitude>-23.5506</latitude>
+            <longitude>-46.6335</longitude>
+        </localizacao>
+        <status>OPERACIONAL</status>
+        <observacoes>Transformador de potencial capacitivo</observacoes>
+    </equipamento>
+    
+    <equipamento>
+        <id>BC-0001</id>
+        <tipo>CAPACITOR</tipo>
+        <nome>Banco Capacitor 34.5kV</nome>
+        <fabricante>Lifasa</fabricante>
+        <modelo>SAH-375</modelo>
+        <numero_serie>LIF2021001</numero_serie>
+        <data_instalacao>2021-09-25</data_instalacao>
+        <data_fabricacao>2021-07-10</data_fabricacao>
+        <especificacoes>
+            <tensao_nominal>34.5</tensao_nominal>
+            <potencia_nominal>15</potencia_nominal>
+            <capacitancia>375</capacitancia>
+        </especificacoes>
+        <localizacao>
+            <subestacao>SE-LESTE</subestacao>
+            <bay>BC-01</bay>
+            <latitude>-23.5605</latitude>
+            <longitude>-46.5333</longitude>
+        </localizacao>
+        <status>OPERACIONAL</status>
+        <observacoes>Banco de capacitores automático com controlador de fator de potência</observacoes>
+    </equipamento>
+</equipamentos>
