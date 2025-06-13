@@ -1,0 +1,36 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+
+# ================================
+# PROAtivo - Cursor IDE Ignore Rules (Simplificado)
+# ================================
+
+# ---- Segurança: Credenciais e Secrets ----
+.env
+.env.*
+*.key
+*.pem
+secrets/
+credentials/
+
+# ---- Python Cache ----
+__pycache__/
+*.pyc
+*.pyo
+
+# ---- Logs ----
+logs/
+*.log
+
+# ---- Dados Temporários ----
+data/uploads/
+data/temp/
+temp_files/
+
+# ---- Ambientes Virtuais ----
+venv/
+.venv/
+env/
+
+# ---- IDEs ----
+.DS_Store
+Thumbs.db

@@ -5,6 +5,7 @@
 - `proativo/src/database/models.py` - Modelos SQLAlchemy para equipamentos, manutenções e histórico de dados
 - `proativo/src/database/connection.py` - Configuração de conexão com PostgreSQL usando SQLAlchemy async
 - `proativo/src/database/repositories.py` - Padrão Repository para acesso aos dados de equipamentos e manutenções
+- `proativo/src/etl/exceptions.py` - Exceções customizadas para processamento ETL
 - `proativo/src/etl/data_processor.py` - Classe principal do pipeline ETL para processamento de planilhas
 - `proativo/src/etl/data_ingestion.py` - Orquestrador da ingestão automatizada de dados
 - `proativo/src/etl/processors/csv_processor.py` - Processador específico para arquivos CSV usando Pandas
@@ -31,6 +32,9 @@
 - `proativo/tests/integration/test_api_endpoints.py` - Testes de integração para endpoints da API
 - `proativo/tests/integration/test_etl_pipeline.py` - Testes de integração para pipeline ETL
 - `proativo/data/samples/` - Dados de exemplo para testes (CSV, XML, XLSX)
+- `proativo/data/samples/equipment.xml` - Dados de exemplo de equipamentos em formato XML
+- `proativo/data/samples/maintenance_orders.xml` - Dados de exemplo de ordens de manutenção em formato XML
+- `proativo/data/samples/electrical_assets.xlsx` - Dados de exemplo de equipamentos e manutenções em formato XLSX
 
 ### Observações
 
@@ -51,17 +55,17 @@
   - [x] 1.6 Criar arquivo README.md com instruções de setup e execução
   - [x] 1.7 Configurar estrutura de logging básica (src/utils/logger.py)
 
-- [ ] 2.0 Implementar Camada de Dados e Pipeline ETL
-  - [ ] 2.1 Configurar conexão com PostgreSQL usando SQLAlchemy async (src/database/connection.py)
-  - [ ] 2.2 Definir modelos SQLAlchemy para equipamentos, manutenções e histórico (src/database/models.py)
-  - [ ] 2.3 Implementar repositories usando padrão Repository (src/database/repositories.py)
-  - [ ] 2.4 Criar processador para arquivos CSV usando Pandas (src/etl/processors/csv_processor.py)
-  - [ ] 2.5 Criar processador para arquivos XML (src/etl/processors/xml_processor.py)
-  - [ ] 2.6 Criar processador para arquivos XLSX usando OpenPyXL (src/etl/processors/xlsx_processor.py)
-  - [ ] 2.7 Implementar classe principal do pipeline ETL (src/etl/data_processor.py)
-  - [ ] 2.8 Criar orquestrador de ingestão automatizada (src/etl/data_ingestion.py)
-  - [ ] 2.9 Implementar validações de integridade de dados (src/utils/validators.py)
-  - [ ] 2.10 Criar dados de exemplo para testes (data/samples/)
+- [x] 2.0 Implementar Camada de Dados e Pipeline ETL
+  - [x] 2.1 Configurar conexão com PostgreSQL usando SQLAlchemy async (src/database/connection.py)
+  - [x] 2.2 Definir modelos SQLAlchemy para equipamentos, manutenções e histórico (src/database/models.py)
+  - [x] 2.3 Implementar repositories usando padrão Repository (src/database/repositories.py)
+  - [x] 2.4 Criar processador para arquivos CSV usando Pandas (src/etl/processors/csv_processor.py)
+  - [x] 2.5 Criar processador para arquivos XML (src/etl/processors/xml_processor.py)
+  - [x] 2.6 Criar processador para arquivos XLSX usando OpenPyXL (src/etl/processors/xlsx_processor.py)
+  - [x] 2.7 Implementar validações de integridade de dados (src/utils/validators.py)
+  - [x] 2.8 Implementar classe principal do pipeline ETL (src/etl/data_processor.py)
+  - [x] 2.9 Criar orquestrador de ingestão automatizada (src/etl/data_ingestion.py)
+  - [x] 2.10 Criar dados de exemplo para testes (data/samples/)
 
 - [ ] 3.0 Desenvolver API Backend com FastAPI
   - [ ] 3.1 Configurar aplicação FastAPI principal com CORS e middleware (src/api/main.py)

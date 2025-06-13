@@ -1,0 +1,16 @@
+id,equipment_id,incident_number,occurrence_date,failure_type,root_cause,impact_level,downtime_hours,affected_customers,resolution_description,lessons_learned
+INC-001,TR-002,INC-2024-001,2024-02-03 14:25:00,Falha de Isolação,Sobretensão atmosférica,Alto,26.5,12500,Substituição de buchas danificadas e revisão do sistema de para-raios,Necessário melhorar proteção contra descargas atmosféricas
+INC-002,DJ-002,INC-2024-002,2024-03-21 16:45:00,Falha de Operação,Desgaste de contatos,Médio,12.0,3200,Substituição de câmara de extinção e ajuste de mecanismo,Reduzir intervalo de inspeção de contatos principais
+INC-003,TR-005,INC-2024-003,2024-06-11 15:30:00,Vazamento de Óleo,Deterioração de vedação,Alto,38.0,18700,Reparo completo do tanque e substituição de vedações,Implementar monitoramento contínuo de nível de óleo
+INC-004,SC-003,INC-2024-004,2024-09-04 12:15:00,Dano Físico,Vandalismo,Baixo,7.0,850,Substituição de isoladores e reforço de segurança,Aumentar vigilância em áreas vulneráveis
+INC-005,TR-008,INC-2024-005,2024-11-14 18:20:00,Falha Térmica,Falha no sistema de refrigeração,Alto,72.0,22000,Reparo do sistema de ventilação forçada,Revisar programa de manutenção de sistemas auxiliares
+INC-006,DJ-001,INC-2024-006,2024-04-10 09:30:00,Perda de SF6,Microvasamento em válvula,Médio,4.5,2100,Reposição de gás SF6 e troca de válvula defeituosa,Implementar sistema de monitoramento de pressão
+INC-007,PR-001,INC-2024-007,2024-07-22 02:15:00,Falha de Proteção,Degradação de varistor,Baixo,1.0,0,Substituição preventiva do conjunto de varistores,Reduzir tempo entre inspeções termográficas
+INC-008,TR-003,INC-2024-008,2024-05-15 11:45:00,Sobrecarga,Demanda acima da capacidade,Médio,8.0,5600,Redistribuição de carga e análise de crescimento,Revisar previsão de demanda e capacidade instalada
+INC-009,DJ-004,INC-2024-009,2024-08-03 14:20:00,Falha de Comando,Problema em circuito de controle,Baixo,3.0,1200,Reparo de fiação de comando e teste funcional,Melhorar proteção de circuitos auxiliares
+INC-010,SC-001,INC-2024-010,2024-06-28 16:50:00,Travamento,Corrosão em mecanismo,Baixo,2.5,0,Limpeza e lubrificação do mecanismo de acionamento,Aumentar frequência de lubrificação preventiva
+INC-011,TR-006,INC-2024-011,2024-03-18 08:30:00,Ruído Anormal,Afrouxamento de núcleo,Baixo,0.5,0,Reaperto de parafusos de fixação do núcleo,Incluir verificação de torque na manutenção preventiva
+INC-012,DJ-005,INC-2024-012,2024-09-12 13:15:00,Aquecimento,Conexão defeituosa,Médio,6.0,3800,Reaperto de conexões e substituição de terminais,Implementar inspeção termográfica mais frequente
+INC-013,PR-002,INC-2024-013,2024-10-05 19:45:00,Flashover,Contaminação de isolador,Baixo,1.5,450,Limpeza de isoladores e aplicação de RTV,Estabelecer programa de limpeza baseado em poluição
+INC-014,TR-007,INC-2024-014,2024-08-20 22:10:00,Vibração,Desbalanceamento de ventilador,Baixo,0.0,0,Balanceamento do ventilador e troca de rolamentos,Incluir análise de vibração na manutenção preditiva
+INC-015,DJ-006,INC-2024-015,2024-12-02 07:40:00,Falha na Abertura,Problema hidráulico,Alto,18.0,8900,Revisão completa do sistema hidráulico,Revisar especificações de óleo hidráulico para clima local 
