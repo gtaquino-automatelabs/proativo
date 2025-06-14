@@ -12,7 +12,7 @@
 - `proativo/src/etl/processors/xml_processor.py` - Processador específico para arquivos XML
 - `proativo/src/etl/processors/xlsx_processor.py` - Processador específico para arquivos Excel usando OpenPyXL
 - `proativo/src/api/main.py` - Aplicação principal FastAPI com configuração de CORS e middleware
-- `proativo/src/api/endpoints/chat.py` - Endpoint principal para processamento de consultas em linguagem natural
+- `src/api/endpoints/chat.py` - Endpoint principal para processamento de consultas em linguagem natural com mock de LLM funcional
 - `proativo/src/api/endpoints/health.py` - Endpoint de health check para monitoramento
 - `proativo/src/api/services/llm_service.py` - Integração com Google Gemini 2.5 Flash API
 - `proativo/src/api/services/rag_service.py` - Implementação da técnica RAG para recuperação de contexto
@@ -21,8 +21,12 @@
 - `proativo/src/frontend/components/chat_interface.py` - Componente de interface de chat com histórico de sessão
 - `proativo/src/frontend/components/feedback.py` - Sistema de avaliação com botões 👍/👎
 - `proativo/src/utils/validators.py` - Validações de dados de entrada e queries SQL
-- `proativo/src/utils/error_handlers.py` - Tratamento centralizado de erros e exceções
+- `proativo/src/utils/error_handlers.py` - Sistema completo de tratamento centralizado de erros com hierarquia de exceções customizadas e handlers FastAPI
 - `proativo/src/utils/logger.py` - Configuração de logging estruturado
+- `proativo/src/api/config.py` - Configuração centralizada com Pydantic BaseSettings para todas as configurações do sistema
+- `proativo/src/api/dependencies.py` - Sistema de injeção de dependências com funções para criar e gerenciar services e repositories automaticamente
+- `proativo/src/api/models/chat.py` - Modelos Pydantic V2 para chat, feedback e comunicação com IA incluindo validações e tipos de dados estruturados
+- `proativo/src/api/endpoints/feedback.py` - Sistema completo de feedback com avaliações 👍/👎, comentários e análise de estatísticas
 - `proativo/requirements.txt` - Dependências Python com versões específicas
 - `proativo/docker-compose.yml` - Configuração Docker para PostgreSQL e aplicação
 - `proativo/Dockerfile` - Imagem Docker da aplicação Python
@@ -35,6 +39,7 @@
 - `proativo/data/samples/equipment.xml` - Dados de exemplo de equipamentos em formato XML
 - `proativo/data/samples/maintenance_orders.xml` - Dados de exemplo de ordens de manutenção em formato XML
 - `proativo/data/samples/electrical_assets.xlsx` - Dados de exemplo de equipamentos e manutenções em formato XLSX
+- `proativo/docs/sistema-tratamento-erros.md` - Documentação em linguagem simples sobre o sistema de tratamento de erros
 
 ### Observações
 
@@ -67,15 +72,15 @@
   - [x] 2.9 Criar orquestrador de ingestão automatizada (src/etl/data_ingestion.py)
   - [x] 2.10 Criar dados de exemplo para testes (data/samples/)
 
-- [ ] 3.0 Desenvolver API Backend com FastAPI
-  - [ ] 3.1 Configurar aplicação FastAPI principal com CORS e middleware (src/api/main.py)
-  - [ ] 3.2 Criar endpoint de health check (src/api/endpoints/health.py)
-  - [ ] 3.3 Implementar tratamento centralizado de erros (src/utils/error_handlers.py)
-  - [ ] 3.4 Configurar injeção de dependência para services e repositories
-  - [ ] 3.5 Criar modelos Pydantic para request/response de chat
-  - [ ] 3.6 Implementar endpoint principal de chat (src/api/endpoints/chat.py)
-  - [ ] 3.7 Configurar logging estruturado e middleware de tempo de resposta
-  - [ ] 3.8 Criar endpoint para feedback de usuários
+- [x] 3.0 Desenvolver API Backend com FastAPI
+  - [x] 3.1 Configurar aplicação FastAPI principal com CORS e middleware (src/api/main.py)
+  - [x] 3.2 Criar endpoint de health check (src/api/endpoints/health.py)
+  - [x] 3.3 Implementar tratamento centralizado de erros (src/utils/error_handlers.py)
+  - [x] 3.4 Configurar injeção de dependência para services e repositories
+  - [x] 3.5 Criar modelos Pydantic para request/response de chat
+  - [x] 3.6 Implementar endpoint principal de chat (src/api/endpoints/chat.py)
+  - [x] 3.7 Configurar logging estruturado e middleware de tempo de resposta
+  - [x] 3.8 Criar endpoint para feedback de usuários
 
 - [ ] 4.0 Integrar Serviços de IA (LLM + RAG)
   - [ ] 4.1 Implementar service para integração com Google Gemini API (src/api/services/llm_service.py)
