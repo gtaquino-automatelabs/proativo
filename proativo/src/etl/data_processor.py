@@ -65,11 +65,11 @@ class DataProcessor:
             'errors': []
         }
     
-    def detect_file_format(self, file_path: Path) -> FileFormat:
+    def detect_file_format(self, file_path: Union[str, Path]) -> FileFormat:
         """Detecta o formato do arquivo baseado na extensão.
         
         Args:
-            file_path: Caminho para o arquivo
+            file_path: Caminho para o arquivo (string ou Path)
             
         Returns:
             Formato detectado
@@ -77,6 +77,10 @@ class DataProcessor:
         Raises:
             FileFormatError: Se o formato não for suportado
         """
+        # Converte para Path se for string
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
+            
         extension = file_path.suffix.lower()
         
         format_map = {
@@ -91,16 +95,20 @@ class DataProcessor:
         
         return format_map[extension]
     
-    def detect_data_type(self, file_path: Path, file_format: FileFormat) -> DataType:
+    def detect_data_type(self, file_path: Union[str, Path], file_format: FileFormat) -> DataType:
         """Detecta o tipo de dados baseado no nome do arquivo e conteúdo.
         
         Args:
-            file_path: Caminho para o arquivo
+            file_path: Caminho para o arquivo (string ou Path)
             file_format: Formato do arquivo
             
         Returns:
             Tipo de dados detectado
         """
+        # Converte para Path se for string
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
+            
         filename_lower = file_path.name.lower()
         
         # Palavras-chave para equipamentos
@@ -133,18 +141,22 @@ class DataProcessor:
         logger.info(f"Tipo de dados não detectado para {file_path}, assumindo equipamentos")
         return DataType.EQUIPMENT
     
-    def process_file(self, file_path: Path, data_type: DataType = None, 
+    def process_file(self, file_path: Union[str, Path], data_type: DataType = None, 
                      file_format: FileFormat = None) -> Tuple[List[Dict[str, Any]], List[str]]:
         """Processa um arquivo de dados.
         
         Args:
-            file_path: Caminho para o arquivo
+            file_path: Caminho para o arquivo (string ou Path)
             data_type: Tipo de dados (auto-detectado se None)
             file_format: Formato do arquivo (auto-detectado se None)
             
         Returns:
             Tupla com (registros_processados, lista_de_erros)
         """
+        # Converte para Path se for string
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
+            
         if not file_path.exists():
             raise FileNotFoundError(f"Arquivo não encontrado: {file_path}")
         
