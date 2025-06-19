@@ -9,20 +9,21 @@ import os
 import sys
 from pathlib import Path
 
-# Adicionar src ao path e configurar PYTHONPATH
+# Adicionar path do projeto (diretório pai para acessar src/)
 current_dir = Path(__file__).parent
-src_dir = current_dir / "src"
-sys.path.insert(0, str(src_dir))
+project_dir = current_dir.parent
+src_dir = project_dir / "src"
+sys.path.insert(0, str(project_dir))
 
 # Configurar PYTHONPATH para imports relativos
 os.environ['PYTHONPATH'] = str(src_dir)
 
 try:
-    from etl.processors.csv_processor import CSVProcessor
-    from etl.processors.xml_processor import XMLProcessor  
-    from etl.processors.xlsx_processor import XLSXProcessor
-    from etl.data_processor import DataProcessor, FileFormat, DataType
-    from utils.validators import DataValidator
+    from src.etl.processors.csv_processor import CSVProcessor
+    from src.etl.processors.xml_processor import XMLProcessor  
+    from src.etl.processors.xlsx_processor import XLSXProcessor
+    from src.etl.data_processor import DataProcessor, FileFormat, DataType
+    from src.utils.validators import DataValidator
 except ImportError as e:
     print(f"❌ Erro de importação: {e}")
     print(f"📂 Verificando estrutura de diretórios...")

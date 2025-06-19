@@ -12,9 +12,14 @@ Este script testa:
 import asyncio
 import time
 import json
+import sys
+from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
 import logging
+
+# Adicionar path do projeto (diretório pai para acessar src/)
+sys.path.append(str(Path(__file__).parent.parent))
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

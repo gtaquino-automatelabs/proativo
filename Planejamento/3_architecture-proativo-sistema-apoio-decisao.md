@@ -142,7 +142,9 @@ A arquitetura prioriza simplicidade e rapidez de desenvolvimento para um protót
 │   ├── SAP.csv
 │   └── /uploads
 ├── /scripts
-│   └── benchmark_pipeline.py
+│   ├── test_etl_pipeline.py
+│   ├── test_integration.py
+│   └── validate_system.py
 ├── /logs
 ├── /init-scripts
 ├── .env.example
@@ -210,6 +212,20 @@ A arquitetura prioriza simplicidade e rapidez de desenvolvimento para um protót
 **Prompt Templates (prompt_templates.py)**
 - **Responsabilidade:** Templates especializados por tipo de consulta
 - **Funcionalidades:** Prompts otimizados, contextualização, exemplos
+
+### Scripts Utilitários
+
+**Validate System (validate_system.py)**
+- **Responsabilidade:** Validação geral do sistema
+- **Funcionalidades:** Verificação de saúde dos serviços, testes básicos, diagnóstico
+
+**Test Integration (test_integration.py)**
+- **Responsabilidade:** Testes de integração simulados
+- **Funcionalidades:** Simulação end-to-end, métricas de performance, relatórios JSON
+
+**Test ETL Pipeline (test_etl_pipeline.py)**
+- **Responsabilidade:** Testes específicos do pipeline ETL
+- **Funcionalidades:** Validação de processadores, teste de formatos, tratamento de erros
 
 ### Diagrama de Componentes
 

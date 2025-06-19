@@ -9,8 +9,8 @@ import sys
 import traceback
 from pathlib import Path
 
-# Adicionar path do projeto
-sys.path.append(str(Path(__file__).parent))
+# Adicionar path do projeto (diretório pai para acessar src/)
+sys.path.append(str(Path(__file__).parent.parent))
 
 async def validate_imports():
     """Valida se todos os imports estão funcionando."""
