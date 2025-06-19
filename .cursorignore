@@ -5,8 +5,8 @@
 # ================================
 
 # ---- Segurança: Credenciais e Secrets ----
-.env
-.env.*
+# .env
+# .env.*
 *.key
 *.pem
 secrets/

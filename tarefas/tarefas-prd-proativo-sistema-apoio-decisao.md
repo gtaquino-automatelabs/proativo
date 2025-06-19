@@ -14,9 +14,9 @@
 - `proativo/src/api/main.py` - Aplicação principal FastAPI com configuração de CORS e middleware
 - `src/api/endpoints/chat.py` - Endpoint principal para processamento de consultas em linguagem natural com mock de LLM funcional
 - `proativo/src/api/endpoints/health.py` - Endpoint de health check para monitoramento
-- `proativo/src/api/services/llm_service.py` - Integração com Google Gemini 2.5 Flash API
+- `proativo/src/api/services/llm_service.py` - Integração completa com Google Gemini 2.5 Flash API incluindo cache, retry, validação, prompts estruturados e sistema automático de fallback
 - `proativo/src/api/services/rag_service.py` - Implementação da técnica RAG para recuperação de contexto
-- `proativo/src/api/services/query_processor.py` - Conversão de linguagem natural para SQL e validação
+- `proativo/src/api/services/query_processor.py` - Processador avançado de linguagem natural para SQL com análise de intenção, extração de entidades, geração segura de queries e sistema avançado de validação/sanitização SQL
 - `proativo/src/frontend/app.py` - Aplicação principal Streamlit para interface conversacional
 - `proativo/src/frontend/components/chat_interface.py` - Componente de interface de chat com histórico de sessão
 - `proativo/src/frontend/components/feedback.py` - Sistema de avaliação com botões 👍/👎
@@ -27,6 +27,10 @@
 - `proativo/src/api/dependencies.py` - Sistema de injeção de dependências com funções para criar e gerenciar services e repositories automaticamente
 - `proativo/src/api/models/chat.py` - Modelos Pydantic V2 para chat, feedback e comunicação com IA incluindo validações e tipos de dados estruturados
 - `proativo/src/api/endpoints/feedback.py` - Sistema completo de feedback com avaliações 👍/👎, comentários e análise de estatísticas
+- `src/api/services/fallback_service.py` - Sistema completo de fallback com validação de respostas, múltiplas estratégias, detecção de triggers e métricas de uso
+- `proativo/tests/unit/test_llm_service.py` - Testes unitários completos para o LLMService com 27 cenários de teste
+- `tests/unit/test_query_processor.py` - Suite completa de 30+ testes para o QueryProcessor cobrindo análise NL, geração SQL, validação de segurança e sanitização avançada
+- `src/api/services/prompt_templates.py` - Sistema especializado de templates de prompt com 7 tipos de consulta otimizados para equipamentos elétricos
 - `proativo/requirements.txt` - Dependências Python com versões específicas
 - `proativo/docker-compose.yml` - Configuração Docker para PostgreSQL e aplicação
 - `proativo/Dockerfile` - Imagem Docker da aplicação Python
@@ -40,6 +44,8 @@
 - `proativo/data/samples/maintenance_orders.xml` - Dados de exemplo de ordens de manutenção em formato XML
 - `proativo/data/samples/electrical_assets.xlsx` - Dados de exemplo de equipamentos e manutenções em formato XLSX
 - `proativo/docs/sistema-tratamento-erros.md` - Documentação em linguagem simples sobre o sistema de tratamento de erros
+- `proativo/docs/relatorio-camada-llm-proativo.md` - Relatório técnico completo sobre a arquitetura LLM com Google Gemini, sistema RAG, prompts e tools
+- `tests/unit/test_fallback_service.py` - Suite completa de testes para o sistema de fallback com 25+ cenários incluindo validação, geração de respostas e integração
 
 ### Observações
 
@@ -82,15 +88,16 @@
   - [x] 3.7 Configurar logging estruturado e middleware de tempo de resposta
   - [x] 3.8 Criar endpoint para feedback de usuários
 
-- [ ] 4.0 Integrar Serviços de IA (LLM + RAG)
-  - [ ] 4.1 Implementar service para integração com Google Gemini API (src/api/services/llm_service.py)
-  - [ ] 4.2 Criar processador que converte linguagem natural em SQL (src/api/services/query_processor.py)
-  - [ ] 4.3 Implementar sistema RAG para recuperação de contexto (src/api/services/rag_service.py)
-  - [ ] 4.4 Criar templates de prompt para diferentes tipos de consulta
-  - [ ] 4.5 Implementar validação e sanitização de queries SQL geradas
-  - [ ] 4.6 Criar sistema de fallback para quando LLM não consegue responder
-  - [ ] 4.7 Implementar cache básico para respostas similares
-  - [ ] 4.8 Configurar tratamento de timeout e retry para API externa
+- 🔄 4.0 Integrar Serviços de IA (LLM + RAG)
+  - [x] 4.1 Implementar service para integração com Google Gemini API
+  - [x] 4.2 Implementar RAG service para recuperação de contexto
+  - [x] 4.3 Criar sistema de prompts dinâmicos
+  - [x] 4.4 Implementar query processor avançado
+  - [x] 4.5 Sistema de validação e sanitização SQL
+  - [x] 4.6 Sistema de fallback para LLM
+  - [x] 4.7 Implementar cache básico para respostas similares
+  - [ ] 4.8 Testar integração completa com dados reais
+  - [ ] 4.9 Documentar arquitetura da camada de IA
 
 - [ ] 5.0 Criar Interface Frontend com Streamlit
   - [ ] 5.1 Configurar aplicação Streamlit principal (src/frontend/app.py)

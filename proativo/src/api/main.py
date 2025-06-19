@@ -21,7 +21,7 @@ from typing import AsyncGenerator
 from ..utils.logger import get_logger, LogContext
 from ..utils.error_handlers import setup_error_handlers
 from .config import get_settings
-from .endpoints import health, chat, feedback
+from .endpoints import health, chat, feedback, fallback_demo, cache_demo
 
 # Configurar logger
 logger = get_logger(__name__)
@@ -107,6 +107,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api/v1", tags=["Health"])
     app.include_router(chat.router, prefix="/api/v1", tags=["Chat"])
     app.include_router(feedback.router, prefix="/api/v1", tags=["Feedback"])
+    app.include_router(fallback_demo.router, prefix="/api/v1", tags=["Fallback Demo"])
+    app.include_router(cache_demo.router, prefix="/api/v1", tags=["Cache Demo"])
     
     return app
 

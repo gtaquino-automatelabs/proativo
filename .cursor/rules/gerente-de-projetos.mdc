@@ -1,12 +1,12 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 ```yaml
-description: 
+description: Regras para gerenciamento sequencial de listas de tarefas em markdown durante implementação de PRDs, com controle de progresso, protocolo de conclusão e aprovação do usuário entre subtarefas
 globs: 
-alwaysApply: false
+alwaysApply: true
 ```
 
 ---
@@ -17,7 +17,7 @@ Diretrizes para gerenciar listas de tarefas em arquivos markdown a fim de acompa
 
 ## Implementação das Tarefas
 
-- **Uma subtarefa por vez:** **NÃO** inicie a próxima subtarefa até perguntar ao usuário e ele responder “sim” ou "s".
+- **Uma subtarefa por vez:** **NÃO** inicie a próxima subtarefa até perguntar ao usuário e ele responder "sim" ou "s".
 - **Protocolo de conclusão:**  
   1. Ao concluir uma **subtarefa**, marque-a imediatamente como concluída alterando `[ ]` para `[x]`.  
   2. Se **todas** as subtarefas de uma tarefa principal estiverem com `[x]`, marque também a **tarefa principal** como concluída.  
@@ -29,7 +29,7 @@ Diretrizes para gerenciar listas de tarefas em arquivos markdown a fim de acompa
    - Marque tarefas e subtarefas como concluídas (`[x]`) conforme o protocolo acima.
    - Adicione novas tarefas conforme forem surgindo.
 
-2. **Mantenha a seção “Arquivos Relevantes”:**
+2. **Mantenha a seção "Arquivos Relevantes":**
    - Liste todos os arquivos criados ou modificados.
    - Dê a cada arquivo uma descrição de uma linha sobre sua finalidade.
 
@@ -42,6 +42,6 @@ Ao trabalhar com listas de tarefas, a IA deve:
    - Marcar cada **subtarefa** concluída com `[x]`.
    - Marcar a **tarefa principal** com `[x]` assim que **todas** as suas subtarefas estiverem `[x]`.
 3. Adicionar tarefas descobertas durante o processo.
-4. Manter a seção “Arquivos Relevantes” precisa e atualizada.
+4. Manter a seção "Arquivos Relevantes" precisa e atualizada.
 5. Antes de começar, verificar qual é a próxima subtarefa.
 6. Após implementar uma subtarefa, atualizar o arquivo e pausar aguardando a aprovação do usuário.
