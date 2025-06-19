@@ -73,11 +73,22 @@ A arquitetura prioriza simplicidade e rapidez de desenvolvimento para um protót
 │   ├── /api
 │   │   ├── /endpoints
 │   │   │   ├── chat.py
-│   │   │   └── health.py
+│   │   │   ├── health.py
+│   │   │   ├── cache_demo.py
+│   │   │   ├── fallback_demo.py
+│   │   │   └── feedback.py
 │   │   ├── /services
 │   │   │   ├── llm_service.py
 │   │   │   ├── rag_service.py
-│   │   │   └── query_processor.py
+│   │   │   ├── query_processor.py
+│   │   │   ├── cache_service.py
+│   │   │   ├── fallback_service.py
+│   │   │   ├── sql_validator.py
+│   │   │   └── prompt_templates.py
+│   │   ├── /models
+│   │   │   └── chat.py
+│   │   ├── config.py
+│   │   ├── dependencies.py
 │   │   └── main.py
 │   ├── /database
 │   │   ├── connection.py
@@ -86,6 +97,7 @@ A arquitetura prioriza simplicidade e rapidez de desenvolvimento para um protót
 │   ├── /etl
 │   │   ├── data_processor.py
 │   │   ├── data_ingestion.py
+│   │   ├── exceptions.py
 │   │   └── processors/
 │   │       ├── csv_processor.py
 │   │       ├── xml_processor.py
@@ -101,15 +113,51 @@ A arquitetura prioriza simplicidade e rapidez de desenvolvimento para um protót
 │       └── logger.py
 ├── /tests
 │   ├── /unit
+│   │   ├── test_llm_service.py
+│   │   ├── test_rag_service.py
+│   │   ├── test_query_processor.py
+│   │   ├── test_cache_service.py
+│   │   └── test_fallback_service.py
 │   ├── /integration
+│   │   └── test_complete_pipeline.py
 │   └── conftest.py
 ├── /docs
+│   ├── arquitetura-camada-ia-proativo.md
+│   ├── estrutura-banco-dados.md
+│   ├── llm-service-detalhado.md
+│   ├── pipeline-etl-explicacao-usuarios.md
+│   ├── relatorio-camada-llm-proativo.md
+│   └── sistema-tratamento-erros.md
 ├── /data
-│   └── /samples
+│   ├── /samples
+│   │   ├── electrical_assets.xlsx
+│   │   ├── equipment.csv
+│   │   ├── equipment.xml
+│   │   ├── failures_incidents.csv
+│   │   ├── maintenance_orders.csv
+│   │   ├── maintenance_orders.xml
+│   │   ├── maintenance_schedules.csv
+│   │   ├── spare_parts.csv
+│   │   └── equipment_spare_parts.csv
+│   ├── SAP.csv
+│   └── /uploads
+├── /scripts
+│   └── benchmark_pipeline.py
+├── /logs
+├── /init-scripts
 ├── .env.example
+├── .env
 ├── requirements.txt
+├── pyproject.toml
+├── uv.lock
 ├── docker-compose.yml
 ├── Dockerfile
+├── main.py
+├── test_config.py
+├── test_etl_pipeline.py
+├── test_integration.py
+├── validate_system.py
+├── integration_test_report.md
 └── README.md
 ```
 
@@ -127,11 +175,41 @@ A arquitetura prioriza simplicidade e rapidez de desenvolvimento para um protót
 
 **Service Layer**
 - **Responsabilidade:** Lógica de negócio, integração com IA
-- **Componentes:** LLM Service, RAG Service, Query Processor
+- **Componentes:** LLM Service, RAG Service, Query Processor, Cache Service, Fallback Service, SQL Validator, Prompt Templates
 
 **Data Layer**
 - **Responsabilidade:** Persistência, ETL, modelos de dados
 - **Componentes:** Repositories, Models, Data Processors
+
+### Serviços Implementados
+
+**LLM Service (llm_service.py)**
+- **Responsabilidade:** Integração com Google Gemini 2.5 Flash
+- **Funcionalidades:** Geração de respostas, validação, retry automático
+
+**RAG Service (rag_service.py)**
+- **Responsabilidade:** Recuperação de contexto relevante
+- **Funcionalidades:** Indexação de documentos, busca semântica, ranking
+
+**Query Processor (query_processor.py)**
+- **Responsabilidade:** Análise de linguagem natural
+- **Funcionalidades:** Identificação de intenções, geração de SQL, validação
+
+**Cache Service (cache_service.py)**
+- **Responsabilidade:** Cache inteligente de respostas
+- **Funcionalidades:** Normalização de queries, detecção de similaridade, TTL
+
+**Fallback Service (fallback_service.py)**
+- **Responsabilidade:** Respostas alternativas quando LLM falha
+- **Funcionalidades:** Detecção de problemas, templates de resposta, sugestões
+
+**SQL Validator (sql_validator.py)**
+- **Responsabilidade:** Validação e sanitização de SQL
+- **Funcionalidades:** Prevenção de injection, análise de complexidade, whitelisting
+
+**Prompt Templates (prompt_templates.py)**
+- **Responsabilidade:** Templates especializados por tipo de consulta
+- **Funcionalidades:** Prompts otimizados, contextualização, exemplos
 
 ### Diagrama de Componentes
 

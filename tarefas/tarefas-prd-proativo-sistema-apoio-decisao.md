@@ -45,6 +45,8 @@
 - `proativo/data/samples/electrical_assets.xlsx` - Dados de exemplo de equipamentos e manutenções em formato XLSX
 - `proativo/docs/sistema-tratamento-erros.md` - Documentação em linguagem simples sobre o sistema de tratamento de erros
 - `proativo/docs/relatorio-camada-llm-proativo.md` - Relatório técnico completo sobre a arquitetura LLM com Google Gemini, sistema RAG, prompts e tools
+- `proativo/docs/arquitetura-camada-ia-proativo.md` - Documentação completa da arquitetura de IA com diagramas, configurações e métricas
+- `proativo/docs/llm-service-detalhado.md` - Documentação técnica detalhada do LLMService com implementação Google Gemini
 - `tests/unit/test_fallback_service.py` - Suite completa de testes para o sistema de fallback com 25+ cenários incluindo validação, geração de respostas e integração
 
 ### Observações
@@ -88,7 +90,7 @@
   - [x] 3.7 Configurar logging estruturado e middleware de tempo de resposta
   - [x] 3.8 Criar endpoint para feedback de usuários
 
-- 🔄 4.0 Integrar Serviços de IA (LLM + RAG)
+- [x] 4.0 Integrar Serviços de IA (LLM + RAG)
   - [x] 4.1 Implementar service para integração com Google Gemini API
   - [x] 4.2 Implementar RAG service para recuperação de contexto
   - [x] 4.3 Criar sistema de prompts dinâmicos
@@ -96,8 +98,8 @@
   - [x] 4.5 Sistema de validação e sanitização SQL
   - [x] 4.6 Sistema de fallback para LLM
   - [x] 4.7 Implementar cache básico para respostas similares
-  - [ ] 4.8 Testar integração completa com dados reais
-  - [ ] 4.9 Documentar arquitetura da camada de IA
+  - [x] 4.8 Testar integração completa com dados reais
+  - [x] 4.9 Documentar arquitetura da camada de IA
 
 - [ ] 5.0 Criar Interface Frontend com Streamlit
   - [ ] 5.1 Configurar aplicação Streamlit principal (src/frontend/app.py)

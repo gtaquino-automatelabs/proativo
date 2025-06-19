@@ -7,7 +7,8 @@ identificação de intenções, geração de SQL seguro e validação.
 
 import re
 import json
-from typing import Dict, Any, List, Optional, Tuple, Union
+import sqlparse
+from typing import Dict, Any, List, Optional, Tuple, Union, Set
 from enum import Enum
 from dataclasses import dataclass
 import logging
@@ -57,6 +58,297 @@ class QueryAnalysis:
     explanation: str
 
 
+@dataclass
+class ValidationResult:
+    """Resultado da validação de uma query SQL."""
+    is_valid: bool
+    errors: List[str]
+    warnings: List[str]
+    sanitized_sql: str
+    risk_level: str  # low, medium, high
+    complexity_score: int
+
+
+class SQLSanitizer:
+    """Classe responsável pela sanitização de queries SQL."""
+    
+    def __init__(self):
+        """Inicializa o sanitizador SQL."""
+        # Caracteres perigosos que devem ser escapados
+        self.dangerous_chars = {
+            "'": "''",  # Escape de aspas simples
+            '"': '""',  # Escape de aspas duplas
+            "\\": "\\\\",  # Escape de backslash
+            "\x00": "",  # Remove null bytes
+            "\x1a": "",  # Remove substitute characters
+        }
+        
+        # Padrões de SQL injection conhecidos
+        self.injection_patterns = [
+            r"(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b.*?;)",
+            r"('|(\\x27)|(\\x2D\\x2D)|;|\\x00)",
+            r"(\b(or|and)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+['\"]?)",
+            r"(\/\*.*?\*\/)",  # Comentários SQL
+            r"(\-\-.*)",  # Comentários de linha
+            r"(\bxp_|\bsp_)",  # Stored procedures
+        ]
+        
+        # Palavras-chave SQL que devem ser controladas
+        self.restricted_keywords = {
+            "CRITICAL": ["DROP", "DELETE", "UPDATE", "INSERT", "CREATE", "ALTER", "TRUNCATE"],
+            "ADMINISTRATIVE": ["EXEC", "EXECUTE", "SP_", "XP_", "GRANT", "REVOKE"],
+            "SYSTEM": ["SHUTDOWN", "BACKUP", "RESTORE", "DBCC"],
+        }
+    
+    def sanitize_value(self, value: str) -> str:
+        """Sanitiza um valor individual."""
+        if not isinstance(value, str):
+            return str(value)
+        
+        # Escapar caracteres perigosos
+        sanitized = value
+        for char, replacement in self.dangerous_chars.items():
+            sanitized = sanitized.replace(char, replacement)
+        
+        # Remover comentários SQL
+        sanitized = re.sub(r'--.*$', '', sanitized, flags=re.MULTILINE)
+        sanitized = re.sub(r'/\*.*?\*/', '', sanitized, flags=re.DOTALL)
+        
+        # Limitar tamanho
+        if len(sanitized) > 1000:
+            sanitized = sanitized[:1000]
+        
+        return sanitized.strip()
+    
+    def detect_injection_attempts(self, sql: str) -> List[str]:
+        """Detecta tentativas de SQL injection."""
+        threats = []
+        sql_lower = sql.lower()
+        
+        for pattern in self.injection_patterns:
+            matches = re.findall(pattern, sql_lower, re.IGNORECASE | re.MULTILINE)
+            if matches:
+                threats.append(f"Padrão suspeito detectado: {pattern}")
+        
+        return threats
+    
+    def validate_keywords(self, sql: str) -> List[str]:
+        """Valida palavras-chave perigosas."""
+        issues = []
+        sql_upper = sql.upper()
+        
+        for category, keywords in self.restricted_keywords.items():
+            for keyword in keywords:
+                if keyword in sql_upper:
+                    issues.append(f"Palavra-chave {category.lower()} não permitida: {keyword}")
+        
+        return issues
+
+
+class SQLStructureValidator:
+    """Classe responsável pela validação da estrutura SQL."""
+    
+    def __init__(self):
+        """Inicializa o validador de estrutura."""
+        # Schema do banco de dados
+        self.database_schema = {
+            "equipment": {
+                "columns": ["id", "name", "type", "status", "location", "manufacturer", "model", "installation_date", "last_maintenance", "created_at", "updated_at"],
+                "types": {
+                    "id": "VARCHAR",
+                    "name": "VARCHAR",
+                    "type": "VARCHAR", 
+                    "status": "VARCHAR",
+                    "location": "VARCHAR",
+                    "manufacturer": "VARCHAR",
+                    "model": "VARCHAR",
+                    "installation_date": "DATE",
+                    "last_maintenance": "DATE",
+                    "created_at": "TIMESTAMP",
+                    "updated_at": "TIMESTAMP"
+                }
+            },
+            "maintenance_orders": {
+                "columns": ["id", "equipment_id", "type", "status", "scheduled_date", "completion_date", "cost", "description", "technician", "created_at", "updated_at"],
+                "types": {
+                    "id": "VARCHAR",
+                    "equipment_id": "VARCHAR",
+                    "type": "VARCHAR",
+                    "status": "VARCHAR",
+                    "scheduled_date": "DATE",
+                    "completion_date": "DATE",
+                    "cost": "NUMERIC",
+                    "description": "TEXT",
+                    "technician": "VARCHAR",
+                    "created_at": "TIMESTAMP",
+                    "updated_at": "TIMESTAMP"
+                }
+            },
+            "failures": {
+                "columns": ["id", "equipment_id", "failure_date", "description", "severity", "resolution_time", "cost", "created_at", "updated_at"],
+                "types": {
+                    "id": "VARCHAR",
+                    "equipment_id": "VARCHAR",
+                    "failure_date": "DATE",
+                    "description": "TEXT",
+                    "severity": "VARCHAR",
+                    "resolution_time": "INTEGER",
+                    "cost": "NUMERIC",
+                    "created_at": "TIMESTAMP",
+                    "updated_at": "TIMESTAMP"
+                }
+            }
+        }
+        
+        # Funções SQL permitidas
+        self.allowed_functions = {
+            "COUNT", "SUM", "AVG", "MAX", "MIN", "COALESCE", "NULLIF",
+            "UPPER", "LOWER", "TRIM", "LENGTH", "SUBSTRING",
+            "DATE", "EXTRACT", "NOW", "CURRENT_DATE", "CURRENT_TIMESTAMP"
+        }
+        
+        # Operadores permitidos
+        self.allowed_operators = {
+            "=", "!=", "<>", "<", ">", "<=", ">=", "LIKE", "ILIKE", 
+            "IN", "NOT IN", "IS NULL", "IS NOT NULL", "BETWEEN",
+            "AND", "OR", "NOT"
+        }
+    
+    def validate_syntax(self, sql: str) -> List[str]:
+        """Valida a sintaxe SQL usando sqlparse."""
+        errors = []
+        
+        try:
+            parsed = sqlparse.parse(sql)
+            if not parsed:
+                errors.append("SQL não pôde ser parseado")
+                return errors
+            
+            # Verificar se há múltiplas statements
+            if len(parsed) > 1:
+                errors.append("Múltiplas statements SQL não são permitidas")
+            
+            # Verificar estrutura básica
+            statement = parsed[0]
+            if not str(statement).strip().upper().startswith('SELECT'):
+                errors.append("Apenas queries SELECT são permitidas")
+            
+        except Exception as e:
+            errors.append(f"Erro de sintaxe SQL: {str(e)}")
+        
+        return errors
+    
+    def validate_tables_and_columns(self, sql: str) -> List[str]:
+        """Valida se tabelas e colunas existem no schema."""
+        errors = []
+        
+        try:
+            parsed = sqlparse.parse(sql)[0]
+            
+            # Extrair tabelas mencionadas
+            tables = self._extract_tables(parsed)
+            for table in tables:
+                if table not in self.database_schema:
+                    errors.append(f"Tabela não encontrada: {table}")
+            
+            # Extrair colunas mencionadas
+            columns = self._extract_columns(parsed)
+            for table, column in columns:
+                if table in self.database_schema:
+                    if column not in self.database_schema[table]["columns"]:
+                        errors.append(f"Coluna não encontrada: {table}.{column}")
+                elif table == "":  # Coluna sem tabela especificada
+                    # Verificar se existe em alguma tabela
+                    found = False
+                    for schema_table, schema_info in self.database_schema.items():
+                        if column in schema_info["columns"]:
+                            found = True
+                            break
+                    if not found:
+                        errors.append(f"Coluna não encontrada: {column}")
+        
+        except Exception as e:
+            errors.append(f"Erro ao validar tabelas/colunas: {str(e)}")
+        
+        return errors
+    
+    def validate_functions(self, sql: str) -> List[str]:
+        """Valida se as funções usadas são permitidas."""
+        errors = []
+        
+        # Extrair funções do SQL
+        function_pattern = r'\b([A-Z_]+)\s*\('
+        functions = re.findall(function_pattern, sql.upper())
+        
+        for function in functions:
+            if function not in self.allowed_functions:
+                errors.append(f"Função não permitida: {function}")
+        
+        return errors
+    
+    def calculate_complexity(self, sql: str) -> int:
+        """Calcula score de complexidade da query."""
+        complexity = 0
+        sql_upper = sql.upper()
+        
+        # Joins aumentam complexidade
+        complexity += sql_upper.count("JOIN") * 2
+        
+        # Subqueries aumentam complexidade
+        complexity += sql_upper.count("SELECT") - 1  # -1 para o SELECT principal
+        
+        # Funções agregadas
+        complexity += len(re.findall(r'\b(COUNT|SUM|AVG|MAX|MIN)\b', sql_upper))
+        
+        # Condições WHERE
+        complexity += sql_upper.count("WHERE")
+        complexity += sql_upper.count("AND")
+        complexity += sql_upper.count("OR")
+        
+        # ORDER BY e GROUP BY
+        complexity += sql_upper.count("ORDER BY")
+        complexity += sql_upper.count("GROUP BY")
+        
+        return complexity
+    
+    def _extract_tables(self, parsed_sql) -> Set[str]:
+        """Extrai nomes de tabelas do SQL parseado."""
+        tables = set()
+        
+        def extract_from_token(token):
+            if hasattr(token, 'tokens'):
+                for subtoken in token.tokens:
+                    extract_from_token(subtoken)
+            elif token.ttype is None and hasattr(token, 'value'):
+                # Pode ser nome de tabela
+                if token.value.lower() not in ['select', 'from', 'where', 'and', 'or', 'on']:
+                    if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', token.value):
+                        tables.add(token.value.lower())
+        
+        extract_from_token(parsed_sql)
+        
+        # Filtrar apenas tabelas conhecidas
+        known_tables = set(self.database_schema.keys())
+        return tables.intersection(known_tables)
+    
+    def _extract_columns(self, parsed_sql) -> List[Tuple[str, str]]:
+        """Extrai pares (tabela, coluna) do SQL parseado."""
+        columns = []
+        
+        # Esta é uma implementação simplificada
+        # Em um ambiente de produção, seria necessário um parser mais sofisticado
+        sql_str = str(parsed_sql)
+        
+        # Procurar por padrões table.column
+        table_column_pattern = r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)\b'
+        matches = re.findall(table_column_pattern, sql_str)
+        
+        for table, column in matches:
+            columns.append((table.lower(), column.lower()))
+        
+        return columns
+
+
 class QueryProcessor:
     """
     Processador principal de queries em linguagem natural.
@@ -65,13 +357,17 @@ class QueryProcessor:
     - Análise de intenção de consultas
     - Identificação de entidades e filtros
     - Geração de SQL seguro e validado
-    - Sanitização e validação de queries
+    - Sanitização e validação avançada de queries
     - Mapeamento de linguagem natural para estrutura de dados
     """
     
     def __init__(self):
         """Inicializa o processador de queries."""
         self.settings = get_settings()
+        
+        # Inicializar componentes de validação
+        self.sanitizer = SQLSanitizer()
+        self.structure_validator = SQLStructureValidator()
         
         # Padrões de reconhecimento
         self._load_patterns()
@@ -80,20 +376,9 @@ class QueryProcessor:
         self.queries_processed = 0
         self.successful_queries = 0
         self.failed_queries = 0
+        self.validation_failures = 0
         
-        logger.info("QueryProcessor inicializado com sucesso")
-    
-    async def process_query(self, query: str) -> QueryAnalysis:
-        """
-        Processa uma query (wrapper para analyze_query).
-        
-        Args:
-            query: Consulta em linguagem natural
-            
-        Returns:
-            QueryAnalysis: Resultado da análise
-        """
-        return self.analyze_query(query)
+        logger.info("QueryProcessor inicializado com validação avançada")
     
     def _load_patterns(self) -> None:
         """Carrega padrões de reconhecimento de linguagem natural."""
@@ -165,7 +450,7 @@ class QueryProcessor:
             "orçamento", "budget"
         ]
         
-        # Campos válidos por tabela
+        # Campos válidos por tabela (para compatibilidade)
         self.valid_fields = {
             "equipment": [
                 "id", "name", "type", "status", "location", "manufacturer",
@@ -197,11 +482,13 @@ class QueryProcessor:
         try:
             self.queries_processed += 1
             
-            # Validar entrada
+            # Validar e sanitizar entrada
             if not query or not query.strip():
                 raise ValidationError("Query não pode estar vazia")
             
-            query = query.strip().lower()
+            # Sanitizar entrada do usuário
+            sanitized_input = self.sanitize_user_input(query)
+            query = sanitized_input.strip().lower()
             
             # 1. Identificar tipo de consulta
             query_type = self._identify_query_type(query)
@@ -524,26 +811,235 @@ class QueryProcessor:
         return "LIMIT 50"  # Limite padrão para evitar resultados muito grandes
     
     def _validate_sql(self, sql: str) -> None:
-        """Valida o SQL gerado."""
+        """Valida o SQL gerado usando sistema avançado de validação."""
+        validation_result = self.validate_sql_advanced(sql)
         
-        # Verificar se não há comandos perigosos
-        dangerous_keywords = [
-            "DROP", "DELETE", "UPDATE", "INSERT", "CREATE", "ALTER",
-            "TRUNCATE", "EXEC", "EXECUTE", "SP_", "XP_"
-        ]
+        if not validation_result.is_valid:
+            self.validation_failures += 1
+            error_msg = "; ".join(validation_result.errors)
+            logger.error("Validação SQL falhou", extra={
+                "sql": sql[:100],
+                "errors": validation_result.errors,
+                "risk_level": validation_result.risk_level,
+                "complexity": validation_result.complexity_score
+            })
+            raise ValidationError(f"SQL inválido: {error_msg}")
+        
+        # Log warnings se existirem
+        if validation_result.warnings:
+            logger.warning("Avisos de validação SQL", extra={
+                "sql": sql[:100],
+                "warnings": validation_result.warnings,
+                "risk_level": validation_result.risk_level
+            })
+    
+    def validate_sql_advanced(self, sql: str) -> ValidationResult:
+        """
+        Executa validação avançada completa de SQL.
+        
+        Args:
+            sql: Query SQL para validar
+            
+        Returns:
+            ValidationResult: Resultado detalhado da validação
+        """
+        errors = []
+        warnings = []
+        sanitized_sql = sql
+        
+        try:
+            # 1. Sanitização básica
+            sanitized_sql = self.sanitizer.sanitize_value(sql)
+            
+            # 2. Detectar tentativas de injection
+            injection_threats = self.sanitizer.detect_injection_attempts(sanitized_sql)
+            if injection_threats:
+                errors.extend(injection_threats)
+            
+            # 3. Validar palavras-chave restritas
+            keyword_issues = self.sanitizer.validate_keywords(sanitized_sql)
+            if keyword_issues:
+                errors.extend(keyword_issues)
+            
+            # 4. Validar sintaxe SQL
+            syntax_errors = self.structure_validator.validate_syntax(sanitized_sql)
+            if syntax_errors:
+                errors.extend(syntax_errors)
+            
+            # 5. Validar tabelas e colunas
+            schema_errors = self.structure_validator.validate_tables_and_columns(sanitized_sql)
+            if schema_errors:
+                errors.extend(schema_errors)
+            
+            # 6. Validar funções
+            function_errors = self.structure_validator.validate_functions(sanitized_sql)
+            if function_errors:
+                errors.extend(function_errors)
+            
+            # 7. Calcular complexidade
+            complexity = self.structure_validator.calculate_complexity(sanitized_sql)
+            
+            # 8. Avaliar nível de risco
+            risk_level = self._calculate_risk_level(sanitized_sql, complexity, len(errors))
+            
+            # 9. Adicionar warnings baseados em complexidade
+            if complexity > 10:
+                warnings.append(f"Query de alta complexidade (score: {complexity})")
+            elif complexity > 5:
+                warnings.append(f"Query de complexidade moderada (score: {complexity})")
+            
+            # 10. Validações adicionais de segurança
+            security_warnings = self._additional_security_checks(sanitized_sql)
+            warnings.extend(security_warnings)
+            
+            # Determinar se é válida
+            is_valid = len(errors) == 0
+            
+            if is_valid:
+                logger.info("Validação SQL bem-sucedida", extra={
+                    "complexity": complexity,
+                    "risk_level": risk_level,
+                    "warnings_count": len(warnings)
+                })
+            
+            return ValidationResult(
+                is_valid=is_valid,
+                errors=errors,
+                warnings=warnings,
+                sanitized_sql=sanitized_sql,
+                risk_level=risk_level,
+                complexity_score=complexity
+            )
+            
+        except Exception as e:
+            logger.error(f"Erro durante validação SQL: {str(e)}")
+            return ValidationResult(
+                is_valid=False,
+                errors=[f"Erro interno de validação: {str(e)}"],
+                warnings=[],
+                sanitized_sql=sql,
+                risk_level="high",
+                complexity_score=0
+            )
+    
+    def _calculate_risk_level(self, sql: str, complexity: int, error_count: int) -> str:
+        """Calcula o nível de risco da query."""
+        
+        # Erro = alto risco
+        if error_count > 0:
+            return "high"
         
         sql_upper = sql.upper()
-        for keyword in dangerous_keywords:
-            if keyword in sql_upper:
-                raise ValidationError(f"SQL contém comando não permitido: {keyword}")
+        risk_score = 0
         
-        # Verificar se é uma query SELECT válida
-        if not sql_upper.strip().startswith("SELECT"):
-            raise ValidationError("Apenas queries SELECT são permitidas")
+        # Fatores que aumentam o risco
+        if complexity > 10:
+            risk_score += 3
+        elif complexity > 5:
+            risk_score += 1
         
-        # Verificar se não há múltiplas statements
-        if ";" in sql and not sql.strip().endswith(";"):
-            raise ValidationError("Múltiplas statements SQL não são permitidas")
+        # Presença de JOINs múltiplos
+        if sql_upper.count("JOIN") > 2:
+            risk_score += 2
+        
+        # Presença de subconsultas
+        if sql_upper.count("SELECT") > 1:
+            risk_score += 1
+        
+        # Ausência de LIMIT pode ser perigoso
+        if "LIMIT" not in sql_upper and "COUNT" not in sql_upper:
+            risk_score += 1
+        
+        # Classificar risco
+        if risk_score >= 4:
+            return "high"
+        elif risk_score >= 2:
+            return "medium"
+        else:
+            return "low"
+    
+    def _additional_security_checks(self, sql: str) -> List[str]:
+        """Executa verificações adicionais de segurança."""
+        warnings = []
+        sql_upper = sql.upper()
+        
+        # Verificar queries muito abertas
+        if "SELECT *" in sql_upper and "WHERE" not in sql_upper:
+            warnings.append("Query muito aberta - considera adicionar filtros WHERE")
+        
+        # Verificar ausência de LIMIT
+        if ("LIMIT" not in sql_upper and 
+            "COUNT" not in sql_upper and 
+            "LIMIT 50" not in sql):  # Nosso limite padrão
+            warnings.append("Query sem LIMIT pode retornar muitos resultados")
+        
+        # Verificar operações custosas
+        if sql_upper.count("JOIN") > 3:
+            warnings.append("Múltiplos JOINs podem impactar performance")
+        
+        # Verificar funções agregadas sem GROUP BY em certas situações
+        aggregates = ["SUM", "AVG", "MAX", "MIN"]
+        has_aggregate = any(agg in sql_upper for agg in aggregates)
+        if has_aggregate and "GROUP BY" not in sql_upper and "COUNT" not in sql_upper:
+            warnings.append("Função agregada sem GROUP BY pode produzir resultados inesperados")
+        
+        return warnings
+    
+    def sanitize_user_input(self, user_input: str) -> str:
+        """
+        Sanitiza entrada do usuário antes do processamento.
+        
+        Args:
+            user_input: Entrada em linguagem natural do usuário
+            
+        Returns:
+            str: Entrada sanitizada
+        """
+        return self.sanitizer.sanitize_value(user_input)
+    
+    def get_validation_metrics(self) -> Dict[str, Any]:
+        """Retorna métricas específicas de validação."""
+        total_processed = self.queries_processed
+        validation_success_rate = (
+            (total_processed - self.validation_failures) / total_processed 
+            if total_processed > 0 else 0
+        )
+        
+        return {
+            "total_queries_processed": total_processed,
+            "validation_failures": self.validation_failures,
+            "validation_success_rate": round(validation_success_rate, 3),
+            "security_features": {
+                "sql_injection_detection": True,
+                "keyword_restriction": True,
+                "schema_validation": True,
+                "complexity_analysis": True,
+                "syntax_validation": True
+            }
+        }
+    
+    def get_metrics(self) -> Dict[str, Any]:
+        """Retorna métricas do processador."""
+        success_rate = (self.successful_queries / self.queries_processed) if self.queries_processed > 0 else 0
+        
+        return {
+            "queries_processed": self.queries_processed,
+            "successful_queries": self.successful_queries,
+            "failed_queries": self.failed_queries,
+            "success_rate": round(success_rate, 3),
+            "supported_query_types": len(QueryType),
+            "supported_intents": len(QueryIntent)
+        }
+    
+    def get_supported_patterns(self) -> Dict[str, Any]:
+        """Retorna padrões suportados para documentação."""
+        return {
+            "equipment_types": list(self.equipment_patterns.keys()),
+            "status_types": list(self.status_patterns.keys()),
+            "query_types": [qt.value for qt in QueryType],
+            "intents": [qi.value for qi in QueryIntent],
+            "temporal_patterns": list(self.temporal_patterns.keys())
+        }
     
     def _calculate_confidence(
         self, 
@@ -631,27 +1127,4 @@ class QueryProcessor:
             if entity_parts:
                 parts.append(f"incluindo {', '.join(entity_parts)}")
         
-        return ". ".join(parts) + "."
-    
-    def get_metrics(self) -> Dict[str, Any]:
-        """Retorna métricas do processador."""
-        success_rate = (self.successful_queries / self.queries_processed) if self.queries_processed > 0 else 0
-        
-        return {
-            "queries_processed": self.queries_processed,
-            "successful_queries": self.successful_queries,
-            "failed_queries": self.failed_queries,
-            "success_rate": round(success_rate, 3),
-            "supported_query_types": len(QueryType),
-            "supported_intents": len(QueryIntent)
-        }
-    
-    def get_supported_patterns(self) -> Dict[str, Any]:
-        """Retorna padrões suportados para documentação."""
-        return {
-            "equipment_types": list(self.equipment_patterns.keys()),
-            "status_types": list(self.status_patterns.keys()),
-            "query_types": [qt.value for qt in QueryType],
-            "intents": [qi.value for qi in QueryIntent],
-            "temporal_patterns": list(self.temporal_patterns.keys())
-        } 
+        return ". ".join(parts) + "." 
