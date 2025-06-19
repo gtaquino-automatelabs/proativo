@@ -83,6 +83,18 @@ class QueryProcessor:
         
         logger.info("QueryProcessor inicializado com sucesso")
     
+    async def process_query(self, query: str) -> QueryAnalysis:
+        """
+        Processa uma query (wrapper para analyze_query).
+        
+        Args:
+            query: Consulta em linguagem natural
+            
+        Returns:
+            QueryAnalysis: Resultado da análise
+        """
+        return self.analyze_query(query)
+    
     def _load_patterns(self) -> None:
         """Carrega padrões de reconhecimento de linguagem natural."""
         

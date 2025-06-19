@@ -20,8 +20,7 @@ from google.api_core import exceptions as google_exceptions
 from ..config import get_settings
 from ...utils.error_handlers import LLMServiceError as LLMError, ValidationError
 from ...utils.logger import get_logger
-from .fallback_service import FallbackService, FallbackTrigger
-from .cache_service import CacheService, CacheStrategy
+# Fallback e cache services serão importados dinamicamente quando disponíveis
 
 # Configurar logger
 logger = get_logger(__name__)
@@ -47,17 +46,34 @@ class LLMService:
         self._model = None
         self._initialize_gemini()
         
-        # Inicializar sistema de fallback
-        self.fallback_service = FallbackService()
+        # Inicializar sistemas opcionais
+        self.fallback_service = None
+        self.cache_service = None
         
-        # Inicializar sistema de cache inteligente
-        self.cache_service = CacheService()
+        # Tentar inicializar fallback e cache se disponíveis
+        self._init_optional_services()
         
         # Métricas
         self.request_count = 0
         self.cache_hits = 0
         self.error_count = 0
         self.fallback_used_count = 0
+    
+    def _init_optional_services(self):
+        """Inicializa serviços opcionais se disponíveis."""
+        try:
+            from .fallback_service import FallbackService
+            self.fallback_service = FallbackService()
+            logger.info("FallbackService inicializado")
+        except ImportError:
+            logger.warning("FallbackService não disponível")
+        
+        try:
+            from .cache_service import CacheService
+            self.cache_service = CacheService()
+            logger.info("CacheService inicializado")
+        except ImportError:
+            logger.warning("CacheService não disponível")
         
     def _initialize_gemini(self) -> None:
         """
@@ -332,7 +348,7 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
         query_results: Optional[List[Dict[str, Any]]] = None,
         context: Optional[Dict[str, Any]] = None,
         session_id: Optional[str] = None,
-        cache_strategy: CacheStrategy = CacheStrategy.NORMALIZED_MATCH
+        cache_strategy: str = "normalized_match"
     ) -> Dict[str, Any]:
         """
         Gera resposta usando Google Gemini com cache inteligente e fallback automático.
@@ -378,12 +394,17 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
             if query_results is None:
                 query_results = []
             
-            # Tentar buscar no cache primeiro
-            cached_response = await self.cache_service.get(
-                query=user_query,
-                context=context,
-                strategy=cache_strategy
-            )
+            # Tentar buscar no cache primeiro (se disponível)
+            cached_response = None
+            if self.cache_service:
+                try:
+                    cached_response = await self.cache_service.get(
+                        query=user_query,
+                        context=context,
+                        strategy=cache_strategy
+                    )
+                except Exception as e:
+                    logger.warning(f"Erro no cache: {e}")
             
             if cached_response:
                 self.cache_hits += 1
@@ -391,7 +412,7 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
                 
                 logger.info("Resposta servida do cache inteligente", extra={
                     "session_id": session_id,
-                    "cache_strategy": cache_strategy.value,
+                    "cache_strategy": cache_strategy,
                     "cache_status": cached_response.get("cache_status"),
                     "processing_time": processing_time
                 })
@@ -404,7 +425,7 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
                 "session_id": session_id,
                 "query_length": len(user_query),
                 "data_records": len(query_results),
-                "cache_strategy": cache_strategy.value
+                "cache_strategy": cache_strategy
             })
             
             try:
@@ -427,23 +448,28 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
                     user_query, query_results, llm_response
                 )
                 
-                # Verificar se deve usar fallback
-                should_fallback, fallback_trigger = self.fallback_service.should_use_fallback(
-                    llm_response=llm_response,
-                    original_query=user_query,
-                    llm_confidence=confidence_score,
-                    error=None
-                )
-                
-                if should_fallback:
-                    logger.info("Fallback ativado por resposta inadequada do LLM", extra={
-                        "trigger": fallback_trigger.value,
-                        "confidence": confidence_score,
-                        "session_id": session_id
-                    })
-                    return await self._generate_fallback_response(
-                        user_query, fallback_trigger, start_time, session_id, context
-                    )
+                # Verificar se deve usar fallback (se disponível)
+                should_fallback = False
+                if self.fallback_service:
+                    try:
+                        should_fallback, fallback_trigger = self.fallback_service.should_use_fallback(
+                            llm_response=llm_response,
+                            original_query=user_query,
+                            llm_confidence=confidence_score,
+                            error=None
+                        )
+                        
+                        if should_fallback:
+                            logger.info("Fallback ativado por resposta inadequada do LLM", extra={
+                                "trigger": fallback_trigger.value,
+                                "confidence": confidence_score,
+                                "session_id": session_id
+                            })
+                            return await self._generate_fallback_response(
+                                user_query, fallback_trigger, start_time, session_id, context
+                            )
+                    except Exception as e:
+                        logger.warning(f"Erro no fallback service: {e}")
                 
                 # Resposta do LLM é adequada, processar e cachear
                 processing_time = int((time.time() - start_time) * 1000)
@@ -467,15 +493,19 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
                     "timestamp": datetime.now().isoformat()
                 }
                 
-                # Armazenar no cache inteligente
-                cache_tags = self._generate_cache_tags(user_query, context, query_results)
-                await self.cache_service.set(
-                    query=user_query,
-                    response=final_response,
-                    context=context,
-                    ttl=self._calculate_cache_ttl(confidence_score, len(query_results)),
-                    tags=cache_tags
-                )
+                # Armazenar no cache inteligente (se disponível)
+                if self.cache_service:
+                    try:
+                        cache_tags = self._generate_cache_tags(user_query, context, query_results)
+                        await self.cache_service.set(
+                            query=user_query,
+                            response=final_response,
+                            context=context,
+                            ttl=self._calculate_cache_ttl(confidence_score, len(query_results)),
+                            tags=cache_tags
+                        )
+                    except Exception as e:
+                        logger.warning(f"Erro ao armazenar no cache: {e}")
                 
                 logger.info("Resposta gerada e cacheada com sucesso", extra={
                     "session_id": session_id,
@@ -495,21 +525,37 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
                     "error_type": type(e).__name__
                 })
                 
-                # Determinar trigger de fallback baseado no erro
-                should_fallback, fallback_trigger = self.fallback_service.should_use_fallback(
-                    llm_response=None,
-                    original_query=user_query,
-                    llm_confidence=None,
-                    error=e
-                )
+                # Usar fallback se disponível, senão retornar erro simples
+                if self.fallback_service:
+                    try:
+                        # Determinar trigger de fallback baseado no erro
+                        should_fallback, fallback_trigger = self.fallback_service.should_use_fallback(
+                            llm_response=None,
+                            original_query=user_query,
+                            llm_confidence=None,
+                            error=e
+                        )
+                        
+                        if should_fallback:
+                            return await self._generate_fallback_response(
+                                user_query, fallback_trigger, start_time, session_id, context, str(e)
+                            )
+                    except Exception as fb_error:
+                        logger.error(f"Erro no fallback service: {fb_error}")
                 
-                if should_fallback:
-                    return await self._generate_fallback_response(
-                        user_query, fallback_trigger, start_time, session_id, context, str(e)
-                    )
-                else:
-                    # Se nem fallback consegue ajudar, relancar erro original
-                    raise e
+                # Se fallback não disponível ou falhou, retornar resposta de erro simples
+                processing_time = int((time.time() - start_time) * 1000)
+                return {
+                    "response": "Desculpe, não consegui processar sua solicitação no momento. Tente novamente mais tarde.",
+                    "confidence_score": 0.1,
+                    "sources": ["error_fallback"],
+                    "suggestions": ["Tente uma pergunta mais simples", "Verifique sua conexão"],
+                    "processing_time": processing_time,
+                    "cache_used": False,
+                    "fallback_used": True,
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat()
+                }
         
         except ValidationError:
             # Erros de validação não devem usar fallback
@@ -520,14 +566,19 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
                 "session_id": session_id
             })
             
-            return await self._generate_fallback_response(
-                user_query, 
-                FallbackTrigger.LLM_ERROR, 
-                start_time, 
-                session_id, 
-                context, 
-                str(e)
-            )
+            # Fallback de emergência
+            processing_time = int((time.time() - start_time) * 1000)
+            return {
+                "response": "Desculpe, estou com dificuldades técnicas no momento. Tente novamente mais tarde.",
+                "confidence_score": 0.1,
+                "sources": ["emergency_fallback"],
+                "suggestions": ["Tente uma pergunta mais simples", "Recarregue a página"],
+                "processing_time": processing_time,
+                "cache_used": False,
+                "fallback_used": True,
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
     
     def _generate_cache_tags(
         self, 
@@ -605,7 +656,7 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
     async def _generate_fallback_response(
         self,
         user_query: str,
-        trigger: FallbackTrigger,
+        trigger: str,
         start_time: float,
         session_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
@@ -647,8 +698,8 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
                 "data_records_used": 0,
                 "cache_used": False,
                 "fallback_used": True,
-                "fallback_reason": trigger.value,
-                "fallback_strategy": fallback_response.strategy_used.value,
+                "fallback_reason": trigger,
+                "fallback_strategy": fallback_response.strategy_used.value if hasattr(fallback_response, 'strategy_used') else "unknown",
                 "actionable": fallback_response.actionable,
                 "timestamp": datetime.now().isoformat()
             }
@@ -658,8 +709,8 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
             
             logger.info("Resposta de fallback gerada", extra={
                 "session_id": session_id,
-                "trigger": trigger.value,
-                "strategy": fallback_response.strategy_used.value,
+                "trigger": trigger,
+                "strategy": fallback_response.strategy_used.value if hasattr(fallback_response, 'strategy_used') else "unknown",
                 "confidence": fallback_response.confidence
             })
             
@@ -773,8 +824,13 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
         error_rate = (self.error_count / self.request_count) if self.request_count > 0 else 0
         fallback_rate = (self.fallback_used_count / self.request_count) if self.request_count > 0 else 0
         
-        # Obter métricas do cache inteligente
-        cache_metrics = await self.cache_service.get_metrics()
+        # Obter métricas do cache inteligente (se disponível)
+        cache_metrics = None
+        if self.cache_service:
+            try:
+                cache_metrics = await self.cache_service.get_metrics()
+            except Exception as e:
+                logger.warning(f"Erro ao obter métricas de cache: {e}")
         
         # Métricas básicas do LLM
         llm_metrics = {
@@ -792,37 +848,45 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
                 "timeout": self.settings.gemini_timeout
             },
             "intelligent_cache": {
-                "cache_size": cache_metrics.cache_size,
-                "max_cache_size": cache_metrics.max_cache_size,
-                "hit_rate": cache_metrics.hit_rate,
-                "miss_rate": cache_metrics.miss_rate,
-                "expired_entries": cache_metrics.expired_entries,
-                "stale_entries": cache_metrics.stale_entries,
-                "memory_usage_mb": cache_metrics.memory_usage_mb,
-                "average_response_size": cache_metrics.average_response_size
+                "cache_size": cache_metrics.cache_size if cache_metrics else 0,
+                "max_cache_size": cache_metrics.max_cache_size if cache_metrics else 0,
+                "hit_rate": cache_metrics.hit_rate if cache_metrics else 0,
+                "miss_rate": cache_metrics.miss_rate if cache_metrics else 0,
+                "expired_entries": cache_metrics.expired_entries if cache_metrics else 0,
+                "stale_entries": cache_metrics.stale_entries if cache_metrics else 0,
+                "memory_usage_mb": cache_metrics.memory_usage_mb if cache_metrics else 0,
+                "average_response_size": cache_metrics.average_response_size if cache_metrics else 0,
+                "available": cache_metrics is not None
             }
         }
         
-        # Integrar métricas do sistema de fallback
-        try:
-            fallback_metrics = self.fallback_service.get_metrics()
-            llm_metrics["fallback_system"] = {
-                "total_fallbacks": fallback_metrics.total_fallbacks,
-                "success_rate": fallback_metrics.success_rate,
-                "user_satisfaction": fallback_metrics.user_satisfaction,
-                "triggers": fallback_metrics.fallbacks_by_trigger,
-                "strategies": fallback_metrics.fallbacks_by_strategy
-            }
-        except Exception as e:
-            logger.warning(f"Erro ao obter métricas de fallback: {str(e)}")
-            llm_metrics["fallback_system"] = {"error": "Métricas não disponíveis"}
+        # Integrar métricas do sistema de fallback (se disponível)
+        if self.fallback_service:
+            try:
+                fallback_metrics = self.fallback_service.get_metrics()
+                llm_metrics["fallback_system"] = {
+                    "total_fallbacks": fallback_metrics.total_fallbacks,
+                    "success_rate": fallback_metrics.success_rate,
+                    "user_satisfaction": fallback_metrics.user_satisfaction,
+                    "triggers": fallback_metrics.fallbacks_by_trigger,
+                    "strategies": fallback_metrics.fallbacks_by_strategy,
+                    "available": True
+                }
+            except Exception as e:
+                logger.warning(f"Erro ao obter métricas de fallback: {str(e)}")
+                llm_metrics["fallback_system"] = {"error": "Métricas não disponíveis", "available": False}
+        else:
+            llm_metrics["fallback_system"] = {"available": False, "message": "Serviço não inicializado"}
         
         return llm_metrics
     
     async def clear_cache(self) -> None:
-        """Limpa o cache inteligente de respostas."""
-        await self.cache_service.clear()
-        logger.info("Cache inteligente de respostas LLM limpo")
+        """Limpa o cache inteligente de respostas (se disponível)."""
+        if self.cache_service:
+            await self.cache_service.clear()
+            logger.info("Cache inteligente de respostas LLM limpo")
+        else:
+            logger.warning("Cache service não disponível")
     
     async def health_check(self) -> Dict[str, Any]:
         """
@@ -864,14 +928,18 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
             else:
                 llm_overall_status = "critical"
             
-            # Verificar saúde do sistema de fallback
-            try:
-                fallback_health = self.fallback_service.get_health_status()
-                fallback_status = fallback_health.get("status", "unknown")
-            except Exception as e:
-                logger.warning(f"Erro ao verificar saúde do fallback: {str(e)}")
-                fallback_status = "error"
-                fallback_health = {"status": "error", "error": str(e)}
+            # Verificar saúde do sistema de fallback (se disponível)
+            if self.fallback_service:
+                try:
+                    fallback_health = self.fallback_service.get_health_status()
+                    fallback_status = fallback_health.get("status", "unknown")
+                except Exception as e:
+                    logger.warning(f"Erro ao verificar saúde do fallback: {str(e)}")
+                    fallback_status = "error"
+                    fallback_health = {"status": "error", "error": str(e)}
+            else:
+                fallback_status = "unavailable"
+                fallback_health = {"status": "unavailable", "message": "Serviço não inicializado"}
             
             # Status geral do sistema
             if llm_overall_status == "healthy" and fallback_status in ["healthy", "warning"]:
