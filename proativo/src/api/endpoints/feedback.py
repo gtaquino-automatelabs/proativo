@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.chat import FeedbackRequest, FeedbackResponse
-from ..dependencies import get_database_session, get_current_config, get_repository_manager
+from ..dependencies import get_database_session, get_current_settings, get_repository_manager
 from ..config import Settings
 from ...database.repositories import RepositoryManager
 from ...utils.error_handlers import ValidationError, DataProcessingError
@@ -55,7 +55,7 @@ async def submit_feedback(
     request: FeedbackRequest,
     background_tasks: BackgroundTasks,
     repo_manager: RepositoryManager = Depends(get_repository_manager),
-    settings: Settings = Depends(get_current_config),
+    settings: Settings = Depends(get_current_settings),
 ) -> FeedbackResponse:
     """
     Submete feedback do usuário sobre uma resposta da IA.
@@ -154,7 +154,7 @@ async def submit_feedback(
 @router.get("/session/{session_id}")
 async def get_session_feedback(
     session_id: UUID,
-    settings: Settings = Depends(get_current_config)
+    settings: Settings = Depends(get_current_settings)
 ) -> Dict[str, Any]:
     """
     Recupera todo o feedback de uma sessão específica.
@@ -201,7 +201,7 @@ async def get_session_feedback(
 @router.get("/stats")
 async def get_feedback_stats(
     repo_manager: RepositoryManager = Depends(get_repository_manager),
-    settings: Settings = Depends(get_current_config)
+    settings: Settings = Depends(get_current_settings)
 ) -> Dict[str, Any]:
     """
     Retorna estatísticas gerais do sistema de feedback.
@@ -293,7 +293,7 @@ async def get_feedback_stats(
 @router.delete("/session/{session_id}")
 async def clear_session_feedback(
     session_id: UUID,
-    settings: Settings = Depends(get_current_config)
+    settings: Settings = Depends(get_current_settings)
 ) -> Dict[str, str]:
     """
     Remove todo o feedback de uma sessão específica.
@@ -337,7 +337,7 @@ async def clear_session_feedback(
 @router.get("/message/{message_id}")
 async def get_message_feedback(
     message_id: UUID,
-    settings: Settings = Depends(get_current_config)
+    settings: Settings = Depends(get_current_settings)
 ) -> Dict[str, Any]:
     """
     Recupera feedback específico de uma mensagem.

@@ -6,7 +6,7 @@ Pydantic BaseSettings com suporte a variáveis de ambiente.
 """
 
 from functools import lru_cache
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import ConfigDict, field_validator, ValidationInfo, Field
 from pydantic_settings import BaseSettings
 import os
@@ -42,18 +42,37 @@ class Settings(BaseSettings):
     # CONFIGURAÇÕES DE CORS
     # =============================================================================
     
-    cors_origins: List[str] = Field(
-        default=[
-            "http://localhost:8501",  # Streamlit
-            "http://localhost:3000",  # React
-            "http://127.0.0.1:8501",
-            "http://127.0.0.1:3000",
-        ],
+    # CORS como strings simples que serão convertidas em listas por properties
+    cors_origins_str: str = Field(
+        default="http://localhost:8501,http://localhost:3000,http://127.0.0.1:8501,http://127.0.0.1:3000",
         env="CORS_ORIGINS"
     )
     cors_allow_credentials: bool = True
-    cors_allow_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    cors_allow_headers: List[str] = ["*"]
+    cors_allow_methods_str: str = "GET,POST,PUT,DELETE,OPTIONS"
+    cors_allow_headers_str: str = "*"
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """Retorna CORS origins como lista."""
+        if isinstance(self.cors_origins_str, str):
+            return [item.strip() for item in self.cors_origins_str.split(",") if item.strip()]
+        return []
+    
+    @property
+    def cors_allow_methods(self) -> List[str]:
+        """Retorna CORS methods como lista."""
+        if isinstance(self.cors_allow_methods_str, str):
+            return [item.strip() for item in self.cors_allow_methods_str.split(",") if item.strip()]
+        return ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    
+    @property
+    def cors_allow_headers(self) -> List[str]:
+        """Retorna CORS headers como lista."""
+        if self.cors_allow_headers_str == "*":
+            return ["*"]
+        elif isinstance(self.cors_allow_headers_str, str):
+            return [item.strip() for item in self.cors_allow_headers_str.split(",") if item.strip()]
+        return ["*"]
     
     # =============================================================================
     # CONFIGURAÇÕES DO BANCO DE DADOS
@@ -80,20 +99,41 @@ class Settings(BaseSettings):
     # CONFIGURAÇÕES DO GOOGLE GEMINI
     # =============================================================================
     
-    gemini_api_key: Optional[str] = Field(default=None, env="GOOGLE_API_KEY")
+    google_api_key: Optional[str] = Field(default=None)
     gemini_model: str = Field(default="gemini-2.5-flash", env="GEMINI_MODEL")
     gemini_temperature: float = 0.1
     gemini_max_tokens: int = 2048
     gemini_timeout: int = 30
     gemini_max_retries: int = 3
     
-    @field_validator("gemini_api_key")
+    @field_validator("google_api_key")
     @classmethod
-    def validate_gemini_api_key(cls, v):
-        """Valida se a chave da API do Gemini está presente em produção."""
+    def validate_google_api_key(cls, v):
+        """Valida se a chave da API do Gemini está presente e válida."""
+        # Se não há valor, emite warning mas permite continuar
         if v is None:
             import warnings
             warnings.warn("GOOGLE_API_KEY não configurada. Funcionalidades de IA não estarão disponíveis.")
+            return None
+        
+        # Se é string vazia, trata como None
+        if isinstance(v, str) and v.strip() == "":
+            import warnings
+            warnings.warn("GOOGLE_API_KEY vazia. Funcionalidades de IA não estarão disponíveis.")
+            return None
+        
+        # Se é string válida, valida o formato
+        if isinstance(v, str):
+            v_clean = v.strip()
+            # Validação básica do formato da chave Google
+            if v_clean.startswith("AIza") and len(v_clean) >= 30:
+                return v_clean
+            else:
+                import warnings
+                warnings.warn("GOOGLE_API_KEY com formato inválido. Verificar configuração.")
+                return None
+        
+        # Para outros tipos, retorna como está
         return v
     
     # =============================================================================
@@ -128,14 +168,21 @@ class Settings(BaseSettings):
     # =============================================================================
     
     upload_max_size: int = 50 * 1024 * 1024  # 50MB
-    upload_allowed_extensions: List[str] = [".csv", ".xlsx", ".xls", ".xml"]
+    upload_allowed_extensions_str: str = ".csv,.xlsx,.xls,.xml"
+    
+    @property
+    def upload_allowed_extensions(self) -> List[str]:
+        """Retorna extensões permitidas como lista."""
+        if isinstance(self.upload_allowed_extensions_str, str):
+            return [ext.strip() for ext in self.upload_allowed_extensions_str.split(",") if ext.strip()]
+        return [".csv", ".xlsx", ".xls", ".xml"]
     upload_directory: str = "data/uploads"
     
     # =============================================================================
     # CONFIGURAÇÕES DE SEGURANÇA
     # =============================================================================
     
-    secret_key: str = "dev-secret-key-change-in-production"
+    secret_key: str = Field(default="dev-proativo-secret-key-2024-super-secure", env="SECRET_KEY")
     access_token_expire_minutes: int = 30
     algorithm: str = "HS256"
     
@@ -166,7 +213,9 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore",  # Ignora campos extras do .env
+        extra="ignore",  # CRUCIAL: Ignora campos extras do .env
+        env_ignore_empty=True,  # Ignora valores vazios
+        validate_default=True,  # Valida valores padrão
     )
     
     def get_database_url(self, async_fallback: bool = True) -> str:
@@ -277,7 +326,7 @@ def validate_configuration() -> None:
         if settings.secret_key == "dev-secret-key-change-in-production":
             raise ValueError("SECRET_KEY deve ser alterada em produção!")
         
-        if settings.gemini_api_key is None:
+        if settings.google_api_key is None:
             raise ValueError("GOOGLE_API_KEY é obrigatória em produção!")
     
     # Log das configurações principais (sem dados sensíveis)
@@ -288,7 +337,7 @@ def validate_configuration() -> None:
         "environment": settings.environment,
         "app_version": settings.app_version,
         "database_configured": bool(settings.database_url),
-        "gemini_configured": bool(settings.gemini_api_key),
+        "gemini_configured": bool(settings.google_api_key),
         "cache_enabled": settings.cache_enabled,
         "debug": settings.debug,
     })

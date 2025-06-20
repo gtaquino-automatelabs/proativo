@@ -240,7 +240,7 @@ async def app_info():
         "configuration": {
             "cors_enabled": bool(settings.cors_origins),
             "database_configured": bool(settings.database_url),
-            "gemini_configured": bool(settings.gemini_api_key),
+            "gemini_configured": bool(settings.google_api_key),
             "cache_enabled": settings.cache_enabled,
         }
     }

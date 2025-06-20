@@ -18,8 +18,8 @@ __pycache__/
 *.pyo
 
 # ---- Logs ----
-logs/
-*.log
+# logs/
+# *.log
 
 # ---- Dados Temporários ----
 data/uploads/

@@ -22,18 +22,21 @@ RUN apt-get update && apt-get install -y \
 # Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar arquivo de dependências
-COPY requirements.txt .
+# Copiar arquivos de configuração primeiro para aproveitar cache do Docker
+COPY requirements.txt pyproject.toml ./
 
 # Instalar dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Criar diretórios necessários
-RUN mkdir -p logs data/uploads data/samples
+RUN mkdir -p logs data/uploads data/samples init-scripts scripts docs
 
 # Copiar código da aplicação
 COPY src/ ./src/
 COPY tests/ ./tests/
+COPY main.py ./
+COPY scripts/ ./scripts/
+COPY docs/ ./docs/
 
 # Mudar ownership para usuário não-root
 RUN chown -R proativo:proativo /app
@@ -48,5 +51,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Comando padrão para iniciar a aplicação
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 
+# Comando padrão para iniciar a aplicação FastAPI
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

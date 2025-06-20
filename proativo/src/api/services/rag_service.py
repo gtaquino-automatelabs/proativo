@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from ..config import get_settings
-from ..dependencies import get_database_session
 from ...database.repositories import EquipmentRepository, MaintenanceRepository
 from ...utils.error_handlers import DataProcessingError, ValidationError
 from ...utils.logger import get_logger
@@ -158,8 +157,15 @@ class RAGService:
         try:
             logger.info("Iniciando indexação de fontes de dados...")
             
+            # Import lazy para evitar circular import
+            from ..dependencies import get_database_engine
+            from sqlalchemy.ext.asyncio import async_sessionmaker
+            
             # Obter sessão do banco
-            async with get_database_session() as session:
+            engine = get_database_engine()
+            async_session = async_sessionmaker(engine, expire_on_commit=False)
+            
+            async with async_session() as session:
                 # Indexar equipamentos
                 await self._index_equipment_data(session)
                 

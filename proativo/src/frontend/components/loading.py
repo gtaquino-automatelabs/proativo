@@ -166,7 +166,7 @@ class LoadingIndicator:
             status_placeholder.markdown("⏳ **Testando conexão com API...**")
             
             start_time = time.time()
-            response = requests.get(f"{api_url}/health", timeout=timeout)
+            response = requests.get(f"{api_url}/api/v1/health/", timeout=timeout)
             response_time = (time.time() - start_time) * 1000  # em ms
             
             if response.status_code == 200:

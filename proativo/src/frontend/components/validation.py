@@ -187,7 +187,8 @@ class InputValidator:
                 key=key,
                 placeholder=placeholder,
                 help=help_text,
-                max_chars=rules.get("max_length", self.max_length)
+                max_chars=rules.get("max_length", self.max_length),
+                label_visibility="visible" if label else "hidden"
             )
             
             # Validação em tempo real
@@ -305,7 +306,7 @@ class InputValidator:
         
         with col1:
             user_input, is_valid = self.create_validated_text_input(
-                label="",
+                label="Mensagem de chat",
                 key=key,
                 placeholder=placeholder,
                 rules=rules,

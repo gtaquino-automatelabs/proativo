@@ -94,11 +94,11 @@ class LLMService:
             LLMError: Se não conseguir inicializar o cliente
         """
         try:
-            if not self.settings.gemini_api_key:
+            if not self.settings.google_api_key:
                 raise LLMError("Google API Key não configurada")
             
             # Configurar API
-            genai.configure(api_key=self.settings.gemini_api_key)
+            genai.configure(api_key=self.settings.google_api_key)
             
             # Configurações de segurança
             safety_settings = {

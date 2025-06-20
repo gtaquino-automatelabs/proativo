@@ -37,7 +37,7 @@ class HTTPService:
         retry_strategy = Retry(
             total=3,
             status_forcelist=[429, 500, 502, 503, 504],
-            method_whitelist=["HEAD", "GET", "OPTIONS"],
+            allowed_methods=["HEAD", "GET", "OPTIONS"],
             backoff_factor=1
         )
         
@@ -235,7 +235,7 @@ class HTTPService:
     def health_check(self) -> Tuple[Dict, bool]:
         """Verifica saúde da API"""
         try:
-            return self.get("/health", timeout=5, use_cache=False)
+            return self.get("/api/v1/health/", timeout=5, use_cache=False)
         except Exception:
             return {"status": "offline", "message": "API não disponível"}, False
     

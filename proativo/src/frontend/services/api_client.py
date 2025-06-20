@@ -60,15 +60,15 @@ class APIClient:
             Tupla (resposta, sucesso)
         """
         payload = {
-            "query": query,
-            "user_id": user_id
+            "message": query
+            # Note: session_id removido - será None (opcional)
         }
         
         if context:
             payload["context"] = context
         
         def _make_chat_request():
-            response, success = self.http_service.post("/chat", data=payload)
+            response, success = self.http_service.post("/api/v1/chat/", data=payload)
             if success:
                 self._update_endpoint_stats("chat_requests")
                 return response.get("response", "Erro: Resposta vazia da API")
@@ -106,7 +106,7 @@ class APIClient:
         }
         
         def _get_history():
-            response, success = self.http_service.get("/chat/history", params=params, use_cache=True)
+            response, success = self.http_service.get("/api/v1/chat/history", params=params, use_cache=True)
             if success:
                 return response.get("messages", [])
             return []
@@ -150,7 +150,7 @@ class APIClient:
             payload["comment"] = comment
         
         def _send_feedback():
-            response, success = self.http_service.post("/feedback", data=payload)
+            response, success = self.http_service.post("/api/v1/feedback/", data=payload)
             if success:
                 self._update_endpoint_stats("feedback_requests")
                 return True, "Feedback enviado com sucesso!"
@@ -179,7 +179,7 @@ class APIClient:
             params["user_id"] = user_id
         
         def _get_stats():
-            response, success = self.http_service.get("/feedback/stats", params=params, use_cache=True)
+            response, success = self.http_service.get("/api/v1/feedback/stats", params=params, use_cache=True)
             if success:
                 return response
             return {}
@@ -266,7 +266,7 @@ class APIClient:
             params["equipment_id"] = equipment_id
         
         def _search():
-            response, success = self.http_service.get("/equipment", params=params, use_cache=True)
+            response, success = self.http_service.get("/api/v1/equipment/", params=params, use_cache=True)
             if success:
                 return response.get("equipment", [])
             return []
@@ -298,7 +298,7 @@ class APIClient:
             params["equipment_id"] = equipment_id
         
         def _get_maintenance():
-            response, success = self.http_service.get("/maintenance", params=params, use_cache=True)
+            response, success = self.http_service.get("/api/v1/maintenance/", params=params, use_cache=True)
             if success:
                 return response.get("maintenance", [])
             return []

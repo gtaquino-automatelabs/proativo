@@ -90,7 +90,7 @@ class FeedbackSystem:
     def render_comment_area(self, 
                           response_id: str,
                           placeholder: str = "Conte-nos como podemos melhorar...",
-                          height: int = 60,
+                          height: int = 80,
                           max_chars: int = 500,
                           key_prefix: str = "comment") -> str:
         """

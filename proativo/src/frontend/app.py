@@ -806,7 +806,7 @@ def pagina_config():
                 # Fallback para método tradicional
                 def test_connection():
                     import requests
-                    response = requests.get(f"{API_BASE_URL}/health", timeout=5)
+                    response = requests.get(f"{API_BASE_URL}/api/v1/health/", timeout=5)
                     return response.status_code == 200
                 
                 result, success = safe_api_call(

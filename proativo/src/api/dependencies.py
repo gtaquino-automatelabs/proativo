@@ -19,13 +19,10 @@ from sqlalchemy.exc import SQLAlchemyError
 import asyncio
 
 from .config import get_settings, Settings
-from ..database.repositories import EquipmentRepository, MaintenanceRepository
+from ..database.repositories import EquipmentRepository, MaintenanceRepository, RepositoryManager
 from ..utils.logger import get_logger
 from ..utils.error_handlers import DatabaseError, LLMServiceError
-from .services.llm_service import LLMService
-from .services.fallback_service import FallbackService
-from .services.cache_service import CacheService
-from .services.query_processor import QueryProcessor
+# Services imports movidos para lazy loading para evitar import circular
 
 logger = get_logger(__name__)
 
@@ -197,6 +194,32 @@ async def get_maintenance_repository(
         )
 
 
+async def get_repository_manager(
+    session: AsyncSession = Depends(get_database_session)
+) -> RepositoryManager:
+    """
+    Dependência para obter gerenciador de repositories.
+    
+    Args:
+        session: Sessão do banco de dados (injetada automaticamente)
+        
+    Returns:
+        RepositoryManager: Gerenciador centralizado de repositories
+    """
+    try:
+        manager = RepositoryManager(session)
+        logger.debug("Repository manager created")
+        return manager
+        
+    except Exception as e:
+        logger.error(f"Failed to create repository manager: {str(e)}", exc_info=True)
+        raise DatabaseError(
+            message="Failed to initialize repository manager",
+            operation="create_repository_manager",
+            details={"error": str(e)}
+        )
+
+
 # =============================================================================
 # DEPENDÊNCIAS DE SERVICES (PREPARAÇÃO PARA PRÓXIMAS TAREFAS)
 # =============================================================================
@@ -217,7 +240,7 @@ def get_llm_service():
     """
     settings = get_settings()
     
-    if not settings.gemini_api_key:
+    if not settings.google_api_key:
         logger.warning("LLM service not available - API key not configured")
         raise LLMServiceError(
             message="LLM service not configured",
@@ -229,7 +252,7 @@ def get_llm_service():
         # Placeholder para quando implementarmos o LLMService
         # from ..api.services.llm_service import LLMService
         # return LLMService(
-        #     api_key=settings.gemini_api_key,
+        #     api_key=settings.google_api_key,
         #     model=settings.gemini_model,
         #     temperature=settings.gemini_temperature,
         #     max_tokens=settings.gemini_max_tokens,
@@ -506,11 +529,12 @@ def clear_all_caches():
     logger.info("All dependency caches cleared")
 
 
-async def get_cache_service() -> CacheService:
+async def get_cache_service():
     """
     Retorna instância do CacheService.
     
     Returns:
         CacheService: Instância do serviço de cache
     """
+    from .services.cache_service import CacheService
     return CacheService() 

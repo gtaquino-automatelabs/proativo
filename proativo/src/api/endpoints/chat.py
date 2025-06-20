@@ -23,7 +23,7 @@ from ..models.chat import (
     ChatContext,
     ChatMessage,
 )
-from ..dependencies import get_database_session, get_current_config
+from ..dependencies import get_database_session, get_current_settings
 from ..config import Settings
 from ...utils.error_handlers import LLMServiceError, DataProcessingError
 
@@ -146,7 +146,7 @@ async def chat_endpoint(
     request: ChatRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_database_session),
-    settings: Settings = Depends(get_current_config),
+    settings: Settings = Depends(get_current_settings),
 ) -> ChatResponse:
     """
     Endpoint principal para chat com IA sobre manutenção de equipamentos.
@@ -262,7 +262,7 @@ async def chat_endpoint(
 async def get_chat_history(
     session_id: str,
     limit: int = 50,
-    settings: Settings = Depends(get_current_config)
+    settings: Settings = Depends(get_current_settings)
 ) -> Dict[str, Any]:
     """
     Recupera histórico de chat de uma sessão.
@@ -291,7 +291,7 @@ async def get_chat_history(
 @router.delete("/session/{session_id}")
 async def clear_chat_session(
     session_id: str,
-    settings: Settings = Depends(get_current_config)
+    settings: Settings = Depends(get_current_settings)
 ) -> Dict[str, str]:
     """
     Limpa histórico de uma sessão de chat.

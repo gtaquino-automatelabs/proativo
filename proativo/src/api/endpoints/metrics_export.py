@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..dependencies import get_database_session, get_current_config, get_llm_service, get_cache_service, get_fallback_service
+from ..dependencies import get_database_session, get_current_settings, get_llm_service, get_cache_service, get_fallback_service
 from ..config import Settings
 from ...utils.error_handlers import ValidationError, DataProcessingError
 
@@ -52,7 +52,7 @@ async def export_metrics(
     scope: MetricsScope = Query(MetricsScope.ALL, description="Escopo das métricas"),
     include_historical: bool = Query(False, description="Incluir dados históricos"),
     days_back: int = Query(7, description="Dias para trás (se histórico)", ge=1, le=365),
-    settings: Settings = Depends(get_current_config),
+    settings: Settings = Depends(get_current_settings),
     llm_service=Depends(get_llm_service),
     cache_service=Depends(get_cache_service),
     fallback_service=Depends(get_fallback_service)
