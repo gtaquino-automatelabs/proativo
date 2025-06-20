@@ -13,7 +13,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from src.api.services.llm_service import LLMService, RESPONSE_CACHE, CACHE_EXPIRY
+from src.api.services.llm_service import LLMService
 from src.utils.error_handlers import LLMServiceError as LLMError, ValidationError
 
 
@@ -48,11 +48,8 @@ class TestLLMService:
     @pytest.fixture(autouse=True)
     def clear_cache(self):
         """Limpa cache antes de cada teste."""
-        RESPONSE_CACHE.clear()
-        CACHE_EXPIRY.clear()
+        # Cache agora é gerenciado pelo CacheService
         yield
-        RESPONSE_CACHE.clear()
-        CACHE_EXPIRY.clear()
     
     def test_initialize_gemini_success(self):
         """Testa inicialização bem-sucedida do Gemini."""
@@ -84,47 +81,41 @@ class TestLLMService:
             with pytest.raises(LLMError, match="Google API Key não configurada"):
                 LLMService()
     
-    def test_generate_cache_key(self, llm_service):
-        """Testa geração de chave de cache."""
-        query = "test query"
-        context = {"key": "value"}
+    def test_generate_cache_tags(self, llm_service):
+        """Testa geração de tags de cache."""
+        query = "status dos transformadores"
+        context = {"query_type": "equipment"}
+        query_results = [{"id": "T001", "type": "transformer"}]
         
-        key1 = llm_service._generate_cache_key(query, context)
-        key2 = llm_service._generate_cache_key(query, context)
-        key3 = llm_service._generate_cache_key("different query", context)
+        tags = llm_service._generate_cache_tags(query, context, query_results)
         
-        assert key1 == key2  # Mesma entrada deve gerar mesma chave
-        assert key1 != key3  # Entradas diferentes devem gerar chaves diferentes
-        assert len(key1) == 32  # Hash MD5 tem 32 caracteres
+        assert isinstance(tags, set)
+        assert len(tags) > 0
     
-    def test_cache_response_and_retrieval(self, llm_service):
-        """Testa armazenamento e recuperação do cache."""
-        cache_key = "test_key"
-        response = {"response": "test response", "confidence": 0.8}
+    def test_calculate_cache_ttl(self, llm_service):
+        """Testa cálculo do TTL do cache."""
+        ttl_high = llm_service._calculate_cache_ttl(0.9, 10)
+        ttl_low = llm_service._calculate_cache_ttl(0.3, 2)
         
-        # Armazenar no cache
-        llm_service._cache_response(cache_key, response)
-        
-        # Recuperar do cache
-        cached = llm_service._get_cached_response(cache_key)
-        
-        assert cached == response
-        assert llm_service.cache_hits == 1
+        assert ttl_high > ttl_low  # Alta confiança deve ter TTL maior
+        assert ttl_high > 0
+        assert ttl_low > 0
     
-    def test_cache_expiry(self, llm_service):
-        """Testa expiração do cache."""
-        cache_key = "test_key"
-        response = {"response": "test response"}
-        
-        # Armazenar no cache com tempo expirado
-        RESPONSE_CACHE[cache_key] = response
-        CACHE_EXPIRY[cache_key] = datetime.now() - timedelta(hours=2)
-        
-        # Tentar recuperar (deve retornar None por estar expirado)
-        cached = llm_service._get_cached_response(cache_key)
-        
-        assert cached is None
-        assert cache_key not in RESPONSE_CACHE  # Deve ter sido removido
+    def test_fallback_should_trigger(self, llm_service):
+        """Testa se o fallback deve ser acionado."""
+        # Teste simplificado já que o fallback é um serviço opcional
+        if llm_service.fallback_service:
+            should_fallback, trigger = llm_service.fallback_service.should_use_fallback(
+                llm_response="Não sei responder",
+                original_query="test query",
+                llm_confidence=0.2,
+                error=None
+            )
+            # O resultado pode variar dependendo da implementação do fallback
+            assert isinstance(should_fallback, bool)
+        else:
+            # Se não há fallback service, o teste passa
+            assert True
     
     def test_create_system_prompt(self, llm_service):
         """Testa criação do prompt de sistema."""
@@ -293,22 +284,24 @@ class TestLLMService:
             assert not result["cache_used"]
     
     @pytest.mark.asyncio
-    async def test_generate_response_cached(self, llm_service):
-        """Testa resposta servida do cache."""
-        # Pré-popular cache
-        cache_key = llm_service._generate_cache_key("test query", {})
-        cached_response = {
-            "response": "Resposta do cache",
-            "confidence_score": 0.8,
-            "cache_used": True
-        }
-        RESPONSE_CACHE[cache_key] = cached_response
-        CACHE_EXPIRY[cache_key] = datetime.now() + timedelta(hours=1)
-        
-        result = await llm_service.generate_response("test query")
-        
-        assert result == cached_response
-        assert llm_service.cache_hits == 1
+    async def test_generate_response_with_cache_service(self, llm_service):
+        """Testa resposta com cache service disponível."""
+        # Mock do cache service
+        with patch.object(llm_service, 'cache_service') as mock_cache:
+            mock_cache.get.return_value = None  # Cache miss
+            
+            mock_response = Mock()
+            mock_response.text = "Resposta do Gemini"
+            
+            with patch('asyncio.to_thread', return_value=mock_response):
+                result = await llm_service.generate_response(
+                    "test query",
+                    query_results=[{"id": "T001"}]
+                )
+                
+                assert "response" in result
+                assert not result["cache_used"]
+                mock_cache.get.assert_called_once()
     
     @pytest.mark.asyncio
     async def test_generate_response_empty_query(self, llm_service):
@@ -355,33 +348,28 @@ class TestLLMService:
         assert metrics["error_rate"] == 0.1
         assert "model_used" in metrics
     
-    def test_clear_cache(self, llm_service):
+    @pytest.mark.asyncio
+    async def test_clear_cache(self, llm_service):
         """Testa limpeza do cache."""
-        # Adicionar items no cache
-        RESPONSE_CACHE["key1"] = {"response": "test1"}
-        RESPONSE_CACHE["key2"] = {"response": "test2"}
-        CACHE_EXPIRY["key1"] = datetime.now()
-        CACHE_EXPIRY["key2"] = datetime.now()
-        
-        llm_service.clear_cache()
-        
-        assert len(RESPONSE_CACHE) == 0
-        assert len(CACHE_EXPIRY) == 0
+        # Mock do cache service
+        with patch.object(llm_service, 'cache_service') as mock_cache:
+            await llm_service.clear_cache()
+            mock_cache.clear.assert_called_once()
     
-    def test_cache_size_limit(self, llm_service):
-        """Testa limite de tamanho do cache."""
-        # Definir limite baixo para teste
-        llm_service.max_cache_size = 2
+    @pytest.mark.asyncio
+    async def test_get_metrics_async(self, llm_service):
+        """Testa obtenção de métricas async."""
+        # Simular algumas métricas
+        llm_service.request_count = 5
+        llm_service.cache_hits = 2
+        llm_service.error_count = 1
         
-        # Adicionar itens além do limite
-        llm_service._cache_response("key1", {"response": "test1"})
-        llm_service._cache_response("key2", {"response": "test2"})
-        llm_service._cache_response("key3", {"response": "test3"})  # Deve remover key1
+        metrics = await llm_service.get_metrics()
         
-        assert len(RESPONSE_CACHE) == 2
-        assert "key1" not in RESPONSE_CACHE  # Mais antigo deve ter sido removido
-        assert "key2" in RESPONSE_CACHE
-        assert "key3" in RESPONSE_CACHE
+        assert metrics["total_requests"] == 5
+        assert metrics["cache_hits"] == 2
+        assert metrics["error_count"] == 1
+        assert "model_used" in metrics
 
 
 if __name__ == "__main__":

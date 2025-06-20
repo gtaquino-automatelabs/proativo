@@ -19,12 +19,10 @@ from sqlalchemy.exc import SQLAlchemyError
 import asyncio
 
 from .config import get_settings, Settings
-from ..database.connection import get_async_engine, get_async_session, get_db_connection
 from ..database.repositories import EquipmentRepository, MaintenanceRepository
 from ..utils.logger import get_logger
 from ..utils.error_handlers import DatabaseError, LLMServiceError
 from .services.llm_service import LLMService
-from .services.rag_service import RAGService
 from .services.fallback_service import FallbackService
 from .services.cache_service import CacheService
 from .services.query_processor import QueryProcessor

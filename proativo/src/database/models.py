@@ -545,4 +545,148 @@ class DataHistory(Base):
     )
     
     def __repr__(self) -> str:
-        return f"<DataHistory(id='{self.id}', equipment_id='{self.equipment_id}', type='{self.data_type}')>" 
+        return f"<DataHistory(id='{self.id}', equipment_id='{self.equipment_id}', type='{self.data_type}')>"
+
+
+class UserFeedback(Base):
+    """Modelo para armazenar feedback dos usuários sobre as respostas da IA."""
+    
+    __tablename__ = "user_feedback"
+    
+    # Chave primária
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), 
+        primary_key=True, 
+        default=lambda: str(uuid.uuid4()),
+        comment="Identificador único do feedback"
+    )
+    
+    # Identificadores de sessão e mensagem
+    session_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        nullable=False,
+        comment="ID da sessão do usuário"
+    )
+    message_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        nullable=False,
+        comment="ID da mensagem/resposta avaliada"
+    )
+    
+    # Dados do feedback
+    rating: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        comment="Avaliação de 1 a 5 estrelas"
+    )
+    helpful: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        comment="Se a resposta foi útil (👍/👎)"
+    )
+    comment: Mapped[Optional[str]] = mapped_column(
+        Text,
+        comment="Comentário adicional do usuário"
+    )
+    
+    # Informações do usuário
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        comment="Identificador do usuário (se disponível)"
+    )
+    user_agent: Mapped[Optional[str]] = mapped_column(
+        Text,
+        comment="User agent do navegador"
+    )
+    ip_address: Mapped[Optional[str]] = mapped_column(
+        String(45),
+        comment="Endereço IP do usuário (IPv4/IPv6)"
+    )
+    
+    # Contexto da resposta
+    original_query: Mapped[Optional[str]] = mapped_column(
+        Text,
+        comment="Query original que gerou a resposta"
+    )
+    response_snippet: Mapped[Optional[str]] = mapped_column(
+        Text,
+        comment="Trecho da resposta da IA (primeiros 500 chars)"
+    )
+    confidence_score: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(3, 2),
+        comment="Score de confiança da resposta original (0.00-1.00)"
+    )
+    
+    # Categorização do feedback
+    feedback_category: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        comment="Categoria do problema: accuracy, completeness, clarity, relevance"
+    )
+    improvement_priority: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        comment="Prioridade de melhoria: low, medium, high, critical"
+    )
+    
+    # Status e processamento
+    is_processed: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        comment="Se o feedback foi processado/analisado"
+    )
+    processed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment="Data do processamento do feedback"
+    )
+    
+    # Dados estruturados adicionais
+    metadata_json: Mapped[Optional[dict]] = mapped_column(
+        JSONB,
+        comment="Metadados adicionais do feedback"
+    )
+    
+    # Auditoria
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(),
+        comment="Data de criação do feedback"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(), 
+        onupdate=func.now(),
+        comment="Data da última atualização"
+    )
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            "rating >= 1 AND rating <= 5", 
+            name="ck_feedback_rating_range"
+        ),
+        CheckConstraint(
+            "feedback_category IN ('accuracy', 'completeness', 'clarity', 'relevance', 'performance', 'other')", 
+            name="ck_feedback_category"
+        ),
+        CheckConstraint(
+            "improvement_priority IN ('low', 'medium', 'high', 'critical')", 
+            name="ck_feedback_priority"
+        ),
+        CheckConstraint(
+            "confidence_score IS NULL OR (confidence_score >= 0.00 AND confidence_score <= 1.00)", 
+            name="ck_feedback_confidence_range"
+        ),
+        Index("idx_feedback_session", "session_id"),
+        Index("idx_feedback_message", "message_id"),
+        Index("idx_feedback_rating", "rating"),
+        Index("idx_feedback_helpful", "helpful"),
+        Index("idx_feedback_category", "feedback_category"),
+        Index("idx_feedback_priority", "improvement_priority"),
+        Index("idx_feedback_created", "created_at"),
+        Index("idx_feedback_processed", "is_processed"),
+        # Index composto para consultas comuns
+        Index("idx_feedback_session_helpful", "session_id", "helpful"),
+        Index("idx_feedback_rating_category", "rating", "feedback_category"),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<UserFeedback(id='{self.id}', rating={self.rating}, helpful={self.helpful}, session='{self.session_id}')>"

@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool, QueuePool
 from sqlalchemy import event
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ class DatabaseSettings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 class Base(DeclarativeBase):

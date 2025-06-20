@@ -58,6 +58,17 @@ class LLMService:
         self.cache_hits = 0
         self.error_count = 0
         self.fallback_used_count = 0
+        
+        # Métricas de queries "não sei"
+        self.unknown_query_count = 0
+        self.unknown_query_categories = {
+            "knowledge_gap": 0,
+            "data_gap": 0,
+            "capability_limitation": 0,
+            "unsupported_query_type": 0,
+            "insufficient_context": 0,
+            "general_unknown": 0
+        }
     
     def _init_optional_services(self):
         """Inicializa serviços opcionais se disponíveis."""
@@ -289,11 +300,71 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
             logger.warning("Resposta muito longa, truncando")
             cleaned = cleaned[:5000] + "... [resposta truncada]"
         
+        # Verificar e registrar respostas "não sei" - Sistema de Logging Específico
+        cleaned_lower = cleaned.lower()
+        unknown_patterns = [
+            "não sei",
+            "não consigo", 
+            "não tenho informação",
+            "não posso fornecer",
+            "informação não disponível",
+            "dados insuficientes",
+            "não há dados",
+            "consulta não suportada",
+            "fora do meu conhecimento",
+            "preciso de mais informações"
+        ]
+        
+        # Log específico para queries "não sei" com detalhamento
+        for pattern in unknown_patterns:
+            if pattern in cleaned_lower:
+                category = self._categorize_unknown_response(pattern)
+                
+                # Incrementar métricas
+                self.unknown_query_count += 1
+                self.unknown_query_categories[category] += 1
+                
+                logger.warning("Query resultou em resposta 'não sei' - Requer melhoria da base de conhecimento", extra={
+                    "event_type": "unknown_query_response",
+                    "pattern_matched": pattern,
+                    "response_snippet": cleaned[:150],
+                    "response_length": len(cleaned),
+                    "timestamp": datetime.now().isoformat(),
+                    "requires_knowledge_improvement": True,
+                    "knowledge_gap_category": category,
+                    "improvement_priority": "high" if pattern in ["não sei", "não tenho informação"] else "medium",
+                    "total_unknown_queries": self.unknown_query_count
+                })
+                break
+        
         # Validar se não está apenas repetindo a pergunta
         if len(cleaned) < 10:
             raise ValidationError("Resposta muito curta do LLM")
         
         return cleaned
+    
+    def _categorize_unknown_response(self, pattern: str) -> str:
+        """
+        Categoriza o tipo de resposta 'não sei' para análise posterior.
+        
+        Args:
+            pattern: Padrão que foi identificado na resposta
+            
+        Returns:
+            str: Categoria da lacuna de conhecimento
+        """
+        if pattern in ["não sei", "fora do meu conhecimento"]:
+            return "knowledge_gap"
+        elif pattern in ["não tenho informação", "dados insuficientes", "não há dados"]:
+            return "data_gap"
+        elif pattern in ["não consigo", "não posso fornecer"]:
+            return "capability_limitation"
+        elif pattern in ["consulta não suportada"]:
+            return "unsupported_query_type"
+        elif pattern in ["preciso de mais informações"]:
+            return "insufficient_context"
+        else:
+            return "general_unknown"
     
     def _calculate_confidence_score(
         self, 
@@ -832,6 +903,9 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
             except Exception as e:
                 logger.warning(f"Erro ao obter métricas de cache: {e}")
         
+        # Calcular taxas de queries "não sei"
+        unknown_query_rate = (self.unknown_query_count / self.request_count) if self.request_count > 0 else 0
+        
         # Métricas básicas do LLM
         llm_metrics = {
             "total_requests": self.request_count,
@@ -841,6 +915,13 @@ Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insufic
             "error_rate": round(error_rate, 3),
             "fallback_used_count": self.fallback_used_count,
             "fallback_rate": round(fallback_rate, 3),
+            "unknown_queries": {
+                "total_unknown_queries": self.unknown_query_count,
+                "unknown_query_rate": round(unknown_query_rate, 3),
+                "categories": self.unknown_query_categories.copy(),
+                "most_common_category": max(self.unknown_query_categories.items(), key=lambda x: x[1])[0] if any(self.unknown_query_categories.values()) else "none",
+                "knowledge_improvement_needed": self.unknown_query_count > 0
+            },
             "model_config": {
                 "model": self.settings.gemini_model,
                 "temperature": self.settings.gemini_temperature,

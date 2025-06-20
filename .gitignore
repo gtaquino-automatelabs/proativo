@@ -1,0 +1,451 @@
+# ============================================================================
+# GITIGNORE PARA PROJETO PROATIVO
+# Sistema Inteligente de Apoio à Decisão para Manutenção de Ativos Elétricos
+# ============================================================================
+
+# ============================================================================
+# PYTHON
+# ============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+junit.xml
+test-results/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff (caso seja usado futuramente)
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff (caso seja usado futuramente)
+instance/
+.webassets-cache
+
+# Scrapy stuff (caso seja usado futuramente)
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff (caso seja usado futuramente)
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ============================================================================
+# UV PACKAGE MANAGER
+# ============================================================================
+
+# UV lockfile (geralmente commitado, mas pode ser ignorado em alguns casos)
+# uv.lock
+
+# UV cache
+.uv/
+
+# ============================================================================
+# FASTAPI / STREAMLIT ESPECÍFICOS
+# ============================================================================
+
+# Streamlit
+.streamlit/
+
+# FastAPI logs
+fastapi.log
+
+# Uvicorn logs
+uvicorn.log
+
+# ============================================================================
+# DADOS E ARQUIVOS DO PROJETO
+# ============================================================================
+
+# Logs da aplicação
+proativo/logs/
+logs/
+*.log
+*.log.*
+
+# Cache da aplicação
+proativo/cache/
+cache/
+.cache/
+
+# Uploads de usuários
+proativo/data/uploads/
+uploads/
+temp_uploads/
+
+# Arquivos temporários de processamento ETL
+proativo/data/temp/
+temp/
+*.tmp
+*.temp
+
+# Backup de dados
+backups/
+*.bak
+*.backup
+
+# Dados de produção (nunca commitar dados reais)
+proativo/data/production/
+production_data/
+
+# Arquivos de dados grandes (usar Git LFS se necessário)
+*.xlsx
+*.xls
+*.csv
+# Exceção para dados de exemplo (pequenos)
+!proativo/data/samples/*.xlsx
+!proativo/data/samples/*.csv
+!proativo/data/samples/*.xml
+
+# ============================================================================
+# DOCKER
+# ============================================================================
+
+# Docker volumes
+docker-volumes/
+
+# Docker override files
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# ============================================================================
+# BANCO DE DADOS
+# ============================================================================
+
+# PostgreSQL
+*.sql
+*.dump
+pgdata/
+
+# SQLite (caso seja usado para desenvolvimento)
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup de banco de dados
+db_backups/
+
+# ============================================================================
+# CONFIGURAÇÕES E SECRETOS
+# ============================================================================
+
+# Variáveis de ambiente (NUNCA commitar!)
+.env
+.env.*
+!.env.example
+
+# Chaves API e certificados
+*.key
+*.pem
+*.crt
+*.cer
+*.p12
+secrets/
+credentials/
+
+# Configurações locais
+config/local/
+local_config.py
+
+# ============================================================================
+# IDE E EDITORES
+# ============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Cursor AI
+.cursor/
+
+# ============================================================================
+# SISTEMA OPERACIONAL
+# ============================================================================
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# DESENVOLVIMENTO E DEBUG
+# ============================================================================
+
+# Debug files
+debug/
+*.debug
+pdb.set_trace
+
+# Profiling
+*.prof
+profile_results/
+
+# Memory dumps
+*.mdmp
+*.dmp
+
+# ============================================================================
+# MODELOS DE IA E CACHE
+# ============================================================================
+
+# Modelos de ML baixados
+models/
+*.model
+*.pkl
+*.joblib
+*.h5
+*.onnx
+
+# Cache de embeddings
+embeddings_cache/
+vector_cache/
+
+# Cache do Gemini/LLM
+llm_cache/
+gemini_cache/
+
+# ============================================================================
+# DOCUMENTAÇÃO GERADA
+# ============================================================================
+
+# Documentação auto-gerada
+docs/build/
+docs/_build/
+site/
+
+# OpenAPI specs gerados
+openapi.json
+swagger.json
+
+# ============================================================================
+# ANÁLISE E RELATÓRIOS
+# ============================================================================
+
+# Relatórios de performance
+performance_reports/
+benchmarks/
+
+# Análise de código
+.bandit
+.flake8
+.pylint.d/
+
+# Coverage reports
+htmlcov/
+.coverage.*
+
+# ============================================================================
+# DEPLOY E PRODUÇÃO
+# ============================================================================
+
+# Arquivos de deploy
+deploy/
+kubernetes/secrets/
+helm/values-prod.yaml
+
+# Nginx configs com dados sensíveis
+nginx_prod.conf
+
+# Scripts de produção com secrets
+deploy_prod.sh
+
+# ============================================================================
+# OUTROS
+# ============================================================================
+
+# Arquivos de lock específicos do projeto
+*.lock
+!poetry.lock
+!package-lock.json
+
+# Arquivos temporários gerais
+.tmp/
+tmp/
+
+# Arquivos de monitoramento
+monitoring/
+
+# Resultados de testes de integração
+integration_test_results/
+
+# ============================================================================
+# EXCEÇÕES IMPORTANTES (não ignorar)
+# ============================================================================
+
+# Manter arquivos de exemplo importantes
+!proativo/data/samples/README.md
+!proativo/data/samples/*.xml
+!proativo/data/samples/*.csv
+!proativo/data/samples/*.xlsx
+
+# Manter configurações de exemplo
+!.env.example
+!docker-compose.yml
+!Dockerfile
+
+# Manter documentação
+!docs/
+!README.md
+!*.md 

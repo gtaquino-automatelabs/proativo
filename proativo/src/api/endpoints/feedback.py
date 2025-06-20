@@ -14,8 +14,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.chat import FeedbackRequest, FeedbackResponse
-from ..dependencies import get_database_session, get_current_config
+from ..dependencies import get_database_session, get_current_config, get_repository_manager
 from ..config import Settings
+from ...database.repositories import RepositoryManager
 from ...utils.error_handlers import ValidationError, DataProcessingError
 
 # Configurar logging
@@ -23,9 +24,6 @@ logger = logging.getLogger(__name__)
 
 # Criar router para endpoints de feedback
 router = APIRouter(prefix="/feedback", tags=["feedback"])
-
-# Armazenamento temporário em memória para feedback (até implementar banco)
-feedback_storage: Dict[str, Dict[str, Any]] = {}
 
 
 async def process_feedback_metrics_background(
@@ -56,7 +54,7 @@ async def process_feedback_metrics_background(
 async def submit_feedback(
     request: FeedbackRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_database_session),
+    repo_manager: RepositoryManager = Depends(get_repository_manager),
     settings: Settings = Depends(get_current_config),
 ) -> FeedbackResponse:
     """
@@ -70,7 +68,7 @@ async def submit_feedback(
     Args:
         request: Dados do feedback incluindo avaliação e comentário
         background_tasks: Tarefas em background do FastAPI
-        db: Sessão do banco de dados
+        repo_manager: Gerenciador de repositories
         settings: Configurações da aplicação
         
     Returns:
@@ -82,27 +80,37 @@ async def submit_feedback(
     try:
         logger.info(f"Receiving feedback for message {request.message_id} - Helpful: {request.helpful}")
         
-        # Preparar dados do feedback
+        # Verificar se já existe feedback para esta mensagem
+        existing_feedback = await repo_manager.user_feedback.get_by_message_id(str(request.message_id))
+        if existing_feedback:
+            logger.warning(f"Feedback already exists for message {request.message_id}")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Feedback já foi enviado para esta mensagem"
+            )
+        
+        # Preparar dados do feedback para o banco
         feedback_data = {
-            "feedback_id": str(request.message_id),
-            "message_id": str(request.message_id),
             "session_id": str(request.session_id),
+            "message_id": str(request.message_id),
+            "rating": request.rating,
             "helpful": request.helpful,
             "comment": request.comment,
-            "timestamp": datetime.now(),
-            "rating": request.rating if hasattr(request, 'rating') else None,
-            "category": request.category if hasattr(request, 'category') else None
+            "feedback_category": getattr(request, 'category', None),
+            "improvement_priority": "high" if not request.helpful else "low",
+            "is_processed": False
         }
         
-        # Armazenar feedback (temporariamente em memória)
-        feedback_storage[str(request.message_id)] = feedback_data
+        # Salvar feedback no banco de dados
+        feedback = await repo_manager.user_feedback.create(**feedback_data)
+        await repo_manager.commit()
         
-        logger.info(f"Feedback stored successfully for message {request.message_id}")
+        logger.info(f"Feedback stored successfully in database for message {request.message_id}")
         
         # Processar métricas em background
         background_tasks.add_task(
             process_feedback_metrics_background,
-            feedback_data
+            {**feedback_data, "feedback_id": feedback.id}
         )
         
         # Criar resposta personalizada baseada no feedback
@@ -122,8 +130,13 @@ async def submit_feedback(
         logger.info(f"Feedback response sent for message {request.message_id}")
         return response
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+        
     except ValidationError as e:
         logger.warning(f"Validation error in feedback: {str(e)}")
+        await repo_manager.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Erro de validação: {str(e)}"
@@ -131,6 +144,7 @@ async def submit_feedback(
     
     except Exception as e:
         logger.error(f"Unexpected error in feedback endpoint: {str(e)}")
+        await repo_manager.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao processar feedback"
@@ -186,48 +200,58 @@ async def get_session_feedback(
 
 @router.get("/stats")
 async def get_feedback_stats(
+    repo_manager: RepositoryManager = Depends(get_repository_manager),
     settings: Settings = Depends(get_current_config)
 ) -> Dict[str, Any]:
     """
     Retorna estatísticas gerais do sistema de feedback.
     
     Args:
+        repo_manager: Gerenciador de repositories
         settings: Configurações da aplicação
         
     Returns:
         Dict com estatísticas de feedback
     """
     try:
-        logger.info("Generating feedback statistics")
+        logger.info("Generating feedback statistics from database")
         
-        if not feedback_storage:
+        # Obter estatísticas do banco de dados
+        stats = await repo_manager.user_feedback.get_stats_summary()
+        
+        # Se não há feedback, retornar valores padrão
+        if stats['total_feedback'] == 0:
             return {
                 "total_feedback": 0,
-                "satisfaction_rate": 0,
+                "positive_feedback": 0,
+                "negative_feedback": 0,
+                "satisfaction_rate": 0.0,
+                "avg_rating": 0.0,
                 "most_common_issues": [],
-                "improvement_suggestions": []
+                "improvement_suggestions": [
+                    "Sistema novo, aguardando feedback dos usuários",
+                    "Implementar análise mais detalhada conforme crescer o volume de dados"
+                ]
             }
         
-        # Calcular estatísticas básicas
-        total_feedback = len(feedback_storage)
-        positive_feedback = sum(1 for f in feedback_storage.values() if f.get("helpful", False))
-        satisfaction_rate = positive_feedback / total_feedback if total_feedback > 0 else 0
+        # Obter feedback negativo para análise de padrões
+        negative_feedback_list = await repo_manager.user_feedback.list_helpful(helpful=False)
         
         # Analisar comentários negativos para identificar padrões
         negative_comments = [
-            f.get("comment", "")
-            for f in feedback_storage.values()
-            if not f.get("helpful", True) and f.get("comment")
+            f.comment for f in negative_feedback_list 
+            if f.comment and f.comment.strip()
         ]
         
         # Análise simples de palavras-chave em comentários negativos
         common_issues = []
         issue_keywords = {
-            "informação incorreta": ["incorreto", "errado", "falso"],
-            "resposta incompleta": ["incompleto", "faltou", "superficial"],
+            "informação incorreta": ["incorreto", "errado", "falso", "impreciso"],
+            "resposta incompleta": ["incompleto", "faltou", "superficial", "raso"],
             "não entendeu a pergunta": ["não entendeu", "entendeu errado", "pergunta errada"],
-            "lentidão": ["lento", "demora", "demorou"],
-            "interface": ["difícil", "confuso", "interface"]
+            "lentidão": ["lento", "demora", "demorou", "devagar"],
+            "interface": ["difícil", "confuso", "interface", "navegação"],
+            "relevância": ["irrelevante", "não relacionado", "fora de contexto"]
         }
         
         for issue, keywords in issue_keywords.items():
@@ -242,17 +266,20 @@ async def get_feedback_stats(
         common_issues.sort(key=lambda x: x["count"], reverse=True)
         
         return {
-            "total_feedback": total_feedback,
-            "positive_feedback": positive_feedback,
-            "negative_feedback": total_feedback - positive_feedback,
-            "satisfaction_rate": round(satisfaction_rate, 3),
+            "total_feedback": stats['total_feedback'],
+            "positive_feedback": stats['positive_feedback'],
+            "negative_feedback": stats['negative_feedback'],
+            "satisfaction_rate": stats['satisfaction_rate'],
+            "avg_rating": stats['avg_rating'],
             "most_common_issues": common_issues[:5],
-            "recent_feedback": list(feedback_storage.values())[-10:],  # Últimos 10
             "improvement_suggestions": [
                 "Melhorar precisão das respostas baseada no feedback",
                 "Implementar detecção de intent mais robusta",
-                "Adicionar mais fontes de dados para respostas completas"
-            ]
+                "Adicionar mais fontes de dados para respostas completas",
+                "Analisar padrões de feedback negativo para melhorias direcionadas"
+            ],
+            "data_source": "database",
+            "last_updated": datetime.now().isoformat()
         }
         
     except Exception as e:

@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
-from .models import Equipment, Maintenance, DataHistory
+from .models import Equipment, Maintenance, DataHistory, UserFeedback
 
 logger = logging.getLogger(__name__)
 
@@ -761,6 +761,72 @@ class DataHistoryRepository(BaseRepository):
         } if row else {}
 
 
+class UserFeedbackRepository(BaseRepository):
+    """Repository para feedback dos usuários."""
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, UserFeedback)
+    
+    async def list_by_session(self, session_id: str) -> List[UserFeedback]:
+        """Lista feedback por sessão."""
+        result = await self.session.execute(
+            select(UserFeedback)
+            .where(UserFeedback.session_id == session_id)
+            .order_by(desc(UserFeedback.created_at))
+        )
+        return list(result.scalars().all())
+    
+    async def list_helpful(self, helpful: bool) -> List[UserFeedback]:
+        """Lista feedback por útil/não útil."""
+        result = await self.session.execute(
+            select(UserFeedback)
+            .where(UserFeedback.helpful == helpful)
+            .order_by(desc(UserFeedback.created_at))
+        )
+        return list(result.scalars().all())
+    
+    async def get_stats_summary(self) -> Dict[str, Any]:
+        """Resumo geral das estatísticas de feedback."""
+        result = await self.session.execute(
+            select(
+                func.count(UserFeedback.id).label('total_feedback'),
+                func.count(
+                    func.nullif(UserFeedback.helpful != True, False)
+                ).label('positive_feedback'),
+                func.avg(UserFeedback.rating).label('avg_rating')
+            )
+        )
+        row = result.one_or_none()
+        
+        if not row or row.total_feedback == 0:
+            return {
+                'total_feedback': 0,
+                'positive_feedback': 0,
+                'negative_feedback': 0,
+                'satisfaction_rate': 0.0,
+                'avg_rating': 0.0
+            }
+        
+        negative_feedback = row.total_feedback - row.positive_feedback
+        satisfaction_rate = (row.positive_feedback / row.total_feedback) * 100 if row.total_feedback > 0 else 0
+        
+        return {
+            'total_feedback': row.total_feedback,
+            'positive_feedback': row.positive_feedback,
+            'negative_feedback': negative_feedback,
+            'satisfaction_rate': round(satisfaction_rate, 2),
+            'avg_rating': round(float(row.avg_rating or 0), 2)
+        }
+    
+    async def get_by_message_id(self, message_id: str) -> Optional[UserFeedback]:
+        """Busca feedback por ID da mensagem."""
+        result = await self.session.execute(
+            select(UserFeedback)
+            .where(UserFeedback.message_id == message_id)
+        )
+        return result.scalar_one_or_none()
+
+
 class RepositoryManager:
     """Gerenciador centralizado de repositories."""
     
@@ -774,6 +840,7 @@ class RepositoryManager:
         self.equipment = EquipmentRepository(session)
         self.maintenance = MaintenanceRepository(session)
         self.data_history = DataHistoryRepository(session)
+        self.user_feedback = UserFeedbackRepository(session)
     
     async def commit(self):
         """Confirma todas as transações pendentes."""

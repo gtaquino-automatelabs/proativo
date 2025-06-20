@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from ..config import get_settings
-from ...database.connection import get_database_session
+from ..dependencies import get_database_session
 from ...database.repositories import EquipmentRepository, MaintenanceRepository
 from ...utils.error_handlers import DataProcessingError, ValidationError
 from ...utils.logger import get_logger

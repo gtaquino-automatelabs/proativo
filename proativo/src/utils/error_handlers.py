@@ -146,6 +146,22 @@ class ResourceNotFoundError(PROAtivoException):
         )
 
 
+class SecurityError(PROAtivoException):
+    """Erros de segurança."""
+    
+    def __init__(self, message: str, threat_type: Optional[str] = None, **kwargs):
+        details = kwargs.get('details', {})
+        if threat_type:
+            details['threat_type'] = threat_type
+        
+        super().__init__(
+            message=message,
+            error_code="SECURITY_ERROR",
+            details=details,
+            status_code=status.HTTP_403_FORBIDDEN
+        )
+
+
 # =============================================================================
 # FORMATADORES DE RESPOSTA DE ERRO
 # =============================================================================
@@ -353,6 +369,7 @@ def setup_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AuthenticationError, proativo_exception_handler)
     app.add_exception_handler(AuthorizationError, proativo_exception_handler)
     app.add_exception_handler(ResourceNotFoundError, proativo_exception_handler)
+    app.add_exception_handler(SecurityError, proativo_exception_handler)
     
     # Exceções do FastAPI
     app.add_exception_handler(HTTPException, http_exception_handler)
@@ -422,6 +439,9 @@ def create_user_friendly_message(error: Exception) -> str:
     
     elif isinstance(error, (AuthenticationError, AuthorizationError)):
         return "Acesso não autorizado."
+    
+    elif isinstance(error, SecurityError):
+        return "Operação bloqueada por questões de segurança."
     
     else:
         return "Ocorreu um erro inesperado. Nossa equipe foi notificada." 

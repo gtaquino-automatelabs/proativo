@@ -80,8 +80,8 @@ class Settings(BaseSettings):
     # CONFIGURAÇÕES DO GOOGLE GEMINI
     # =============================================================================
     
-    gemini_api_key: Optional[str] = Field(default=None, env="GEMINI_API_KEY")
-    gemini_model: str = "gemini-2.0-flash-exp"
+    gemini_api_key: Optional[str] = Field(default=None, env="GOOGLE_API_KEY")
+    gemini_model: str = Field(default="gemini-2.5-flash", env="GEMINI_MODEL")
     gemini_temperature: float = 0.1
     gemini_max_tokens: int = 2048
     gemini_timeout: int = 30
@@ -93,7 +93,7 @@ class Settings(BaseSettings):
         """Valida se a chave da API do Gemini está presente em produção."""
         if v is None:
             import warnings
-            warnings.warn("GEMINI_API_KEY não configurada. Funcionalidades de IA não estarão disponíveis.")
+            warnings.warn("GOOGLE_API_KEY não configurada. Funcionalidades de IA não estarão disponíveis.")
         return v
     
     # =============================================================================
@@ -278,7 +278,7 @@ def validate_configuration() -> None:
             raise ValueError("SECRET_KEY deve ser alterada em produção!")
         
         if settings.gemini_api_key is None:
-            raise ValueError("GEMINI_API_KEY é obrigatória em produção!")
+            raise ValueError("GOOGLE_API_KEY é obrigatória em produção!")
     
     # Log das configurações principais (sem dados sensíveis)
     from ..utils.logger import get_logger
