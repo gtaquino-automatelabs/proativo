@@ -286,7 +286,7 @@ class RAGService:
 ### **Configuração de Ambiente:**
 ```python
 # .env
-GEMINI_API_KEY=seu_key_aqui
+GOOGLE_API_KEY=seu_key_aqui
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_TEMPERATURE=0.1
 GEMINI_MAX_TOKENS=1000

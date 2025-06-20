@@ -115,7 +115,7 @@ class LLMServiceError(PROAtivoException):
 from pydantic import BaseSettings
 
 class Settings(BaseSettings):
-    gemini_api_key: str
+    google_api_key: str  # Chave da API do Google Gemini
     database_url: str
     log_level: str = "INFO"
     
@@ -179,7 +179,7 @@ class LLMService:
 @lru_cache()
 def get_llm_service() -> LLMService:
     """Injeção de dependência para serviço LLM"""
-    return LLMService(api_key=settings.gemini_api_key)
+    return LLMService(api_key=settings.google_api_key)
 ```
 
 ### Operações Async de Banco de Dados
