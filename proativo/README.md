@@ -123,6 +123,9 @@ uv sync --dev
 # Alternativamente, com pip
 pip install -r requirements.txt
 pip install -r requirements-dev.txt  # se existir
+
+# Iniciar containers de infraestrutura
+docker-compose up postgres pgadmin -d
 ```
 
 ### 3. Variáveis de Ambiente para Desenvolvimento
@@ -165,6 +168,34 @@ ENABLE_SQL_VALIDATION=true
 CORS_ORIGINS=["http://localhost:3000","http://localhost:8501"]
 EOF
 ```
+
+### 4. População de Dados para Desenvolvimento
+
+⚠️ **CRÍTICO**: Execute estes scripts após configurar o ambiente para ter dados para desenvolvimento:
+
+```bash
+# Scripts OBRIGATÓRIOS para desenvolvimento
+python scripts/setup/populate_database.py        # População base (equipamentos + manutenções)
+python scripts/setup/populate_data_history.py    # Histórico de incidentes
+
+# Scripts OPCIONAIS para desenvolvimento
+python scripts/testing/validate_system.py        # Validação completa do sistema
+python scripts/debugging/check_database.py       # Verificação do estado do banco
+
+# Verificar se dados foram carregados
+python -c "from src.database.repositories import RepositoryManager; print('Database populated successfully')"
+```
+
+**🎯 Resultado Esperado:**
+- ✅ 25 equipamentos elétricos (transformadores, disjuntores, etc.)
+- ✅ 25 registros de manutenção
+- ✅ 15 incidentes históricos com dados temporais
+- ✅ Sistema pronto para consultas em linguagem natural
+
+**❌ Sem estes dados:**
+- API funcionará mas retornará "dados não encontrados"
+- Frontend carregará mas chat não terá contexto
+- Testes de integração podem falhar
 
 ## 🗂️ Estrutura Detalhada do Código
 
@@ -252,6 +283,10 @@ uv add --dev package_name  # Para dependências de desenvolvimento
 # Atualizar dependências
 uv sync
 
+# PRIMEIRO USO: Popular dados (execute uma vez após setup)
+python scripts/setup/populate_database.py        # Se banco estiver vazio
+python scripts/setup/populate_data_history.py    # Se banco estiver vazio
+
 # Executar aplicação principal
 python main.py
 
@@ -260,6 +295,10 @@ uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 
 # Executar apenas o frontend
 streamlit run src/frontend/app.py --server.port 8501
+
+# Verificar se sistema está funcionando
+curl http://localhost:8000/health
+python scripts/testing/validate_system.py
 ```
 
 ### Comandos de Teste
@@ -543,24 +582,34 @@ async def debug_async_function():
 ### Problemas Comuns e Soluções
 
 ```bash
-# 1. Problemas de dependências
+# 1. Sistema responde "sem dados" ou "tabelas vazias"
+python scripts/setup/populate_database.py        # Popular banco vazio
+python scripts/setup/populate_data_history.py    # Adicionar histórico
+
+# 2. Problemas de dependências
 uv sync --reinstall
 
-# 2. Problemas de importação
+# 3. Problemas de importação
 python -c "import src.api.main; print('OK')"
 
-# 3. Problemas de banco de dados
+# 4. Problemas de banco de dados
 python -c "from src.database.connection import test_connection; test_connection()"
+python scripts/debugging/check_database.py       # Verificação detalhada
 
-# 4. Problemas com Gemini API
+# 5. Problemas com Gemini API
 python -c "from src.api.services.llm_service import test_api_connection; test_api_connection()"
 
-# 5. Limpar cache Python
+# 6. Limpar cache Python
 find . -name "*.pyc" -delete
 find . -name "__pycache__" -type d -exec rm -rf {} +
 
-# 6. Verificar configuração
+# 7. Verificar configuração
 python -c "from src.api.config import settings; print(settings.dict())"
+
+# 8. Reset completo do ambiente de desenvolvimento
+docker-compose down -v                           # Remove volumes
+docker-compose up postgres pgadmin -d            # Reinicia banco
+python scripts/setup/populate_database.py        # Repopula dados
 ```
 
 ## 📈 Performance e Monitoramento

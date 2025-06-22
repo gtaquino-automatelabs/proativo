@@ -13,8 +13,8 @@ from pathlib import Path
 from decimal import Decimal
 import re
 
-from etl.exceptions import DataProcessingError, ValidationError
-from utils.validators import DataValidator
+from ..exceptions import DataProcessingError, ValidationError
+from ...utils.validators import DataValidator
 
 logger = logging.getLogger(__name__)
 
@@ -296,9 +296,11 @@ class CSVProcessor:
         
         # Padroniza valores categóricos
         if 'criticality' in df.columns:
-            df['criticality'] = df['criticality'].str.title()
+            df['criticality'] = df['criticality'].str.strip()
             df['criticality'] = df['criticality'].replace({
-                'Alta': 'High', 'Média': 'Medium', 'Media': 'Medium', 'Baixa': 'Low'
+                'alta': 'High', 'Alta': 'High', 'HIGH': 'High',
+                'média': 'Medium', 'media': 'Medium', 'Média': 'Medium', 'Media': 'Medium', 'MEDIUM': 'Medium',
+                'baixa': 'Low', 'Baixa': 'Low', 'LOW': 'Low'
             })
         
         if 'status' in df.columns and data_type == 'equipment':
@@ -401,9 +403,10 @@ class CSVProcessor:
             
             # Padroniza nomes das colunas
             column_mapping = {
-                'equipamento': 'code', 'codigo': 'code', 'codigo_equipamento': 'code',
+                'id': 'code', 'equipamento': 'code', 'codigo': 'code', 'codigo_equipamento': 'code',
                 'nome': 'name', 'nome_equipamento': 'name', 'equipment_name': 'name',
-                'descricao': 'description', 'tipo': 'equipment_type', 'tipo_equipamento': 'equipment_type',
+                'type': 'equipment_type', 'tipo': 'equipment_type', 'tipo_equipamento': 'equipment_type',
+                'descricao': 'description',
                 'criticidade': 'criticality', 'localizacao': 'location', 'subestacao': 'substation',
                 'fabricante': 'manufacturer', 'modelo': 'model', 'numero_serie': 'serial_number',
                 'ano_fabricacao': 'manufacturing_year', 'data_instalacao': 'installation_date',
@@ -431,6 +434,9 @@ class CSVProcessor:
             if 'code' in df.columns:
                 df['code'] = df['code'].str.upper().str.strip()
                 df = df[df['code'].notna() & (df['code'] != '')]
+            
+            # Aplica conversões de tipos e valores categóricos
+            df = self.convert_data_types(df, 'equipment')
             
             # Converte para lista de dicionários
             equipment_records = []
@@ -473,6 +479,7 @@ class CSVProcessor:
             
             # Padroniza nomes das colunas
             column_mapping = {
+                'equipment_id': 'equipment_id', 'equipamento_id': 'equipment_id', 'codigo_equipamento': 'equipment_id',
                 'codigo_manutencao': 'maintenance_code', 'tipo_manutencao': 'maintenance_type',
                 'prioridade': 'priority', 'titulo': 'title', 'descricao': 'description',
                 'trabalho_realizado': 'work_performed', 'data_programada': 'scheduled_date',

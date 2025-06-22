@@ -12,13 +12,13 @@ from typing import List, Dict, Any, Optional, Tuple, Union
 from datetime import datetime
 from enum import Enum
 
-from etl.processors.csv_processor import CSVProcessor
-from etl.processors.xml_processor import XMLProcessor
-from etl.processors.xlsx_processor import XLSXProcessor
-from etl.exceptions import DataProcessingError, ValidationError, FileFormatError
-from utils.validators import DataValidator
+from .processors.csv_processor import CSVProcessor
+from .processors.xml_processor import XMLProcessor
+from .processors.xlsx_processor import XLSXProcessor
+from .exceptions import DataProcessingError, ValidationError, FileFormatError
+from ..utils.validators import DataValidator
 try:
-    from database.repositories import RepositoryManager
+    from ..database.repositories import RepositoryManager
 except ImportError:
     RepositoryManager = None
 
@@ -258,7 +258,7 @@ class DataProcessor:
                 saved_count = 0
                 for eq_data in equipment_objects:
                     try:
-                        await self.repository_manager.equipment.create(eq_data)
+                        await self.repository_manager.equipment.create(**eq_data)
                         saved_count += 1
                     except Exception as e:
                         logger.error(f"Erro ao salvar equipamento: {e}")
@@ -277,7 +277,7 @@ class DataProcessor:
                 saved_count = 0
                 for maint_data in maintenance_objects:
                     try:
-                        await self.repository_manager.maintenance.create(maint_data)
+                        await self.repository_manager.maintenance.create(**maint_data)
                         saved_count += 1
                     except Exception as e:
                         logger.error(f"Erro ao salvar manutenção: {e}")

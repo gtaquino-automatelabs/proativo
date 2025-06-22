@@ -118,7 +118,7 @@ async def test_query_processor():
         processor = QueryProcessor()
         
         # Teste básico
-        result = await processor.process_query("Status do transformador TR001")
+        result = processor.analyze_query("Status do transformador TR001")
         
         if result and result.query_type:
             print("✅ QueryProcessor funcionando corretamente")
@@ -152,7 +152,7 @@ async def test_integration():
             print("✅ Cache miss detectado corretamente")
         
         # 2. Processar query
-        processed = await processor.process_query(query)
+        processed = processor.analyze_query(query)
         if processed:
             print("✅ Query processada com sucesso")
         

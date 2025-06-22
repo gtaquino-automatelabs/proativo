@@ -68,6 +68,9 @@ def inicializar_sessao():
     # Inicializa o tema se não existir
     if "theme_manager" not in st.session_state:
         st.session_state.theme_manager = theme
+    else:
+        # Garante que o CSS está sempre aplicado corretamente
+        st.session_state.theme_manager.apply_custom_css()
     
     if "feedback_pendente" not in st.session_state:
         st.session_state.feedback_pendente = False
@@ -650,15 +653,33 @@ def pagina_config():
     # Seção de temas
     st.markdown("### 🎨 Tema da Aplicação")
     
+    # CORREÇÃO: Sistema de temas agora reaplica CSS automaticamente quando cores são alteradas
+    
     col1, col2 = st.columns([1, 2])
     
     with col1:
         st.markdown("**Esquemas de Cores Disponíveis:**")
         
+        # Detecta qual tema está ativo
+        current_colors = theme.get_color_scheme()
+        active_theme = "default"
         for scheme_name, colors in COLOR_SCHEMES.items():
-            if st.button(f"🎨 {scheme_name.title()}", key=f"theme_{scheme_name}", use_container_width=True):
+            if colors["primary"] == current_colors["primary"]:
+                active_theme = scheme_name
+                break
+        
+        for scheme_name, colors in COLOR_SCHEMES.items():
+            # Marca tema ativo com ícone especial
+            icon = "✅" if scheme_name == active_theme else "🎨"
+            button_text = f"{icon} {scheme_name.title()}"
+            if scheme_name == active_theme:
+                button_text += " (Ativo)"
+            
+            if st.button(button_text, key=f"theme_{scheme_name}", use_container_width=True):
                 theme.set_color_scheme(colors)
-                st.success(f"✅ Tema '{scheme_name}' aplicado!")
+                theme.apply_custom_css()  # ← CORREÇÃO: Reaplica CSS com novas cores
+                st.success(f"✅ Tema '{scheme_name}' aplicado com sucesso!")
+                st.balloons()  # Efeito visual de confirmação
                 st.rerun()
         
         st.markdown("---")
@@ -925,6 +946,7 @@ def pagina_config():
         if st.button("🔄 Restaurar Padrões", use_container_width=True):
             # Restaura configurações padrão
             theme.set_color_scheme(COLOR_SCHEMES["default"])
+            theme.apply_custom_css()  # ← CORREÇÃO: Reaplica CSS com cores padrão
             st.info("🔄 Configurações restauradas para o padrão")
             st.rerun()
     

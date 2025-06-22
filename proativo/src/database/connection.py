@@ -68,7 +68,6 @@ class DatabaseConnection:
         engine_kwargs = {
             "echo": self.settings.debug,
             "future": True,
-            "poolclass": QueuePool,
             "pool_size": self.settings.database_pool_size,
             "max_overflow": self.settings.database_max_overflow,
             "pool_timeout": self.settings.database_pool_timeout,

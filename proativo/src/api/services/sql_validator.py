@@ -61,12 +61,12 @@ class SQLValidator:
     - Análise de complexidade
     """
     
-    def __init__(self, security_level: SQLSecurityLevel = SQLSecurityLevel.STRICT):
+    def __init__(self, security_level: SQLSecurityLevel = SQLSecurityLevel.MODERATE):
         """
         Inicializa o validador SQL.
         
         Args:
-            security_level: Nível de segurança a aplicar
+            security_level: Nível de segurança a aplicar (padrão: MODERATE para protótipo)
         """
         self.security_level = security_level
         
@@ -79,6 +79,16 @@ class SQLValidator:
         self.queries_sanitized = 0
         
         logger.info(f"SQLValidator inicializado com nível {security_level.value}")
+    
+    @classmethod
+    def for_prototype(cls) -> 'SQLValidator':
+        """
+        Cria instância do validador configurada para ambiente de protótipo.
+        
+        Returns:
+            SQLValidator: Instância configurada para ser menos restritiva
+        """
+        return cls(security_level=SQLSecurityLevel.MODERATE)
     
     def _load_validation_rules(self) -> None:
         """Carrega regras de validação baseadas no nível de segurança."""
@@ -98,12 +108,15 @@ class SQLValidator:
             "BULK", "OPENROWSET", "OPENDATASOURCE", "OPENXML"
         }
         
-        # Funções permitidas por nível
+        # Funções permitidas por nível (expandidas para protótipo)
         self.allowed_functions = {
             SQLSecurityLevel.STRICT: {
                 "COUNT", "SUM", "AVG", "MIN", "MAX", "ROUND",
                 "UPPER", "LOWER", "TRIM", "SUBSTRING", "LENGTH",
-                "CURRENT_DATE", "CURRENT_TIME", "NOW"
+                "CURRENT_DATE", "CURRENT_TIME", "NOW",
+                # Funções adicionais para análise de dados
+                "COALESCE", "ISNULL", "CASE", "CAST", "CONVERT",
+                "DATE_PART", "EXTRACT", "DATE_TRUNC"
             },
             SQLSecurityLevel.MODERATE: {
                 "COUNT", "SUM", "AVG", "MIN", "MAX", "ROUND",
@@ -122,15 +135,49 @@ class SQLValidator:
             }
         }
         
-        # Tabelas permitidas (whitelist)
+        # Tabelas permitidas (whitelist) - Nomes reais do banco
         self.allowed_tables = {
-            "equipment", "maintenance_orders", "failures", 
+            # Nomes reais das tabelas no banco de dados
+            "equipments", "maintenances", "data_history", "user_feedback",
+            # Nomes alternativos e sinônimos para compatibilidade
+            "equipment", "maintenance", "maintenance_orders", "failures", 
             "spare_parts", "technicians", "locations",
-            "manufacturers", "equipment_types"
+            "manufacturers", "equipment_types", "assets"
         }
         
         # Campos permitidos por tabela
         self.allowed_fields = {
+            "equipments": {
+                "id", "code", "name", "description", "equipment_type", "category",
+                "criticality", "location", "substation", "manufacturer", "model",
+                "serial_number", "manufacturing_year", "installation_date",
+                "rated_voltage", "rated_power", "rated_current", "status", "is_critical",
+                "metadata_json", "created_at", "updated_at"
+            },
+            "maintenances": {
+                "id", "equipment_id", "maintenance_code", "maintenance_type", "priority",
+                "title", "description", "work_performed", "scheduled_date", "start_date",
+                "completion_date", "duration_hours", "status", "result", "technician",
+                "team", "contractor", "estimated_cost", "actual_cost", "parts_replaced",
+                "materials_used", "observations", "requires_followup", "followup_date",
+                "metadata_json", "created_at", "updated_at"
+            },
+            "data_history": {
+                "id", "equipment_id", "data_source", "data_type", "timestamp",
+                "measurement_type", "measurement_value", "measurement_unit",
+                "text_value", "condition_status", "alert_level", "inspector",
+                "collection_method", "source_file", "source_row", "is_validated",
+                "validation_status", "quality_score", "raw_data", "processed_data",
+                "metadata_json", "created_at"
+            },
+            "user_feedback": {
+                "id", "session_id", "message_id", "rating", "helpful", "comment",
+                "user_id", "user_agent", "ip_address", "original_query",
+                "response_snippet", "confidence_score", "feedback_category",
+                "improvement_priority", "is_processed", "processed_at",
+                "metadata_json", "created_at", "updated_at"
+            },
+            # Manter compatibilidade com nomes antigos
             "equipment": {
                 "id", "name", "type", "status", "location", "manufacturer",
                 "model", "installation_date", "last_maintenance", "created_at"
@@ -138,10 +185,6 @@ class SQLValidator:
             "maintenance_orders": {
                 "id", "equipment_id", "type", "status", "scheduled_date",
                 "completion_date", "cost", "description", "technician", "created_at"
-            },
-            "failures": {
-                "id", "equipment_id", "failure_date", "description",
-                "severity", "resolution_time", "cost", "created_at"
             }
         }
         
@@ -149,7 +192,7 @@ class SQLValidator:
         self.dangerous_patterns = [
             r'--.*',  # Comentários SQL
             r'/\*.*?\*/',  # Comentários de bloco
-            r';.*',  # Múltiplas statements
+            r';.+',  # Múltiplas statements (mas não semicolon no final)
             r'@@\w+',  # Variáveis do sistema
             r'xp_\w+',  # Extended procedures
             r'sp_\w+',  # System procedures
@@ -169,28 +212,28 @@ class SQLValidator:
             r'session_user',  # Session user
         ]
         
-        # Limites de complexidade
+        # Limites de complexidade (suavizados para protótipo)
         self.complexity_limits = {
             SQLSecurityLevel.STRICT: {
-                "max_joins": 2,
-                "max_subqueries": 1,
-                "max_where_conditions": 5,
-                "max_order_by": 2,
-                "max_group_by": 3
+                "max_joins": 5,        # Era 2, agora 5
+                "max_subqueries": 3,   # Era 1, agora 3  
+                "max_where_conditions": 10,  # Era 5, agora 10
+                "max_order_by": 3,     # Era 2, agora 3
+                "max_group_by": 5      # Era 3, agora 5
             },
             SQLSecurityLevel.MODERATE: {
-                "max_joins": 5,
-                "max_subqueries": 2,
-                "max_where_conditions": 10,
-                "max_order_by": 3,
-                "max_group_by": 5
+                "max_joins": 8,        # Era 5, agora 8
+                "max_subqueries": 5,   # Era 2, agora 5
+                "max_where_conditions": 15,  # Era 10, agora 15
+                "max_order_by": 5,     # Era 3, agora 5
+                "max_group_by": 8      # Era 5, agora 8
             },
             SQLSecurityLevel.PERMISSIVE: {
-                "max_joins": 10,
-                "max_subqueries": 3,
-                "max_where_conditions": 15,
-                "max_order_by": 5,
-                "max_group_by": 8
+                "max_joins": 15,       # Era 10, agora 15
+                "max_subqueries": 8,   # Era 3, agora 8
+                "max_where_conditions": 25,  # Era 15, agora 25
+                "max_order_by": 8,     # Era 5, agora 8
+                "max_group_by": 12     # Era 8, agora 12
             }
         }
     
@@ -441,14 +484,17 @@ class SQLValidator:
         """Verifica se tabelas e campos são permitidos."""
         issues = []
         
-        # Verificar tabelas
+        # Verificar tabelas (case-insensitive)
         for table in structure["tables"]:
             if table.lower() not in self.allowed_tables:
                 issues.append(f"Tabela não permitida: {table}")
         
-        # Verificar campos (básico)
+        # Verificar campos (mais permissivo - apenas aliases muito curtos)
         for column in structure["columns"]:
-            if column not in ["*", "id", "count"] and len(column) < 2:
+            # Permitir *, números, palavras normais e aliases comuns (e, m, d, etc.)
+            if (column not in ["*", "id", "count"] and 
+                len(column) == 1 and 
+                not column.isalpha()):
                 issues.append(f"Nome de coluna suspeito: {column}")
         
         return issues
@@ -467,11 +513,18 @@ class SQLValidator:
             sanitized = re.sub(r'/\*.*?\*/', '', sanitized, flags=re.DOTALL)
             sanitization_applied = True
         
-        # Remover múltiplas statements
-        if ';' in sanitized and not sanitized.strip().endswith(';'):
-            parts = sanitized.split(';')
-            sanitized = parts[0] + ';'
-            sanitization_applied = True
+        # Remover múltiplas statements (mas permitir semicolon final)
+        if ';' in sanitized:
+            # Conta quantos semicolons existem
+            semicolon_count = sanitized.count(';')
+            # Se há mais de um semicolon OU semicolon não está no final, sanitizar
+            if semicolon_count > 1 or (semicolon_count == 1 and not sanitized.strip().endswith(';')):
+                parts = sanitized.split(';')
+                sanitized = parts[0].strip()
+                # Adiciona semicolon final se a query original terminava com ele
+                if sanitized and not sanitized.endswith(';'):
+                    sanitized += ';'
+                sanitization_applied = True
         
         # Limitar query a uma linha em casos extremos
         if '\n' in sanitized and sanitization_applied:

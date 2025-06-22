@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 import re
 
-from etl.exceptions import DataProcessingError, ValidationError, FileFormatError
+from ..exceptions import DataProcessingError, ValidationError, FileFormatError
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +127,7 @@ class XMLProcessor:
             Dados padronizados
         """
         field_mapping = {
+            'id': 'code',  # Mapeia campo 'id' do XML para 'code'
             'equipment_id': 'code',
             'equipment_code': 'code',
             'equipamento': 'code',
@@ -181,8 +182,12 @@ class XMLProcessor:
             Dados padronizados
         """
         field_mapping = {
+            'id': 'maintenance_code',  # Mapeia 'id' para 'maintenance_code'
             'maintenance_id': 'maintenance_code',
             'codigo_manutencao': 'maintenance_code',
+            'equipment_id': 'equipment_id',  # Mantém equipment_id
+            'equipamento_id': 'equipment_id',  # Mapeia equipamento_id
+            'codigo_equipamento': 'equipment_id',  # Mapeia codigo_equipamento
             'type': 'maintenance_type',
             'tipo_manutencao': 'maintenance_type',
             'priority': 'priority',
@@ -337,6 +342,23 @@ class XMLProcessor:
                 
                 # Converte tipos de dados
                 equipment_data = self.convert_data_types(equipment_data, 'equipment')
+                
+                # Valida e garante campo 'code' obrigatório
+                if 'code' not in equipment_data or not equipment_data['code']:
+                    # Tenta usar outros campos como fallback
+                    fallback_code = None
+                    for field in ['id', 'equipment_id', 'equipment_code', 'codigo', 'equipamento']:
+                        if field in equipment_data and equipment_data[field]:
+                            fallback_code = str(equipment_data[field]).strip().upper()
+                            break
+                    
+                    if fallback_code:
+                        equipment_data['code'] = fallback_code
+                        logger.warning(f"Campo 'code' ausente, usando fallback: {fallback_code}")
+                    else:
+                        # Gera código sequencial se nenhum campo disponível
+                        equipment_data['code'] = f"EQUIP-{len(equipment_records)+1:03d}"
+                        logger.warning(f"Campo 'code' ausente, gerado código: {equipment_data['code']}")
                 
                 # Adiciona metadados
                 equipment_data['metadata_json'] = {

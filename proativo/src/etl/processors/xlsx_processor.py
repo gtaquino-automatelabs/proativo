@@ -16,7 +16,7 @@ try:
 except ImportError:
     raise ImportError("OpenPyXL não está instalado. Execute: pip install openpyxl")
 
-from etl.exceptions import DataProcessingError, FileFormatError
+from ..exceptions import DataProcessingError, FileFormatError
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,7 @@ class XLSXProcessor:
             
             # Mapeamento de colunas
             column_mapping = {
+                'id': 'code',  # Mapeia campo 'id' do XLSX para 'code'
                 'equipamento': 'code', 'codigo': 'code', 'codigo_equipamento': 'code',
                 'nome': 'name', 'nome_equipamento': 'name', 'equipment_name': 'name',
                 'descricao': 'description', 'tipo': 'equipment_type', 'tipo_equipamento': 'equipment_type',
@@ -99,6 +100,23 @@ class XLSXProcessor:
                                 record[standard_name] = str_value
                 
                 if has_data:
+                    # Valida e garante campo 'code' obrigatório
+                    if 'code' not in record or not record['code']:
+                        # Tenta usar outros campos como fallback
+                        fallback_code = None
+                        for field in ['id', 'equipment_id', 'equipment_code', 'codigo', 'equipamento']:
+                            if field in record and record[field]:
+                                fallback_code = str(record[field]).strip().upper()
+                                break
+                        
+                        if fallback_code:
+                            record['code'] = fallback_code
+                            logger.warning(f"Campo 'code' ausente, usando fallback: {fallback_code}")
+                        else:
+                            # Gera código sequencial se nenhum campo disponível
+                            record['code'] = f"EQUIP-{len(equipment_records)+1:03d}"
+                            logger.warning(f"Campo 'code' ausente, gerado código: {record['code']}")
+                    
                     record['metadata_json'] = {
                         'source_file': file_path.name,
                         'source_format': 'XLSX',
@@ -149,6 +167,10 @@ class XLSXProcessor:
             
             # Mapeamento de colunas
             column_mapping = {
+                'id': 'maintenance_code',  # Mapeia 'id' para 'maintenance_code'
+                'equipment_id': 'equipment_id',  # Mantém equipment_id  
+                'equipamento_id': 'equipment_id',  # Mapeia equipamento_id
+                'codigo_equipamento': 'equipment_id',  # Mapeia codigo_equipamento
                 'codigo_manutencao': 'maintenance_code', 'tipo_manutencao': 'maintenance_type',
                 'prioridade': 'priority', 'titulo': 'title', 'descricao': 'description',
                 'trabalho_realizado': 'work_performed', 'data_programada': 'scheduled_date',

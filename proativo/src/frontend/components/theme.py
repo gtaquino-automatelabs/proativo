@@ -18,9 +18,29 @@ class ThemeManager:
         custom_css = f"""
         <style>
         /* ==== TEMA GERAL ==== */
+        .stApp {{
+            background-color: {self.background_color};
+            color: {self.text_color};
+        }}
+        
         .main {{
             padding-top: 2rem;
             padding-bottom: 2rem;
+            background-color: {self.background_color};
+            color: {self.text_color};
+        }}
+        
+        .css-1kyxreq {{
+            background-color: {self.background_color};
+        }}
+        
+        .css-12oz5g7 {{
+            background-color: {self.background_color};
+        }}
+        
+        .block-container {{
+            padding-top: 1rem;
+            background-color: {self.background_color};
         }}
         
         /* ==== HEADER CUSTOMIZADO ==== */
@@ -104,11 +124,12 @@ class ThemeManager:
         
         /* ==== CHAT INTERFACE ==== */
         .chat-container {{
-            background: white;
+            background: {self.background_color};
             border-radius: 15px;
             padding: 1.5rem;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e1e5e9;
+            border: 1px solid {self.primary_color}33;
+            color: {self.text_color};
         }}
         
         .chat-message {{
@@ -130,12 +151,14 @@ class ThemeManager:
         
         /* ==== MÉTRICAS ==== */
         .metric-card {{
-            background: white;
+            background: {self.background_color};
             padding: 1.5rem;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             border-left: 4px solid {self.primary_color};
+            border: 1px solid {self.primary_color}33;
             margin: 0.5rem 0;
+            color: {self.text_color};
         }}
         
         .metric-value {{
@@ -339,10 +362,136 @@ class ThemeManager:
         footer {{visibility: hidden;}}
         header {{visibility: hidden;}}
         
-        /* ==== REMOVE PADDING TOP ==== */
-        .block-container {{
-            padding-top: 1rem;
+        /* ==== ADAPTAÇÃO COMPLETA PARA TEMAS ESCUROS ==== */
+        .stSelectbox > div > div {{
+            background-color: {self.background_color} !important;
+            color: {self.text_color} !important;
         }}
+        
+        .stTextInput > div > div > input {{
+            background-color: {self.background_color} !important;
+            color: {self.text_color} !important;
+            border-color: {self.primary_color}66 !important;
+        }}
+        
+        .stTextArea > div > div > textarea {{
+            background-color: {self.background_color} !important;
+            color: {self.text_color} !important;
+            border-color: {self.primary_color}66 !important;
+        }}
+        
+        .element-container {{
+            background-color: {self.background_color} !important;
+        }}
+        
+        .stMarkdown {{
+            color: {self.text_color} !important;
+        }}
+        
+        .stText {{
+            color: {self.text_color} !important;
+        }}
+        
+        /* Ajustar labels e headers para temas escuros */
+        .metric-label {{
+            color: {self.text_color}CC !important;
+        }}
+        
+        /* Ajustar containers filhos */
+        div[data-testid="column"] {{
+            background-color: {self.background_color} !important;
+        }}
+        
+        div[data-testid="stVerticalBlock"] {{
+            background-color: {self.background_color} !important;
+        }}
+        
+        /* Forçar background em todos os elementos principais */
+        .css-1v0mbdj {{
+            background-color: {self.background_color} !important;
+            color: {self.text_color} !important;
+        }}
+        
+        .css-1lcbmhc {{
+            background-color: {self.background_color} !important;
+            color: {self.text_color} !important;
+        }}
+        
+        /* Garantir que todos os divs herdem o background */
+        div:not(.sidebar-logo):not(.main-header) {{
+            background-color: inherit;
+            color: inherit;
+        }}
+        
+        /* ==== CORREÇÕES ESPECÍFICAS PARA ÁREAS CLARAS ==== */
+        
+        /* Status do Sistema - força background e texto visível */
+        .css-1kyxreq .css-12oz5g7 {{
+            background-color: {self.background_color} !important;
+            color: {self.text_color} !important;
+        }}
+        
+        /* Todos os containers de conteúdo */
+        .css-1d391kg, .css-1lcbmhc, .css-1v0mbdj, .css-12oz5g7 {{
+            background-color: {self.background_color} !important;
+            color: {self.text_color} !important;
+        }}
+        
+        /* Seções de cartões e métricas */
+        .css-1r6slb0, .css-1wivap2, .css-1cpxqw2 {{
+            background-color: {self.background_color} !important;
+            color: {self.text_color} !important;
+        }}
+        
+        /* Força todos os textos */
+        p, h1, h2, h3, h4, h5, h6, span, label, div {{
+            color: {self.text_color} !important;
+        }}
+        
+        /* Específico para labels de métricas */
+        .css-1wivap2 p, .css-1cpxqw2 p {{
+            color: {self.text_color} !important;
+        }}
+        
+        /* Container principal do Streamlit */
+        .css-1d391kg {{
+            background-color: {self.background_color} !important;
+        }}
+        
+        /* Área de conteúdo principal */
+        .css-1lcbmhc.e1fqkh3o4 {{
+            background-color: {self.background_color} !important;
+        }}
+        
+        /* Status badges e elementos pequenos */
+        .css-1wivap2 {{
+            background-color: {self.background_color} !important;
+        }}
+        
+        /* Força background em elementos específicos do Streamlit */
+        [data-testid="stSidebar"] {{
+            background-color: {self.sidebar_bg} !important;
+        }}
+        
+        [data-testid="stAppViewContainer"] {{
+            background-color: {self.background_color} !important;
+        }}
+        
+        [data-testid="stMain"] {{
+            background-color: {self.background_color} !important;
+        }}
+        
+        /* Cartões de status com fundo escuro */
+        .element-container > div {{
+            background-color: {self.background_color} !important;
+            color: {self.text_color} !important;
+        }}
+        
+        /* Correção para textos pequenos e labels */
+        small, .small-text {{
+            color: {self.text_color}BB !important;
+        }}
+
         </style>
         """
         
@@ -556,9 +705,9 @@ COLOR_SCHEMES = {
     "dark": {
         "primary": "#00d4aa",
         "secondary": "#ff6b6b", 
-        "background": "#1e1e1e",
+        "background": "#2c2c2c",  # ← MESMO CINZA ESCURO DO ENERGY
         "text": "#ffffff",
-        "sidebar_bg": "#2d2d2d"
+        "sidebar_bg": "#383838"   # ← MESMA COR DA SIDEBAR DO ENERGY
     },
     "corporate": {
         "primary": "#2c3e50",
@@ -568,10 +717,10 @@ COLOR_SCHEMES = {
         "sidebar_bg": "#ecf0f1"
     },
     "energy": {
-        "primary": "#e74c3c",
-        "secondary": "#f39c12",
-        "background": "#ffffff",
-        "text": "#2c3e50",
-        "sidebar_bg": "#fdf2e9"
+        "primary": "#ff6b35",   # ← Laranja mais vibrante para melhor contraste
+        "secondary": "#f7931e", # ← Amarelo mais vibrante  
+        "background": "#2c2c2c", # ← FUNDO CINZA ESCURO/CHUMBO
+        "text": "#ffffff",       # ← Texto branco para contraste
+        "sidebar_bg": "#383838" # ← Sidebar cinza escuro
     }
 } 

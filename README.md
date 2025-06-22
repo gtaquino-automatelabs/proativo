@@ -42,19 +42,33 @@ cp .env.example .env
 # Inicie todos os serviços
 docker-compose up -d
 
-# Acesse as aplicações
-# Frontend: http://localhost:8501
-# API: http://localhost:8000
-# Docs: http://localhost:8000/docs
+# Aguarde os containers iniciarem (30-60 segundos)
+docker-compose logs -f  # Opcional: acompanhar logs
 ```
 
-### 4. Primeiro Uso
+### 4. População de Dados (OBRIGATÓRIO)
+```bash
+# Navegue para o diretório do projeto
+cd proativo
+
+# Execute os scripts de setup na ordem:
+python scripts/setup/populate_database.py        # Equipamentos e manutenções
+python scripts/setup/populate_data_history.py    # Histórico de incidentes
+
+# Valide a instalação (recomendado)
+python scripts/testing/validate_system.py        # Verificação completa
+```
+
+⚠️ **IMPORTANTE**: Sem executar os scripts de setup, o sistema estará vazio e não terá dados para consultar.
+
+### 5. Primeiro Uso
 1. Acesse o **frontend** em http://localhost:8501
-2. Faça upload de arquivos CSV/XML/XLSX ou use os dados de exemplo
-3. Comece a fazer consultas em linguagem natural:
+2. Comece a fazer consultas em linguagem natural:
    - *"Quantos transformadores estão operacionais?"*
    - *"Manutenções programadas para esta semana"*
    - *"Equipamentos com mais falhas este ano"*
+   - *"Histórico de incidentes dos últimos 6 meses"*
+3. **Opcional**: Faça upload de seus próprios arquivos CSV/XML/XLSX
 
 ## 🏗️ Arquitetura
 
@@ -178,12 +192,28 @@ python scripts/test_etl_pipeline.py
 - ✅ CORS configurado + rate limiting
 - ✅ Não exposição de dados sensíveis em logs
 
-## 🐛 Solução de Problemas Common Issues
+## 🐛 Solução de Problemas
+
+### Problemas Comuns
 
 **Container não inicia**: `docker-compose logs [service]`  
 **API não responde**: `curl http://localhost:8000/health`  
 **Gemini API erro**: Verificar `GOOGLE_API_KEY` no `.env`  
 **Logs detalhados**: Definir `LOG_LEVEL=DEBUG` no `.env`  
+
+### Sistema Sem Dados
+❌ **Chat responde "Não há dados" ou "Tabelas vazias"**  
+✅ **Solução**: Execute os scripts de setup:
+```bash
+python scripts/setup/populate_database.py
+python scripts/setup/populate_data_history.py
+```
+
+### URLs de Acesso
+- **Frontend**: http://localhost:8501
+- **API**: http://localhost:8000  
+- **Docs**: http://localhost:8000/docs
+- **Health**: http://localhost:8000/health  
 
 ## 🤝 Contribuição
 
