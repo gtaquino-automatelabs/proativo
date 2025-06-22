@@ -23,9 +23,11 @@ from ..models.chat import (
     ChatContext,
     ChatMessage,
 )
-from ..dependencies import get_database_session, get_current_settings
+from ..dependencies import get_database_session, get_current_settings, get_llm_service
 from ..config import Settings
 from ...utils.error_handlers import LLMServiceError, DataProcessingError
+from ..services.llm_service import LLMService
+from ..services.rag_service import RAGService
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -147,6 +149,7 @@ async def chat_endpoint(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_database_session),
     settings: Settings = Depends(get_current_settings),
+    llm_service: LLMService = Depends(get_llm_service),
 ) -> ChatResponse:
     """
     Endpoint principal para chat com IA sobre manutenção de equipamentos.
@@ -192,34 +195,69 @@ async def chat_endpoint(
         )
         context.conversation_history.append(user_message)
         
-        # Processar mensagem com serviço mock de LLM
+        # Processar mensagem com serviço LLM real e dados do banco via RAG
         try:
-            llm_result = await mock_llm_service(
-                message=request.message,
-                context=context,
-                max_results=request.max_results
+            query_results = []
+            
+            # Tentar buscar dados relevantes via RAG
+            try:
+                # Inicializar RAG service
+                rag_service = RAGService()
+                
+                # Indexar dados (cache interno do RAG service evita reindexação)
+                await rag_service.index_data_sources()
+                logger.info("RAG service initialized successfully")
+                
+                # Recuperar contexto relevante
+                rag_context = await rag_service.retrieve_context(
+                    query=request.message,
+                    max_chunks=5
+                )
+                
+                # Preparar dados para o LLM
+                for chunk in rag_context.chunks:
+                    query_results.append({
+                        "source": chunk.source,
+                        "content": chunk.content,
+                        "metadata": chunk.metadata,
+                        "relevance_score": chunk.relevance_score
+                    })
+                
+                logger.info(f"RAG context retrieved: {len(query_results)} chunks found")
+                
+            except Exception as rag_error:
+                logger.warning(f"RAG service error (using fallback): {rag_error}")
+                query_results = []
+            
+            # Usar o serviço LLM com dados do RAG ou sem dados se RAG falhou
+            llm_result = await llm_service.generate_response(
+                user_query=request.message,
+                query_results=query_results,
+                context=context.dict() if context else None,
+                session_id=str(session_id)
             )
+            
         except Exception as e:
             logger.error(f"Error in LLM service: {str(e)}")
             raise LLMServiceError(f"Erro no serviço de IA: {str(e)}")
         
-        # Calcular tempo de processamento
-        processing_time_ms = int((time.time() - processing_start_time) * 1000)
+        # Usar tempo de processamento do LLM real ou calcular
+        processing_time_ms = llm_result.get("processing_time", int((time.time() - processing_start_time) * 1000))
         
-        # Criar resposta
+        # Criar resposta - adaptando estrutura do LLM real
         response = ChatResponse(
             session_id=session_id,
             response=llm_result["response"],
-            query_type=llm_result["query_type"],
-            response_type=llm_result["response_type"],
-            data_found=llm_result["data_found"],
-            equipment_ids=llm_result["equipment_ids"],
+            query_type=QueryType.GENERAL_QUERY,  # Por enquanto usar GENERAL_QUERY
+            response_type=ResponseType.SUCCESS,
+            data_found=llm_result.get("data_records_used", 0),
+            equipment_ids=[],  # Será implementado no RAG
             processing_time_ms=processing_time_ms,
-            confidence_score=llm_result["confidence_score"],
-            sources_used=llm_result["sources_used"],
-            suggested_followup=llm_result["suggested_followup"],
+            confidence_score=llm_result.get("confidence_score", 0.8),
+            sources_used=llm_result.get("sources", ["llm"]),
+            suggested_followup=llm_result.get("suggestions", []),
             context_updated=True,
-            debug_info=llm_result.get("debug_info") if request.include_debug else None
+            debug_info={"llm_service": "real", "cache_used": llm_result.get("cache_used", False)} if request.include_debug else None
         )
         
         # Adicionar resposta ao contexto

@@ -330,8 +330,13 @@ def validate_configuration() -> None:
             raise ValueError("GOOGLE_API_KEY é obrigatória em produção!")
     
     # Log das configurações principais (sem dados sensíveis)
-    from ..utils.logger import get_logger
-    logger = get_logger(__name__)
+    try:
+        from ..utils.logger import get_logger
+        logger = get_logger(__name__)
+    except ImportError:
+        # Fallback para logging padrão se import relativo falhar
+        import logging
+        logger = logging.getLogger(__name__)
     
     logger.info("Configuração carregada com sucesso", extra={
         "environment": settings.environment,

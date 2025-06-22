@@ -70,7 +70,7 @@ class RAGService:
         
         # Configurações
         self.max_chunks_per_query = 5
-        self.relevance_threshold = 0.3
+        self.relevance_threshold = 0.1  # Mais permissivo para encontrar mais resultados
         self.cache_ttl = 3600  # 1 hora
         
         # Métricas
@@ -187,11 +187,10 @@ class RAGService:
     async def _index_equipment_data(self, session: AsyncSession) -> None:
         """Indexa dados de equipamentos."""
         try:
-            # Query para buscar equipamentos
+            # Query para buscar equipamentos - usando apenas colunas que existem
             query = text("""
-                SELECT id, name, type, status, location, manufacturer, 
-                       model, installation_date, last_maintenance
-                FROM equipment
+                SELECT id, code, name, equipment_type, category, description
+                FROM equipments
                 ORDER BY id
             """)
             
@@ -201,26 +200,23 @@ class RAGService:
             for equipment in equipments:
                 # Criar documento chunk
                 content = f"""
-                Equipamento: {equipment.name} (ID: {equipment.id})
-                Tipo: {equipment.type}
-                Status: {equipment.status}
-                Localização: {equipment.location}
-                Fabricante: {equipment.manufacturer}
-                Modelo: {equipment.model}
-                Data de Instalação: {equipment.installation_date}
-                Última Manutenção: {equipment.last_maintenance}
+                Equipamento: {equipment.name} (ID: {str(equipment.id)})
+                Código: {equipment.code}
+                Tipo: {equipment.equipment_type}
+                Categoria: {equipment.category}
+                Descrição: {equipment.description or 'Sem descrição'}
                 """.strip()
                 
                 chunk = DocumentChunk(
-                    id=f"equipment_{equipment.id}",
+                    id=f"equipment_{str(equipment.id)}",
                     content=content,
                     source="equipment",
                     metadata={
-                        "equipment_id": equipment.id,
+                        "equipment_id": str(equipment.id),
+                        "code": equipment.code,
                         "name": equipment.name,
-                        "type": equipment.type,
-                        "status": equipment.status,
-                        "location": equipment.location
+                        "type": equipment.equipment_type,
+                        "category": equipment.category
                     }
                 )
                 
@@ -228,6 +224,8 @@ class RAGService:
                 chunk.embedding = self._generate_simple_embedding(content)
                 
                 self.document_cache[chunk.id] = chunk
+            
+            logger.info(f"Equipamentos indexados: {len(equipments)} equipamentos")
                 
         except Exception as e:
             logger.error(f"Erro ao indexar equipamentos: {str(e)}")
@@ -236,13 +234,13 @@ class RAGService:
     async def _index_maintenance_data(self, session: AsyncSession) -> None:
         """Indexa dados de manutenções."""
         try:
-            # Query para buscar manutenções
+            # Query para buscar manutenções - CORRIGINDO nome da tabela
             query = text("""
-                SELECT m.id, m.equipment_id, m.type, m.status, 
-                       m.scheduled_date, m.completion_date, m.cost,
-                       m.description, m.technician, e.name as equipment_name
-                FROM maintenance_orders m
-                LEFT JOIN equipment e ON m.equipment_id = e.id
+                SELECT m.id, m.equipment_id, m.maintenance_type as type, m.status, 
+                       m.scheduled_date, m.completion_date, m.actual_cost as cost,
+                       m.description, m.team as technician, e.name as equipment_name
+                FROM maintenances m
+                LEFT JOIN equipments e ON m.equipment_id = e.id
                 ORDER BY m.scheduled_date DESC
                 LIMIT 1000
             """)
@@ -253,27 +251,27 @@ class RAGService:
             for maintenance in maintenances:
                 # Criar documento chunk
                 content = f"""
-                Manutenção: {maintenance.type} (ID: {maintenance.id})
-                Equipamento: {maintenance.equipment_name} (ID: {maintenance.equipment_id})
+                Manutenção: {maintenance.type} (ID: {str(maintenance.id)})
+                Equipamento: {maintenance.equipment_name or 'Não identificado'} (ID: {str(maintenance.equipment_id)})
                 Status: {maintenance.status}
                 Data Programada: {maintenance.scheduled_date}
-                Data Conclusão: {maintenance.completion_date}
+                Data Conclusão: {maintenance.completion_date or 'Não concluída'}
                 Custo: R$ {maintenance.cost if maintenance.cost else 'N/A'}
                 Descrição: {maintenance.description or 'Sem descrição'}
-                Técnico: {maintenance.technician or 'Não informado'}
+                Equipe: {maintenance.technician or 'Não informado'}
                 """.strip()
                 
                 chunk = DocumentChunk(
-                    id=f"maintenance_{maintenance.id}",
+                    id=f"maintenance_{str(maintenance.id)}",
                     content=content,
                     source="maintenance",
                     metadata={
-                        "maintenance_id": maintenance.id,
-                        "equipment_id": maintenance.equipment_id,
+                        "maintenance_id": str(maintenance.id),
+                        "equipment_id": str(maintenance.equipment_id),
                         "type": maintenance.type,
                         "status": maintenance.status,
                         "cost": maintenance.cost,
-                        "scheduled_date": str(maintenance.scheduled_date)
+                        "scheduled_date": str(maintenance.scheduled_date) if maintenance.scheduled_date else None
                     }
                 )
                 
@@ -289,12 +287,12 @@ class RAGService:
     async def _index_historical_data(self, session: AsyncSession) -> None:
         """Indexa dados históricos."""
         try:
-            # Query para buscar falhas
+            # Query para buscar falhas - tabela pode não existir ainda
             query = text("""
                 SELECT f.id, f.equipment_id, f.failure_date, f.description,
                        f.severity, f.resolution_time, f.cost, e.name as equipment_name
                 FROM failures f
-                LEFT JOIN equipment e ON f.equipment_id = e.id
+                LEFT JOIN equipments e ON f.equipment_id = e.id
                 ORDER BY f.failure_date DESC
                 LIMIT 1000
             """)
@@ -306,7 +304,7 @@ class RAGService:
                 # Criar documento chunk
                 content = f"""
                 Falha: {failure.description} (ID: {failure.id})
-                Equipamento: {failure.equipment_name} (ID: {failure.equipment_id})
+                Equipamento: {failure.equipment_name or 'Não identificado'} (ID: {failure.equipment_id})
                 Data da Falha: {failure.failure_date}
                 Severidade: {failure.severity}
                 Tempo de Resolução: {failure.resolution_time}
@@ -330,10 +328,12 @@ class RAGService:
                 chunk.embedding = self._generate_simple_embedding(content)
                 
                 self.document_cache[chunk.id] = chunk
+            
+            logger.info(f"Dados históricos indexados: {len(failures)} falhas")
                 
         except Exception as e:
-            logger.error(f"Erro ao indexar dados históricos: {str(e)}")
-            raise
+            logger.warning(f"Erro ao indexar dados históricos (tabela pode não existir): {str(e)}")
+            # Não propagar erro - tabela de falhas pode não existir ainda
     
     def _preprocess_query(self, query: str) -> str:
         """Pré-processa a query para busca."""
@@ -415,15 +415,43 @@ class RAGService:
         matches = 0
         total_terms = len(query_terms)
         
+        # Termos específicos do domínio para dar bonus
+        domain_terms = {
+            "equipamento": 0.3,
+            "equipamentos": 0.3,
+            "manutenção": 0.3,
+            "manutenções": 0.3,
+            "transformador": 0.4,
+            "disjuntor": 0.4,
+            "seccionadora": 0.4,
+            "falha": 0.3,
+            "falhas": 0.3
+        }
+        
         for term in query_terms:
+            # Busca direta
             if term in content_lower:
                 matches += 1
+            
+            # Busca por termos relacionados
+            if term in ["equipamento", "equipamentos"]:
+                if any(word in content_lower for word in ["equipamento:", "tipo:", "código:"]):
+                    matches += 0.8  # Bonus para documentos de equipamento
+            elif term in ["manutenção", "manutenções"]:
+                if any(word in content_lower for word in ["manutenção:", "status:", "programada:"]):
+                    matches += 0.8  # Bonus para documentos de manutenção
         
-        # Bonus para correspondências exatas
+        # Bonus para correspondências de domínio
+        domain_bonus = 0
+        for domain_term, bonus in domain_terms.items():
+            if domain_term in content_lower:
+                domain_bonus += bonus
+        
+        # Correspondências exatas também ganham bonus
         exact_matches = sum(1 for term in query_terms if f" {term} " in f" {content_lower} ")
         
         base_score = matches / total_terms if total_terms > 0 else 0
-        bonus = exact_matches * 0.2
+        bonus = exact_matches * 0.2 + domain_bonus
         
         return min(1.0, base_score + bonus)
     

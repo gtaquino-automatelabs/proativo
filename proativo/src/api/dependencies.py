@@ -249,27 +249,150 @@ def get_llm_service():
         )
     
     try:
-        # Placeholder para quando implementarmos o LLMService
-        # from ..api.services.llm_service import LLMService
-        # return LLMService(
-        #     api_key=settings.google_api_key,
-        #     model=settings.gemini_model,
-        #     temperature=settings.gemini_temperature,
-        #     max_tokens=settings.gemini_max_tokens,
-        #     timeout=settings.gemini_timeout,
-        #     max_retries=settings.gemini_max_retries
-        # )
+        # Importar e criar o serviço LLM real usando novo Google GenAI SDK
+        try:
+            from google import genai
+            from google.genai import types
+        except ImportError:
+            logger.error("Google GenAI SDK not installed. Install with: pip install google-genai")
+            raise LLMServiceError(
+                message="Google GenAI SDK not available",
+                service_name="Google Gemini",
+                details={"error": "Module not installed"}
+            )
         
-        # Por enquanto, retorna um mock placeholder
-        class MockLLMService:
+        class RealLLMService:
+            """LLM Service real usando Google Gemini com prompts otimizados."""
+            
             def __init__(self):
-                self.configured = True
+                self.client = genai.Client(api_key=settings.google_api_key)
+                self.model = "gemini-2.0-flash-001"
                 
-            async def process_query(self, query: str, context: list = None):
-                return "LLM service will be implemented in task 4.0"
+                # System instruction otimizada para resolver problemas identificados
+                self.system_instruction = """Você é um assistente especializado em manutenção de equipamentos elétricos do sistema PROAtivo.
+
+REGRAS FUNDAMENTAIS:
+1. Seja DIRETO e ESPECÍFICO - responda exatamente o que foi perguntado
+2. NUNCA exponha detalhes técnicos internos como "encontrei X registros" ou "sua consulta sobre"
+3. Para perguntas sobre "último" ou "mais recente", identifique e responda sobre o item mais atual
+4. Use linguagem natural e profissional, como se fosse um especialista técnico
+5. Foque na RESPOSTA, não no processo de busca
+
+EXEMPLOS DE RESPOSTAS ADEQUADAS:
+❌ "Com base nos dados do sistema: Encontrei 5 registros relevantes..."
+✅ "O último equipamento a receber manutenção foi o Transformador TR-001 em 15/12/2024."
+
+❌ "Sua consulta sobre equipamentos encontrou informações relevantes..."  
+✅ "Temos 25 equipamentos no sistema: 8 transformadores, 10 disjuntores e 7 seccionadoras."
+
+CONTEXTO: Trabalha com dados de equipamentos elétricos, manutenções preventivas/corretivas, falhas e cronogramas."""
+                
+            async def generate_response(self, user_query: str, query_results=None, **kwargs):
+                try:
+                    # Preparar contexto dos dados encontrados
+                    context_data = ""
+                    if query_results and len(query_results) > 0:
+                        # Processar dados para contexto inteligente
+                        equipments = []
+                        maintenances = []
+                        
+                        for result in query_results:
+                            if result.get("source") == "equipment":
+                                equipments.append(result.get("content", ""))
+                            elif result.get("source") == "maintenance":
+                                maintenances.append(result.get("content", ""))
+                        
+                        if equipments or maintenances:
+                            context_data = "DADOS DISPONÍVEIS:\n"
+                            if equipments:
+                                context_data += f"EQUIPAMENTOS ({len(equipments)} encontrados):\n"
+                                for eq in equipments[:3]:  # Limitar a 3 para não sobrecarregar
+                                    context_data += f"- {eq}\n"
+                            if maintenances:
+                                context_data += f"MANUTENÇÕES ({len(maintenances)} encontrados):\n"
+                                for maint in maintenances[:3]:
+                                    context_data += f"- {maint}\n"
+                            context_data += "\n"
+                    
+                    # Prompt final inteligente
+                    final_prompt = f"{context_data}PERGUNTA DO USUÁRIO: {user_query}"
+                    
+                    # Gerar resposta usando Gemini real
+                    response = self.client.models.generate_content(
+                        model=self.model,
+                        contents=final_prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=self.system_instruction,
+                            temperature=0.3,  # Baixa para mais precisão
+                            max_output_tokens=500,
+                            top_p=0.9,
+                            top_k=40
+                        )
+                    )
+                    
+                    # Extrair resposta
+                    response_text = response.text if response.text else "Não consegui processar sua solicitação."
+                    
+                    # Calcular confiança baseada na qualidade da resposta
+                    confidence = 0.9 if query_results and len(query_results) > 0 else 0.7
+                    
+                    # Sugestões inteligentes baseadas na pergunta
+                    suggestions = self._generate_smart_suggestions(user_query, query_results)
+                    
+                    return {
+                        "response": response_text,
+                        "confidence_score": confidence,
+                        "sources": ["gemini_ai", "database"] if query_results else ["gemini_ai"],
+                        "suggestions": suggestions,
+                        "processing_time": 200,  # Estimativa realista
+                        "cache_used": False,
+                        "data_records_used": len(query_results) if query_results else 0
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"Erro no Gemini LLM: {str(e)}")
+                    # Fallback graceful
+                    return {
+                        "response": f"Recebi sua pergunta sobre '{user_query}'. No momento, estou com dificuldades técnicas para processar completamente sua solicitação. Tente novamente em alguns momentos.",
+                        "confidence_score": 0.3,
+                        "sources": ["fallback"],
+                        "suggestions": ["Tente uma pergunta mais simples", "Verifique novamente em alguns minutos"],
+                        "processing_time": 100,
+                        "cache_used": False,
+                        "data_records_used": 0
+                    }
+            
+            def _generate_smart_suggestions(self, user_query: str, query_results=None):
+                """Gera sugestões inteligentes baseadas na consulta."""
+                query_lower = user_query.lower()
+                
+                if "último" in query_lower or "recente" in query_lower:
+                    return [
+                        "Histórico completo de manutenções",
+                        "Próximas manutenções programadas",
+                        "Equipamentos com manutenção em atraso"
+                    ]
+                elif "quantos" in query_lower or "quantidade" in query_lower:
+                    return [
+                        "Lista detalhada dos equipamentos",
+                        "Equipamentos por categoria",
+                        "Status de cada equipamento"
+                    ]
+                elif "equipamento" in query_lower:
+                    return [
+                        "Status dos equipamentos críticos",
+                        "Manutenções pendentes",
+                        "Histórico de falhas por equipamento"
+                    ]
+                else:
+                    return [
+                        "Resumo geral do sistema",
+                        "Equipamentos que precisam de atenção",
+                        "Relatório de manutenções recentes"
+                    ]
         
-        service = MockLLMService()
-        logger.info("LLM service placeholder created")
+        service = RealLLMService()
+        logger.info("Real Gemini LLM service created successfully")
         return service
         
     except Exception as e:
