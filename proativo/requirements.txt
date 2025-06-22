@@ -26,7 +26,7 @@ xlsxwriter>=3.1.9
 lxml>=4.9.3
 
 # ---- Integração IA/LLM ----
-google-genai>=0.2.0
+google-generativeai>=0.3.2
 google-cloud-aiplatform==1.38.1
 openai==1.6.1  # fallback/future use
 
@@ -70,4 +70,8 @@ scipy>=1.11.4
 scikit-learn>=1.3.2
 
 # ---- Docker Health Check ----
-psutil==5.9.6 
+psutil==5.9.6
+
+# ---- Processamento de Linguagem Natural ----
+spacy>=3.7.0
+# Para instalar modelo português: python -m spacy download pt_core_news_sm 

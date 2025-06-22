@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 from ..models.chat import (
     ChatRequest,
@@ -23,7 +24,7 @@ from ..models.chat import (
     ChatContext,
     ChatMessage,
 )
-from ..dependencies import get_database_session, get_current_settings, get_llm_service
+from ..dependencies import get_database_session, get_current_settings, get_llm_service, get_query_processor
 from ..config import Settings
 from ...utils.error_handlers import LLMServiceError, DataProcessingError
 from ..services.llm_service import LLMService
@@ -150,6 +151,7 @@ async def chat_endpoint(
     db: AsyncSession = Depends(get_database_session),
     settings: Settings = Depends(get_current_settings),
     llm_service: LLMService = Depends(get_llm_service),
+    query_processor = Depends(get_query_processor),
 ) -> ChatResponse:
     """
     Endpoint principal para chat com IA sobre manutenção de equipamentos.
@@ -195,11 +197,19 @@ async def chat_endpoint(
         )
         context.conversation_history.append(user_message)
         
-        # Processar mensagem com serviço LLM real e dados do banco via RAG
+        # Processar mensagem com Query Processor, RAG e LLM services integrados
         try:
+            # 1. ANÁLISE INTELIGENTE DA CONSULTA
+            logger.info("Starting intelligent query analysis")
+            query_analysis = await query_processor.process_query(request.message)
+            
+            logger.info(f"Query analysis: intent={query_analysis.intent.value}, "
+                       f"entities={len(query_analysis.entities)}, "
+                       f"confidence={query_analysis.confidence_score:.2f}")
+            
             query_results = []
             
-            # Tentar buscar dados relevantes via RAG
+            # 2. BUSCAR DADOS RELEVANTES VIA RAG
             try:
                 # Inicializar RAG service
                 rag_service = RAGService()
@@ -229,11 +239,40 @@ async def chat_endpoint(
                 logger.warning(f"RAG service error (using fallback): {rag_error}")
                 query_results = []
             
-            # Usar o serviço LLM com dados do RAG ou sem dados se RAG falhou
+            # 3. EXECUTAR SQL QUERY SE GERADA PELO QUERY PROCESSOR
+            structured_data = None
+            if query_analysis.sql_query:
+                try:
+                    # Executar consulta SQL do Query Processor
+                    result = await db.execute(
+                        text(query_analysis.sql_query),
+                        query_analysis.parameters
+                    )
+                    rows = result.fetchall()
+                    
+                    # Converter resultado para formato estruturado
+                    if rows:
+                        columns = result.keys()
+                        structured_data = [dict(zip(columns, row)) for row in rows]
+                        logger.info(f"SQL query executed: {len(structured_data)} rows returned")
+                    
+                except Exception as sql_error:
+                    logger.warning(f"SQL query execution failed: {sql_error}")
+                    structured_data = None
+            
+            # 4. USAR LLM COM CONTEXTO ENRIQUECIDO
             llm_result = await llm_service.generate_response(
                 user_query=request.message,
                 query_results=query_results,
-                context=context.dict() if context else None,
+                context={
+                    "query_analysis": {
+                        "intent": query_analysis.intent.value,
+                        "entities": [{"type": e.type.value, "value": e.value} for e in query_analysis.entities],
+                        "confidence": query_analysis.confidence_score
+                    },
+                    "structured_data": structured_data,
+                    "session_context": context.dict() if context else None
+                },
                 session_id=str(session_id)
             )
             
@@ -244,20 +283,57 @@ async def chat_endpoint(
         # Usar tempo de processamento do LLM real ou calcular
         processing_time_ms = llm_result.get("processing_time", int((time.time() - processing_start_time) * 1000))
         
-        # Criar resposta - adaptando estrutura do LLM real
+        # Mapear QueryIntent para QueryType
+        query_type_mapping = {
+            "equipment_search": QueryType.EQUIPMENT_INFO,
+            "maintenance_history": QueryType.MAINTENANCE_HISTORY,
+            "last_maintenance": QueryType.MAINTENANCE_HISTORY,
+            "count_equipment": QueryType.EQUIPMENT_INFO,
+            "count_maintenance": QueryType.MAINTENANCE_HISTORY,
+            "equipment_status": QueryType.EQUIPMENT_INFO,
+            "failure_analysis": QueryType.FAILURE_ANALYSIS,
+            "upcoming_maintenance": QueryType.MAINTENANCE_HISTORY,
+            "overdue_maintenance": QueryType.MAINTENANCE_HISTORY,
+            "general_query": QueryType.GENERAL_QUERY,
+        }
+        
+        mapped_query_type = query_type_mapping.get(query_analysis.intent.value, QueryType.GENERAL_QUERY)
+        
+        # Calcular dados encontrados: RAG + SQL results
+        total_data_found = len(query_results)
+        if structured_data:
+            total_data_found += len(structured_data)
+        
+        # Extrair IDs de equipamentos das entidades identificadas
+        equipment_ids = [e.normalized_value for e in query_analysis.entities if e.type.value == "equipment_id"]
+        
+        # Combinar sugestões do Query Processor com LLM
+        combined_suggestions = query_analysis.suggestions + llm_result.get("suggestions", [])
+        unique_suggestions = list(dict.fromkeys(combined_suggestions))[:4]  # Remover duplicatas e limitar
+        
+        # Criar resposta enriquecida com análise inteligente
         response = ChatResponse(
             session_id=session_id,
             response=llm_result["response"],
-            query_type=QueryType.GENERAL_QUERY,  # Por enquanto usar GENERAL_QUERY
+            query_type=mapped_query_type,
             response_type=ResponseType.SUCCESS,
-            data_found=llm_result.get("data_records_used", 0),
-            equipment_ids=[],  # Será implementado no RAG
+            data_found=total_data_found,
+            equipment_ids=equipment_ids,
             processing_time_ms=processing_time_ms,
-            confidence_score=llm_result.get("confidence_score", 0.8),
-            sources_used=llm_result.get("sources", ["llm"]),
-            suggested_followup=llm_result.get("suggestions", []),
+            confidence_score=max(query_analysis.confidence_score, llm_result.get("confidence_score", 0.8)),
+            sources_used=llm_result.get("sources", ["llm"]) + (["database"] if structured_data else []),
+            suggested_followup=unique_suggestions,
             context_updated=True,
-            debug_info={"llm_service": "real", "cache_used": llm_result.get("cache_used", False)} if request.include_debug else None
+            debug_info={
+                "llm_service": "real",
+                "query_processor": {
+                    "intent": query_analysis.intent.value,
+                    "entities_found": len(query_analysis.entities),
+                    "sql_generated": bool(query_analysis.sql_query),
+                    "structured_data_rows": len(structured_data) if structured_data else 0
+                },
+                "cache_used": llm_result.get("cache_used", False)
+            } if request.include_debug else None
         )
         
         # Adicionar resposta ao contexto

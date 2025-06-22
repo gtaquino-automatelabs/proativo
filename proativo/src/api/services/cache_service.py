@@ -257,8 +257,8 @@ class CacheService:
         self.cache_hits = 0
         self.cache_misses = 0
         
-        # Iniciar limpeza automática
-        self._start_cleanup_task()
+        # Controle da task de limpeza
+        self._cleanup_task = None
         
         logger.info("CacheService inicializado", extra={
             "max_size": self.max_cache_size,
@@ -268,7 +268,12 @@ class CacheService:
     
     def _start_cleanup_task(self) -> None:
         """Inicia task de limpeza automática."""
-        asyncio.create_task(self._cleanup_loop())
+        try:
+            if self._cleanup_task is None or self._cleanup_task.done():
+                self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+        except RuntimeError:
+            # Sem event loop disponível - task será iniciada quando necessário
+            pass
     
     async def _cleanup_loop(self) -> None:
         """Loop de limpeza automática."""
@@ -358,6 +363,9 @@ class CacheService:
         Returns:
             Dict com resposta ou None se não encontrada
         """
+        # Iniciar task de limpeza se necessário
+        self._start_cleanup_task()
+        
         self.total_requests += 1
         
         # Tentar busca exata primeiro

@@ -18,8 +18,8 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from google.api_core import exceptions as google_exceptions
 
 from ..config import get_settings
-from ...utils.error_handlers import LLMServiceError as LLMError, ValidationError
-from ...utils.logger import get_logger
+from src.utils.error_handlers import LLMServiceError as LLMError, ValidationError
+from src.utils.logger import get_logger
 # Fallback e cache services serão importados dinamicamente quando disponíveis
 
 # Configurar logger
@@ -142,31 +142,26 @@ class LLMService:
         Returns:
             str: Prompt de sistema estruturado
         """
-        return """Você é um assistente especializado em manutenção de equipamentos elétricos para o sistema PROAtivo.
+        return """Você é um especialista técnico em equipamentos elétricos. Responda como um engenheiro experiente.
 
-CONTEXTO DO SISTEMA:
-- Empresa: Setor elétrico/energético  
-- Dados: Equipamentos, manutenções, falhas, custos
-- Objetivo: Apoio à decisão técnica baseada em dados
+REGRAS OBRIGATÓRIAS:
+1. NUNCA mencione "sistema", "banco de dados", "registros encontrados" ou "sua consulta"
+2. NUNCA use frases como "Com base nos dados" ou "Encontrei X registros"
+3. Seja DIRETO - responda como se soubesse a informação naturalmente
+4. Use linguagem técnica profissional, mas clara
+5. Foque na RESPOSTA, não no processo de busca
 
-INSTRUÇÕES FUNDAMENTAIS:
-1. Responda SEMPRE em português brasileiro
-2. Use linguagem técnica mas acessível
-3. Seja preciso com números, datas e dados técnicos
-4. Sugira ações quando apropriado
-5. Se não souber ou dados insuficientes, diga claramente
-6. Mantenha respostas objetivas e focadas
+EXEMPLOS DO QUE NÃO FAZER:
+❌ "Com base nos dados do sistema, encontrei 5 registros..."
+❌ "Sua consulta sobre equipamentos retornou..."
+❌ "Encontrei informações relevantes no banco..."
 
-FORMATO DE RESPOSTA:
-- Resposta direta à pergunta
-- Dados específicos encontrados
-- Análise técnica quando relevante
-- Recomendações práticas (se aplicável)
+EXEMPLOS CORRETOS:
+✅ "No parque elétrico temos 8 transformadores e 12 disjuntores."
+✅ "O transformador T001 teve manutenção preventiva em 15/12/2024."
+✅ "Os disjuntores críticos são: DJ-001, DJ-005 e DJ-012."
 
-LIMITAÇÕES:
-- Responda apenas sobre manutenção e equipamentos
-- Não invente dados que não foram fornecidos
-- Não dê conselhos fora do escopo técnico"""
+RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema fazendo busca."""
 
     def _create_user_prompt(
         self, 
@@ -179,40 +174,78 @@ LIMITAÇÕES:
         
         Args:
             user_query: Pergunta do usuário
-            retrieved_data: Dados encontrados no banco
-            context: Contexto adicional
+            retrieved_data: Dados encontrados no banco (RAG)
+            context: Contexto adicional incluindo structured_data (SQL)
             
         Returns:
             str: Prompt formatado para o usuário
         """
-        # Organizar dados encontrados
-        data_summary = ""
+        # Organizar apenas os dados relevantes, sem metadados técnicos
+        equipment_info = ""
+        maintenance_info = ""
+        
+        # Processar dados do RAG
         if retrieved_data:
-            data_summary = f"DADOS ENCONTRADOS ({len(retrieved_data)} registros):\n"
-            for i, record in enumerate(retrieved_data[:10], 1):  # Limitar a 10 registros
-                data_summary += f"{i}. {record}\n"
-            
-            if len(retrieved_data) > 10:
-                data_summary += f"... e mais {len(retrieved_data) - 10} registros\n"
-        else:
-            data_summary = "DADOS ENCONTRADOS: Nenhum registro específico encontrado\n"
+            for record in retrieved_data[:10]:  # Limitar a 10 registros
+                # Extrair informações úteis sem expor estrutura técnica
+                if isinstance(record, dict):
+                    if 'source' in record:
+                        if record['source'] == 'equipment':
+                            equipment_info += f"- {record.get('content', '')}\n"
+                        elif record['source'] == 'maintenance':
+                            maintenance_info += f"- {record.get('content', '')}\n"
+                    else:
+                        # Formato genérico para outros tipos de dados
+                        equipment_info += f"- {str(record)}\n"
         
-        # Contexto adicional
-        context_info = f"""
-CONTEXTO ADICIONAL:
-- Total de equipamentos na base: {context.get('total_equipment', 'N/A')}
-- Última atualização: {context.get('last_update', 'N/A')}
-- Filtros aplicados: {context.get('filters', 'Nenhum')}
-- Tipo de consulta: {context.get('query_type', 'Geral')}
-"""
+        # Processar dados estruturados da SQL (MAIS IMPORTANTE)
+        structured_data = context.get("structured_data", [])
+        if structured_data:
+            maintenance_info += "\n**DADOS PRECISOS DO BANCO:**\n"
+            for record in structured_data:
+                if isinstance(record, dict):
+                    # Formatação específica para diferentes tipos de query
+                    if 'maintenance_date' in record:
+                        # Query de última manutenção
+                        name = record.get('name', 'Equipamento não identificado')
+                        maintenance_date = record.get('maintenance_date', 'Data não disponível')
+                        maintenance_type = record.get('maintenance_type', 'Tipo não especificado')
+                        status = record.get('status', 'Status desconhecido')
+                        title = record.get('title', '')
+                        
+                        maintenance_info += f"- **{name}**: {maintenance_type} realizada em {maintenance_date}"
+                        if status: 
+                            maintenance_info += f" (Status: {status})"
+                        if title:
+                            maintenance_info += f" - {title}"
+                        maintenance_info += "\n"
+                    
+                    elif 'equipment_type' in record and 'name' in record:
+                        # Query de equipamentos
+                        name = record.get('name', 'Nome não disponível')
+                        equipment_type = record.get('equipment_type', 'Tipo não especificado')
+                        equipment_info += f"- **{name}** ({equipment_type})\n"
+                    
+                    else:
+                        # Formato genérico para outros dados estruturados
+                        maintenance_info += f"- {record}\n"
         
-        return f"""PERGUNTA DO USUÁRIO:
-{user_query}
+        # Montar contexto limpo
+        context_parts = []
+        
+        if equipment_info.strip():
+            context_parts.append(f"EQUIPAMENTOS:\n{equipment_info}")
+        
+        if maintenance_info.strip():
+            context_parts.append(f"MANUTENÇÕES:\n{maintenance_info}")
+        
+        context_section = "\n".join(context_parts) if context_parts else ""
+        
+        return f"""PERGUNTA: {user_query}
 
-{data_summary}
-{context_info}
+{context_section}
 
-Responda à pergunta baseando-se nos dados fornecidos. Se os dados forem insuficientes, explique o que seria necessário para uma resposta completa."""
+Responda diretamente baseado nas informações disponíveis."""
 
     async def _call_gemini_with_retry(
         self, 
