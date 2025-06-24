@@ -449,3 +449,6 @@ integration_test_results/
 !docs/
 !README.md
 !*.md 
+# Cursor IDE files
+.cursorindexingignore
+.specstory/
