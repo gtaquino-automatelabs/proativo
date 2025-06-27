@@ -17,6 +17,7 @@ from .processors.xml_processor import XMLProcessor
 from .processors.xlsx_processor import XLSXProcessor
 from .exceptions import DataProcessingError, ValidationError, FileFormatError
 from ..utils.validators import DataValidator
+from ..utils.data_mappers import DataMapper
 try:
     from ..database.repositories import RepositoryManager
 except ImportError:
@@ -252,7 +253,10 @@ class DataProcessor:
                 for record in records:
                     # Remove metadados antes de criar o objeto
                     clean_record = {k: v for k, v in record.items() if k != 'metadata_json'}
-                    equipment_objects.append(clean_record)
+                    
+                    # Aplica mapeamento de valores para compatibilidade com banco
+                    mapped_record = DataMapper.map_equipment_data(clean_record)
+                    equipment_objects.append(mapped_record)
                 
                 # Salva usando repository
                 saved_count = 0
@@ -271,7 +275,11 @@ class DataProcessor:
                 for record in records:
                     # Remove metadados antes de criar o objeto
                     clean_record = {k: v for k, v in record.items() if k != 'metadata_json'}
-                    maintenance_objects.append(clean_record)
+                    
+                    # Aplica mapeamento de valores para compatibilidade com banco
+                    mapped_record = DataMapper.map_maintenance_data(clean_record)
+                    
+                    maintenance_objects.append(mapped_record)
                 
                 # Salva usando repository
                 saved_count = 0

@@ -110,12 +110,26 @@ class DataValidator:
         errors = []
         
         try:
+            # 🔧 CRÍTICO: Preservar equipment_id
+            if record.get('equipment_id'):
+                validated['equipment_id'] = record['equipment_id']
+            
             # Campos obrigatórios
             if record.get('maintenance_type'):
                 validated['maintenance_type'] = record['maintenance_type'].strip()
             
+            # 🔧 CRÍTICO: Garantir que title seja preenchido (obrigatório no banco)
             if record.get('title'):
                 validated['title'] = record['title'].strip()
+            elif record.get('description'):
+                # Usa description como title se title estiver vazio
+                validated['title'] = record['description'].strip()
+            elif record.get('maintenance_code'):
+                # Usa maintenance_code como fallback
+                validated['title'] = f"Manutenção {record['maintenance_code']}"
+            else:
+                # Fallback final
+                validated['title'] = f"Manutenção {record.get('maintenance_type', 'Geral')}"
             
         except Exception as e:
             errors.append(str(e))

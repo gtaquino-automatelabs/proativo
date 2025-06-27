@@ -11,18 +11,43 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any
 
-# Configurar paths
-current_dir = Path(__file__).parent
-project_dir = current_dir.parent
-src_dir = project_dir / "src"
-sys.path.insert(0, str(project_dir))
-os.environ['PYTHONPATH'] = str(src_dir)
+# Configurar paths - usar mesma lógica dos testes que funciona
+current_script_dir = os.path.dirname(__file__)
+project_root = os.path.join(current_script_dir, "..", "..")  # scripts/setup -> proativo/
+src_path = os.path.join(project_root, "src")
+
+print("=" * 50)
+print("🐍 INICIANDO CONFIGURAÇÃO DE PATHS")
+print(f"🛠️  Script dir: {current_script_dir}")
+print(f"📁 Project root: {project_root}")
+print(f"📦 Src path: {src_path}")
+
+# Verificar se os paths existem
+import os
+print(f"✅ Project root exists: {os.path.exists(project_root)}")
+print(f"✅ Src path exists: {os.path.exists(src_path)}")
+
+# Adicionar src ao path para imports (mesma lógica do conftest.py)
+sys.path.insert(0, src_path)
+sys.path.insert(0, project_root)
+
+print(f"🛤️  Python path configurado!")
+print(f"🔍 sys.path primeiros 5 itens:")
+for i, path in enumerate(sys.path[:5]):
+    print(f"   {i}: {path}")
+print("=" * 50)
 
 try:
+    print("🔄 Tentando importar módulos...")
     from src.etl.data_processor import DataProcessor, DataType, FileFormat
     from src.database.repositories import RepositoryManager
+    print("✅ Importações realizadas com sucesso!")
 except ImportError as e:
-    print(f"ERRO de importação: {e}")
+    print(f"❌ ERRO de importação: {e}")
+    print("📋 Conteúdo do diretório src:")
+    if os.path.exists(src_path):
+        for item in os.listdir(src_path):
+            print(f"   - {item}")
     sys.exit(1)
 
 async def populate_database():
@@ -56,22 +81,22 @@ async def populate_database():
             print("Inicializando processador ETL...")
             processor = DataProcessor(repository_manager)
             
-            # ETAPA 1: Processar APENAS equipamentos
+            # ==========================================
+            # TRANSAÇÃO 1: EQUIPAMENTOS (SEPARADA)
+            # ==========================================
             print("\n" + "=" * 60)
-            print("ETAPA 1: PROCESSANDO EQUIPAMENTOS")
+            print("ETAPA 1: PROCESSANDO EQUIPAMENTOS (APENAS CSV)")
             print("=" * 60)
             
+            # PROCESSAR APENAS equipment.csv para evitar duplicações
             equipment_files = [
-                "data/samples/equipment.csv",
-                "data/samples/equipment.xml", 
-                "data/samples/electrical_assets.xlsx"
+                Path(project_root) / "data/samples/equipment.csv"
+                # Removidos: equipment.xml e electrical_assets.xlsx (duplicados)
             ]
             
             equipment_saved = 0
-            equipment_map = {}  # código -> UUID
             
-            for file_path_str in equipment_files:
-                file_path = Path(file_path_str)
+            for file_path in equipment_files:
                 if not file_path.exists():
                     print(f"Arquivo não encontrado: {file_path}")
                     continue
@@ -85,40 +110,49 @@ async def populate_database():
                     if result['success'] and result['saved_records'] > 0:
                         equipment_saved += result['saved_records']
                         print(f"   SUCESSO: {result['saved_records']} equipamentos salvos")
-                        
-                        # Buscar equipamentos criados para mapear código->UUID
-                        equipments = await repository_manager.equipment.get_all()
-                        for eq in equipments:
-                            if eq.code not in equipment_map:
-                                equipment_map[eq.code] = str(eq.id)
                     else:
                         print(f"   FALHA: {result.get('error', 'Erro desconhecido')}")
                         
                 except Exception as e:
                     print(f"   ERRO ao processar {file_path.name}: {e}")
             
-            print(f"\nTotal de equipamentos criados: {equipment_saved}")
+            # COMMIT EQUIPAMENTOS (transação separada)
+            await session.commit()
+            print(f"\n✅ TRANSAÇÃO DE EQUIPAMENTOS CONFIRMADA: {equipment_saved} equipamentos")
+            
+            # Buscar TODOS os equipamentos para mapeamento código->UUID
+            equipments = await repository_manager.equipment.get_all()
+            equipment_map = {}
+            for eq in equipments:
+                equipment_map[eq.code] = str(eq.id)
+            
             print(f"Mapeamento código->UUID: {len(equipment_map)} equipamentos")
             
             if equipment_saved == 0:
                 print("ERRO: Nenhum equipamento foi criado. Não é possível processar manutenções.")
                 return False
-            
-            # ETAPA 2: Processar manutenções com conversão de códigos
+        
+        # ==========================================
+        # TRANSAÇÃO 2: MANUTENÇÕES (NOVA SESSÃO)
+        # ==========================================
+        async with db_connection.get_session() as maintenance_session:
             print("\n" + "=" * 60)
-            print("ETAPA 2: PROCESSANDO MANUTENÇÕES")
+            print("ETAPA 2: PROCESSANDO MANUTENÇÕES (NOVA TRANSAÇÃO)")
             print("=" * 60)
             
+            # Repositórios para nova sessão
+            maintenance_repository_manager = RepositoryManager(maintenance_session)
+            maintenance_processor = DataProcessor(maintenance_repository_manager)
+            
             maintenance_files = [
-                "data/samples/maintenance_orders.csv",
-                "data/samples/maintenance_schedules.csv",
-                "data/samples/maintenance_orders.xml"
+                Path(project_root) / "data/samples/maintenance_orders.csv",
+                Path(project_root) / "data/samples/maintenance_schedules.csv",
+                Path(project_root) / "data/samples/maintenance_orders.xml"
             ]
             
             maintenance_saved = 0
             
-            for file_path_str in maintenance_files:
-                file_path = Path(file_path_str)
+            for file_path in maintenance_files:
                 if not file_path.exists():
                     print(f"Arquivo não encontrado: {file_path}")
                     continue
@@ -127,7 +161,7 @@ async def populate_database():
                 
                 try:
                     # Processar arquivo mas NÃO salvar ainda
-                    valid_records, validation_errors = processor.process_file(file_path, DataType.MAINTENANCE)
+                    valid_records, validation_errors = maintenance_processor.process_file(file_path, DataType.MAINTENANCE)
                     
                     print(f"   Registros processados: {len(valid_records)} válidos, {len(validation_errors)} inválidos")
                     
@@ -135,34 +169,40 @@ async def populate_database():
                     converted_records = []
                     conversion_errors = 0
                     
-                    for record in valid_records:
+                    for i, record in enumerate(valid_records):
                         equipment_code = record.get('equipment_id')
+                        
+                        # 🔍 DEBUG DETALHADO
+                        if i < 3:  # Só os primeiros 3 registros para não poluir
+                            print(f"   🔍 DEBUG REGISTRO {i}: equipment_id = '{equipment_code}', todas chaves: {list(record.keys())}")
                         
                         if equipment_code and equipment_code in equipment_map:
                             # Converte código para UUID
                             record['equipment_id'] = equipment_map[equipment_code]
                             converted_records.append(record)
+                            print(f"   ✅ Equipamento '{equipment_code}' mapeado com sucesso")
                         else:
                             conversion_errors += 1
-                            print(f"   AVISO: Equipamento '{equipment_code}' não encontrado")
+                            print(f"   ⚠️  Equipamento '{equipment_code}' não encontrado")
                     
                     print(f"   Conversões: {len(converted_records)} sucesso, {conversion_errors} falhas")
                     
                     # Salvar registros convertidos
                     if converted_records:
-                        saved_count = await processor.save_to_database(converted_records, DataType.MAINTENANCE)
+                        saved_count = await maintenance_processor.save_to_database(converted_records, DataType.MAINTENANCE)
                         maintenance_saved += saved_count
                         print(f"   SUCESSO: {saved_count} manutenções salvas")
                     
                 except Exception as e:
                     print(f"   ERRO ao processar {file_path.name}: {e}")
             
-            # Commit das transações
-            await session.commit()
+            # COMMIT MANUTENÇÕES (transação separada)
+            await maintenance_session.commit()
+            print(f"\n✅ TRANSAÇÃO DE MANUTENÇÕES CONFIRMADA: {maintenance_saved} manutenções")
             
             # Resumo final
             print("\n" + "=" * 60)
-            print("RESUMO DA POPULAÇÃO V2")
+            print("RESUMO DA POPULAÇÃO V3 - TRANSAÇÕES SEPARADAS")
             print("=" * 60)
             print(f"Equipamentos criados: {equipment_saved}")
             print(f"Manutenções criadas: {maintenance_saved}")

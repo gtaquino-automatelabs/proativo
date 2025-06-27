@@ -84,6 +84,7 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./src:/app/src:ro  # Apenas leitura para desenvolvimento
+      - ./scripts:/app/scripts:ro  # Scripts para desenvolvimento
       - ./main.py:/app/main.py:ro
     networks:
       - proativo-network

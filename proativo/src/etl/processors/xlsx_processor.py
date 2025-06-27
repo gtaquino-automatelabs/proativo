@@ -27,6 +27,60 @@ class XLSXProcessor:
     def __init__(self):
         """Inicializa o processador XLSX."""
         pass
+    
+    def _infer_equipment_type(self, code: str, name: str) -> str:
+        """Infere o tipo de equipamento baseado no código e nome.
+        
+        Args:
+            code: Código do equipamento
+            name: Nome do equipamento
+            
+        Returns:
+            Tipo inferido do equipamento
+        """
+        # Combina código e nome para análise
+        text_to_analyze = f"{code} {name}".lower()
+        
+        # Mapeamento de palavras-chave para tipos
+        type_keywords = {
+            'Transformador': ['transformador', 'tr-', 'trafo'],
+            'Disjuntor': ['disjuntor', 'dj-', 'breaker'],
+            'Seccionadora': ['seccionadora', 'sc-', 'chave', 'switch'],
+            'Para-raios': ['para-raios', 'pr-', 'pararaios', 'surge'],
+            'Religador': ['religador', 're-', 'recloser'],
+            'Capacitor': ['capacitor', 'cp-', 'banco'],
+            'Regulador': ['regulador', 'rg-', 'regulator'],
+            'Medidor': ['medidor', 'md-', 'meter'],
+        }
+        
+        # Procura por palavras-chave
+        for equipment_type, keywords in type_keywords.items():
+            for keyword in keywords:
+                if keyword in text_to_analyze:
+                    return equipment_type
+        
+        # Fallback baseado em código
+        if code:
+            code_upper = code.upper()
+            if code_upper.startswith('TR-'):
+                return 'Transformador'
+            elif code_upper.startswith('DJ-'):
+                return 'Disjuntor'
+            elif code_upper.startswith('SC-'):
+                return 'Seccionadora'
+            elif code_upper.startswith('PR-'):
+                return 'Para-raios'
+            elif code_upper.startswith('RE-'):
+                return 'Religador'
+            elif code_upper.startswith('CP-'):
+                return 'Capacitor'
+            elif code_upper.startswith('RG-'):
+                return 'Regulador'
+            elif code_upper.startswith('MD-'):
+                return 'Medidor'
+        
+        # Última tentativa: fallback genérico
+        return 'Equipamento'
         
     def process_equipment_xlsx(self, file_path: Path, sheet_name: str = None) -> List[Dict[str, Any]]:
         """Processa arquivo XLSX de equipamentos.
@@ -66,7 +120,10 @@ class XLSXProcessor:
                 'id': 'code',  # Mapeia campo 'id' do XLSX para 'code'
                 'equipamento': 'code', 'codigo': 'code', 'codigo_equipamento': 'code',
                 'nome': 'name', 'nome_equipamento': 'name', 'equipment_name': 'name',
-                'descricao': 'description', 'tipo': 'equipment_type', 'tipo_equipamento': 'equipment_type',
+                'descricao': 'description', 
+                # Múltiplas formas de mapear equipment_type
+                'tipo': 'equipment_type', 'type': 'equipment_type', 'tipo_equipamento': 'equipment_type',
+                'equipment_type': 'equipment_type', 'category': 'equipment_type',
                 'criticidade': 'criticality', 'localizacao': 'location', 'subestacao': 'substation',
                 'fabricante': 'manufacturer', 'modelo': 'model', 'numero_serie': 'serial_number',
                 'ano_fabricacao': 'manufacturing_year', 'data_instalacao': 'installation_date',
@@ -117,12 +174,27 @@ class XLSXProcessor:
                             record['code'] = f"EQUIP-{len(equipment_records)+1:03d}"
                             logger.warning(f"Campo 'code' ausente, gerado código: {record['code']}")
                     
+                    # Valida e garante campo 'equipment_type' obrigatório
+                    if 'equipment_type' not in record or not record['equipment_type']:
+                        # Infere o tipo baseado no código e nome
+                        code = record.get('code', '')
+                        name = record.get('name', '')
+                        inferred_type = self._infer_equipment_type(code, name)
+                        record['equipment_type'] = inferred_type
+                        logger.info(f"Campo 'equipment_type' ausente para {code}, inferido: {inferred_type}")
+                    
                     record['metadata_json'] = {
                         'source_file': file_path.name,
                         'source_format': 'XLSX',
                         'source_sheet': worksheet.title,
-                        'processed_at': datetime.now().isoformat()
+                        'processed_at': datetime.now().isoformat(),
+                        'inferred_fields': []
                     }
+                    
+                    # Registra campos inferidos nos metadados
+                    if 'equipment_type' in record:
+                        record['metadata_json']['inferred_fields'].append('equipment_type')
+                    
                     equipment_records.append(record)
             
             workbook.close()

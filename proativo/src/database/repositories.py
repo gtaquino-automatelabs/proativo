@@ -198,6 +198,14 @@ class EquipmentRepository(BaseRepository):
         )
         return list(result.scalars().all())
     
+    async def get_all(self) -> List[Equipment]:
+        """Busca todos os equipamentos.
+        
+        Returns:
+            Lista de todos os equipamentos
+        """
+        return await self.list_all(limit=10000)  # Limite alto para pegar todos
+    
     async def list_by_location(self, location: str) -> List[Equipment]:
         """Lista equipamentos por localização.
         

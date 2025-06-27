@@ -168,16 +168,23 @@ class CSVProcessor:
             'rated_current': 'rated_current',
             'status': 'status',
             
-            # Manutenções
+            # Manutenções  
+            'equipment_id': 'equipment_id',  # CRÍTICO: mantém equipment_id
+            'equipamento_id': 'equipment_id',  # Mapeia equipamento_id para equipment_id
+            'codigo_equipamento': 'equipment_id',  # Mapeia codigo_equipamento para equipment_id
             'codigo_manutencao': 'maintenance_code',
             'maintenance_code': 'maintenance_code',
+            'order_number': 'maintenance_code',  # Mapeia order_number para maintenance_code
             'tipo_manutencao': 'maintenance_type',
             'maintenance_type': 'maintenance_type',
+            'type': 'maintenance_type',  # Mapeia type para maintenance_type
             'prioridade': 'priority',
             'priority': 'priority',
             'titulo': 'title',
             'title': 'title',
+            'descricao': 'description',  # Adiciona mapeamento para 'description'
             'descricao_manutencao': 'description',
+            'description': 'description',  # Mantém description como description
             'trabalho_realizado': 'work_performed',
             'work_performed': 'work_performed',
             'data_programada': 'scheduled_date',
@@ -479,20 +486,46 @@ class CSVProcessor:
             
             # Padroniza nomes das colunas
             column_mapping = {
+                # ⭐ CRÍTICO: Mapeamentos para equipment_id
                 'equipment_id': 'equipment_id', 'equipamento_id': 'equipment_id', 'codigo_equipamento': 'equipment_id',
-                'codigo_manutencao': 'maintenance_code', 'tipo_manutencao': 'maintenance_type',
-                'prioridade': 'priority', 'titulo': 'title', 'descricao': 'description',
-                'trabalho_realizado': 'work_performed', 'data_programada': 'scheduled_date',
-                'data_inicio': 'start_date', 'data_conclusao': 'completion_date',
-                'duracao_horas': 'duration_hours', 'resultado': 'result',
-                'tecnico': 'technician', 'equipe': 'team', 'contratada': 'contractor',
-                'custo_estimado': 'estimated_cost', 'custo_real': 'actual_cost',
-                'observacoes': 'observations'
+                
+                # ⭐ Mapeamentos para maintenance_code  
+                'codigo_manutencao': 'maintenance_code', 'maintenance_code': 'maintenance_code',
+                'order_number': 'maintenance_code', 'id': 'maintenance_code',
+                
+                # ⭐ Mapeamentos para maintenance_type
+                'tipo_manutencao': 'maintenance_type', 'maintenance_type': 'maintenance_type',
+                'type': 'maintenance_type',
+                
+                # ⭐ Outros campos essenciais
+                'prioridade': 'priority', 'priority': 'priority',
+                'titulo': 'title', 'title': 'title',
+                'descricao': 'description', 'description': 'description',
+                'trabalho_realizado': 'work_performed', 'work_performed': 'work_performed',
+                'data_programada': 'scheduled_date', 'scheduled_date': 'scheduled_date',
+                'data_inicio': 'start_date', 'start_date': 'start_date',
+                'data_conclusao': 'completion_date', 'completion_date': 'completion_date',
+                'duracao_horas': 'duration_hours', 'duration_hours': 'duration_hours',
+                'resultado': 'result', 'result': 'result',
+                'tecnico': 'technician', 'technician': 'technician',
+                'equipe': 'team', 'team': 'team',
+                'contratada': 'contractor', 'contractor': 'contractor',
+                'custo_estimado': 'estimated_cost', 'estimated_cost': 'estimated_cost',
+                'custo_real': 'actual_cost', 'actual_cost': 'actual_cost',
+                'observacoes': 'observations', 'observations': 'observations'
             }
             
             # Normaliza nomes das colunas
             df.columns = df.columns.str.lower().str.strip()
             df = df.rename(columns=column_mapping)
+            
+            # 🔍 DEBUG: Verificar se equipment_id está na DataFrame após mapeamento
+            if 'equipment_id' not in df.columns:
+                print(f"   🚨 ERRO: equipment_id PERDIDO após mapeamento!")
+                print(f"   🚨 Colunas finais: {list(df.columns)}")
+                print(f"   🚨 Mapeamento para equipment_id: {[(k,v) for k,v in column_mapping.items() if 'equipment' in k.lower()]}")
+            else:
+                print(f"   ✅ equipment_id preservado: {df['equipment_id'].head().tolist()}")
             
             # Conversões de tipo
             date_columns = ['scheduled_date', 'start_date', 'completion_date']
