@@ -18,8 +18,8 @@ from datetime import datetime
 from typing import Dict, Any, List
 import logging
 
-# Adicionar path do projeto (diretório pai para acessar src/)
-sys.path.append(str(Path(__file__).parent.parent))
+# Adicionar path do projeto
+sys.path.append(str(Path(__file__).parent.parent.parent / "src"))
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -55,28 +55,28 @@ class IntegrationTest:
         logger.info("Verificando imports dos serviços...")
         
         try:
-            from src.api.services.llm_service import LLMService
+            from api.services.llm_service import LLMService
             self.services_available["llm_service"] = True
             logger.info("✅ LLMService disponível")
         except ImportError as e:
             logger.warning(f"❌ LLMService não disponível: {e}")
         
         try:
-            from src.api.services.cache_service import CacheService
+            from api.services.cache_service import CacheService
             self.services_available["cache_service"] = True
             logger.info("✅ CacheService disponível")
         except ImportError as e:
             logger.warning(f"❌ CacheService não disponível: {e}")
         
         try:
-            from src.api.services.fallback_service import FallbackService
+            from api.services.fallback_service import FallbackService
             self.services_available["fallback_service"] = True
             logger.info("✅ FallbackService disponível")
         except ImportError as e:
             logger.warning(f"❌ FallbackService não disponível: {e}")
         
         try:
-            from src.api.services.query_processor import QueryProcessor
+            from api.services.query_processor import QueryProcessor
             self.services_available["query_processor"] = True
             logger.info("✅ QueryProcessor disponível")
         except ImportError as e:
@@ -96,7 +96,7 @@ class IntegrationTest:
         # Teste do CacheService
         if self.services_available["cache_service"]:
             try:
-                from src.api.services.cache_service import CacheService, CacheStrategy
+                from api.services.cache_service import CacheService, CacheStrategy
                 
                 cache_service = CacheService()
                 
@@ -129,7 +129,7 @@ class IntegrationTest:
         # Teste do FallbackService
         if self.services_available["fallback_service"]:
             try:
-                from src.api.services.fallback_service import FallbackService, FallbackTrigger
+                from api.services.fallback_service import FallbackService, FallbackTrigger
                 
                 fallback_service = FallbackService()
                 
@@ -158,7 +158,7 @@ class IntegrationTest:
         # Teste do QueryProcessor
         if self.services_available["query_processor"]:
             try:
-                from src.api.services.query_processor import QueryProcessor
+                from api.services.query_processor import QueryProcessor
                 
                 query_processor = QueryProcessor()
                 
@@ -210,7 +210,7 @@ class IntegrationTest:
                 cache_hit = False
                 if self.services_available["cache_service"] and query.strip():
                     try:
-                        from src.api.services.cache_service import CacheService
+                        from api.services.cache_service import CacheService
                         cache_service = CacheService()
                         cached = await cache_service.get(query)
                         cache_hit = cached is not None
@@ -222,7 +222,7 @@ class IntegrationTest:
                 if not cache_hit and query.strip():
                     if self.services_available["query_processor"]:
                         try:
-                            from src.api.services.query_processor import QueryProcessor
+                            from api.services.query_processor import QueryProcessor
                             processor = QueryProcessor()
                             processed = await processor.process_query(query)
                             result["query_processed"] = True
