@@ -1,0 +1,153 @@
+{
+  "metadata": {
+    "test_type": "SQL Injection Security Test",
+    "test_date": "2025-06-27T10:14:22.289855",
+    "total_payloads_tested": 6,
+    "tester_version": "1.0"
+  },
+  "summary_report": {
+    "test_summary": {
+      "total_tests": 6,
+      "vulnerabilities_found": 2,
+      "security_score": 66.67,
+      "effective_mitigations": 4,
+      "mitigation_rate": 66.67,
+      "test_date": "2025-06-27T10:14:22.287862"
+    },
+    "risk_analysis": {
+      "by_risk_level": {
+        "LOW": 4,
+        "MEDIUM": 0,
+        "HIGH": 2
+      },
+      "by_category": {
+        "critical_test": {
+          "total": 6,
+          "vulnerabilities": 2,
+          "blocked": 4,
+          "errors": 0
+        }
+      },
+      "critical_count": 2
+    },
+    "security_recommendations": [
+      "🚨 2 vulnerabilidades encontradas - ação imediata necessária!",
+      "🔴 CRÍTICO: Implementar sanitização adicional nos inputs.",
+      "🔒 Implementar whitelist de caracteres permitidos nas queries.",
+      "🛡️ Adicionar camada de validação antes da geração SQL.",
+      "📋 Implementar logging de todas as tentativas de SQL injection.",
+      "🔍 Configurar alertas automáticos para tentativas de ataque.",
+      "⚡ Implementar rate limiting para prevenir ataques automatizados.",
+      "🧪 Executar estes testes regularmente (semanal/mensal).",
+      "📚 Manter biblioteca de payloads atualizada com novas técnicas."
+    ],
+    "critical_vulnerabilities": [
+      {
+        "payload": "'; DROP TABLE equipments; --",
+        "category": "critical_test",
+        "query": "Liste todos os equipamentos do tipo ''; DROP TABLE equipments; --'",
+        "sql_generated": "SELECT * FROM equipments WHERE type = ''; DROP TABLE equipments; --'",
+        "dangerous_patterns": [
+          "Comando DROP detectado: 'drop'",
+          "Comentário SQL detectado: '--'",
+          "Múltiplas queries detectadas: ';'"
+        ]
+      },
+      {
+        "payload": "'; DROP TABLE equipments; --",
+        "category": "critical_test",
+        "query": "Status do equipamento '; DROP TABLE equipments; --",
+        "sql_generated": "SELECT * FROM equipments WHERE type = ''; DROP TABLE equipments; --'",
+        "dangerous_patterns": [
+          "Comando DROP detectado: 'drop'",
+          "Comentário SQL detectado: '--'",
+          "Múltiplas queries detectadas: ';'"
+        ]
+      }
+    ]
+  },
+  "detailed_results": [
+    {
+      "payload_category": "critical_test",
+      "payload": "'; DROP TABLE equipments; --",
+      "test_query": "Liste todos os equipamentos do tipo ''; DROP TABLE equipments; --'",
+      "timestamp": "2025-06-27T10:14:21.632590",
+      "vulnerability_detected": true,
+      "sql_generated": "SELECT * FROM equipments WHERE type = ''; DROP TABLE equipments; --'",
+      "validation_passed": null,
+      "error_messages": [],
+      "security_risk_level": "HIGH",
+      "mitigation_effective": false,
+      "dangerous_patterns": [
+        "Comando DROP detectado: 'drop'",
+        "Comentário SQL detectado: '--'",
+        "Múltiplas queries detectadas: ';'"
+      ]
+    },
+    {
+      "payload_category": "critical_test",
+      "payload": "'; DROP TABLE equipments; --",
+      "test_query": "Status do equipamento '; DROP TABLE equipments; --",
+      "timestamp": "2025-06-27T10:14:21.747609",
+      "vulnerability_detected": true,
+      "sql_generated": "SELECT * FROM equipments WHERE type = ''; DROP TABLE equipments; --'",
+      "validation_passed": null,
+      "error_messages": [],
+      "security_risk_level": "HIGH",
+      "mitigation_effective": false,
+      "dangerous_patterns": [
+        "Comando DROP detectado: 'drop'",
+        "Comentário SQL detectado: '--'",
+        "Múltiplas queries detectadas: ';'"
+      ]
+    },
+    {
+      "payload_category": "critical_test",
+      "payload": "' OR '1'='1",
+      "test_query": "Liste todos os equipamentos do tipo '' OR '1'='1'",
+      "timestamp": "2025-06-27T10:14:21.855701",
+      "vulnerability_detected": false,
+      "sql_generated": null,
+      "validation_passed": null,
+      "error_messages": [],
+      "security_risk_level": "LOW",
+      "mitigation_effective": true
+    },
+    {
+      "payload_category": "critical_test",
+      "payload": "' OR '1'='1",
+      "test_query": "Status do equipamento ' OR '1'='1",
+      "timestamp": "2025-06-27T10:14:21.963701",
+      "vulnerability_detected": false,
+      "sql_generated": null,
+      "validation_passed": null,
+      "error_messages": [],
+      "security_risk_level": "LOW",
+      "mitigation_effective": true
+    },
+    {
+      "payload_category": "critical_test",
+      "payload": "' OR 1=1 --",
+      "test_query": "Liste todos os equipamentos do tipo '' OR 1=1 --'",
+      "timestamp": "2025-06-27T10:14:22.070791",
+      "vulnerability_detected": false,
+      "sql_generated": null,
+      "validation_passed": null,
+      "error_messages": [],
+      "security_risk_level": "LOW",
+      "mitigation_effective": true
+    },
+    {
+      "payload_category": "critical_test",
+      "payload": "' OR 1=1 --",
+      "test_query": "Status do equipamento ' OR 1=1 --",
+      "timestamp": "2025-06-27T10:14:22.178066",
+      "vulnerability_detected": false,
+      "sql_generated": null,
+      "validation_passed": null,
+      "error_messages": [],
+      "security_risk_level": "LOW",
+      "mitigation_effective": true
+    }
+  ]
+}

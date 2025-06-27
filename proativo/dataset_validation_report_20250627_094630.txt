@@ -1,0 +1,93 @@
+================================================================================
+📊 RELATÓRIO DE VALIDAÇÃO DO DATASET DE QUERIES
+================================================================================
+📅 Data de validação: 2025-06-27 09:46:30
+📁 Arquivo: D:\Workspaces\proativo\proativo\data\test_dataset\query_test_dataset.json
+
+✅ VALIDAÇÃO: APROVADO
+
+📈 ESTATÍSTICAS DO DATASET
+🔢 Total de queries: 28
+
+📊 Distribuição por Categoria:
+   analises: 7 queries (25.0%)
+   custos: 3 queries (10.7%)
+   equipamentos: 4 queries (14.3%)
+   falhas: 2 queries (7.1%)
+   fallback: 3 queries (10.7%)
+   manutencao: 6 queries (21.4%)
+   status: 3 queries (10.7%)
+
+🎯 Distribuição por Complexidade:
+   complex: 10 queries (35.7%)
+   invalid: 2 queries (7.1%)
+   medium: 7 queries (25.0%)
+   simple: 9 queries (32.1%)
+
+🔄 Distribuição por Rota Esperada:
+   fallback: 3 queries (10.7%)
+   llm_sql: 14 queries (50.0%)
+   rule_based: 11 queries (39.3%)
+
+🎯 Distribuição por Prioridade de Teste:
+   high: 12 queries (42.9%)
+   low: 4 queries (14.3%)
+   medium: 12 queries (42.9%)
+
+🔑 Top 10 Palavras-chave do Domínio:
+   equipamentos: 9 ocorrências
+   manutenção: 7 ocorrências
+   manutenções: 5 ocorrências
+   falhas: 5 ocorrências
+   equipamento: 4 ocorrências
+   status: 3 ocorrências
+   custos: 3 ocorrências
+   tipo: 3 ocorrências
+   transformadores: 2 ocorrências
+   críticos: 2 ocorrências
+
+📋 AMOSTRAS DE QUERIES POR CATEGORIA:
+
+   📂 ANALISES:
+     • Q009: Evolução dos custos de manutenção por trimestre nos últimos ...
+       Complexidade: complex | Rota: llm_sql
+     • Q010: Compare a eficiência de manutenção preventiva vs corretiva p...
+       Complexidade: complex | Rota: llm_sql
+
+   📂 CUSTOS:
+     • Q006: Custo total de manutenções este mês
+       Complexidade: medium | Rota: llm_sql
+     • Q025: ROI das manutenções preventivas vs custos de falhas
+       Complexidade: complex | Rota: llm_sql
+
+   📂 EQUIPAMENTOS:
+     • Q001: Liste todos os transformadores
+       Complexidade: simple | Rota: rule_based
+     • Q003: Status do transformador TR-001
+       Complexidade: simple | Rota: rule_based
+
+   📂 FALHAS:
+     • Q007: Top 5 equipamentos com mais falhas
+       Complexidade: medium | Rota: llm_sql
+     • Q012: Histórico de falhas dos transformadores na subestação Norte
+       Complexidade: medium | Rota: llm_sql
+
+   📂 FALLBACK:
+     • Q021: Esta query não faz sentido no contexto de manutenção @@@ err...
+       Complexidade: invalid | Rota: fallback
+     • Q022: Como funciona o sistema PROAtivo?
+       Complexidade: simple | Rota: fallback
+
+   📂 MANUTENCAO:
+     • Q004: Manutenções programadas para esta semana
+       Complexidade: medium | Rota: rule_based
+     • Q005: Última manutenção do gerador GE-002
+       Complexidade: medium | Rota: rule_based
+
+   📂 STATUS:
+     • Q002: Quantos equipamentos estão operacionais?
+       Complexidade: simple | Rota: rule_based
+     • Q011: Equipamentos em manutenção agora
+       Complexidade: simple | Rota: rule_based
+
+================================================================================

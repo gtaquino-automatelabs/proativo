@@ -115,6 +115,63 @@ class Settings(BaseSettings):
     llm_sql_timeout: float = Field(default=5.0, env="LLM_SQL_TIMEOUT")
     llm_sql_feature_enabled: bool = Field(default=False, env="LLM_SQL_FEATURE_ENABLED")
     
+    # =============================================================================
+    # CONFIGURAÇÕES DO SISTEMA DE FALLBACK
+    # =============================================================================
+    
+    # Circuit Breaker Configuration
+    fallback_failure_threshold: int = Field(default=3, env="FALLBACK_FAILURE_THRESHOLD")
+    fallback_circuit_timeout: int = Field(default=600, env="FALLBACK_CIRCUIT_TIMEOUT")  # 10 minutos
+    fallback_health_check_interval: int = Field(default=300, env="FALLBACK_HEALTH_CHECK_INTERVAL")  # 5 minutos
+    
+    # Response Validation
+    fallback_min_confidence: float = Field(default=0.3, env="FALLBACK_MIN_CONFIDENCE")
+    fallback_min_response_length: int = Field(default=20, env="FALLBACK_MIN_RESPONSE_LENGTH")
+    fallback_response_timeout: float = Field(default=10.0, env="FALLBACK_RESPONSE_TIMEOUT")
+    
+    # Adaptive Fallback
+    fallback_learning_enabled: bool = Field(default=True, env="FALLBACK_LEARNING_ENABLED")
+    fallback_success_threshold: float = Field(default=0.8, env="FALLBACK_SUCCESS_THRESHOLD")
+    fallback_adaptation_window: int = Field(default=100, env="FALLBACK_ADAPTATION_WINDOW")  # Últimas 100 queries
+    
+    # Monitoring and Alerts
+    fallback_metrics_enabled: bool = Field(default=True, env="FALLBACK_METRICS_ENABLED")
+    fallback_alert_threshold: float = Field(default=0.5, env="FALLBACK_ALERT_THRESHOLD")  # 50% taxa de fallback
+    fallback_user_satisfaction_min: float = Field(default=3.0, env="FALLBACK_USER_SATISFACTION_MIN")
+    
+    # Strategy Configuration
+    fallback_strategy_weights: str = Field(
+        default="predefined:0.3,template:0.4,help:0.3",
+        env="FALLBACK_STRATEGY_WEIGHTS"
+    )
+    
+    @property
+    def fallback_strategy_weights_dict(self) -> dict:
+        """Retorna pesos das estratégias de fallback como dict."""
+        weights = {}
+        if isinstance(self.fallback_strategy_weights, str):
+            for item in self.fallback_strategy_weights.split(","):
+                if ":" in item:
+                    strategy, weight = item.strip().split(":")
+                    weights[strategy.strip()] = float(weight.strip())
+        return weights
+    
+    @field_validator("fallback_failure_threshold")
+    @classmethod
+    def validate_failure_threshold(cls, v):
+        """Valida threshold de falhas."""
+        if v < 1:
+            raise ValueError("Failure threshold deve ser pelo menos 1")
+        return v
+    
+    @field_validator("fallback_min_confidence")
+    @classmethod 
+    def validate_min_confidence(cls, v):
+        """Valida confiança mínima."""
+        if not 0.0 <= v <= 1.0:
+            raise ValueError("Confiança mínima deve estar entre 0.0 e 1.0")
+        return v
+    
     @field_validator("google_api_key")
     @classmethod
     def validate_google_api_key(cls, v):

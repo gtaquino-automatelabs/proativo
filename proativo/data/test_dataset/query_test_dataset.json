@@ -1,0 +1,366 @@
+{
+  "metadata": {
+    "name": "PROAtivo Query Test Dataset",
+    "version": "1.0",
+    "description": "Dataset representativo para testes do sistema de consultas em linguagem natural",
+    "created_date": "2024-12-21",
+    "total_queries": 28,
+    "categories": [
+      "equipamentos",
+      "manutencao", 
+      "custos",
+      "falhas",
+      "analises",
+      "status",
+      "temporal",
+      "fallback"
+    ],
+    "complexity_levels": ["simple", "medium", "complex"],
+    "expected_routes": ["rule_based", "llm_sql", "fallback"]
+  },
+  "queries": [
+    {
+      "id": "Q001",
+      "query": "Liste todos os transformadores",
+      "category": "equipamentos",
+      "complexity": "simple",
+      "expected_route": "rule_based",
+      "description": "Query básica de listagem de equipamentos",
+      "expected_sql_pattern": "SELECT * FROM equipments WHERE equipment_type = 'Transformador'",
+      "domain_keywords": ["transformadores", "equipamentos"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q002", 
+      "query": "Quantos equipamentos estão operacionais?",
+      "category": "status",
+      "complexity": "simple",
+      "expected_route": "rule_based",
+      "description": "Contagem de equipamentos por status",
+      "expected_sql_pattern": "SELECT COUNT(*) FROM equipments WHERE status = 'Operacional'",
+      "domain_keywords": ["equipamentos", "operacionais", "status"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q003",
+      "query": "Status do transformador TR-001",
+      "category": "equipamentos",
+      "complexity": "simple", 
+      "expected_route": "rule_based",
+      "description": "Consulta de status de equipamento específico",
+      "expected_sql_pattern": "SELECT status FROM equipments WHERE equipment_id = 'TR-001'",
+      "domain_keywords": ["status", "transformador", "TR-001"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q004",
+      "query": "Manutenções programadas para esta semana",
+      "category": "manutencao",
+      "complexity": "medium",
+      "expected_route": "rule_based",
+      "description": "Consulta temporal de manutenções programadas",
+      "expected_sql_pattern": "SELECT * FROM maintenances WHERE scheduled_date BETWEEN now() AND now() + INTERVAL '7 days'",
+      "domain_keywords": ["manutenções", "programadas", "semana"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q005",
+      "query": "Última manutenção do gerador GE-002",
+      "category": "manutencao",
+      "complexity": "medium",
+      "expected_route": "rule_based", 
+      "description": "Histórico de manutenção de equipamento específico",
+      "expected_sql_pattern": "SELECT * FROM maintenances WHERE equipment_id = 'GE-002' ORDER BY maintenance_date DESC LIMIT 1",
+      "domain_keywords": ["última", "manutenção", "gerador", "GE-002"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q006",
+      "query": "Custo total de manutenções este mês",
+      "category": "custos",
+      "complexity": "medium",
+      "expected_route": "llm_sql",
+      "description": "Análise de custos com agregação temporal",
+      "expected_sql_pattern": "SELECT SUM(cost) FROM maintenances WHERE EXTRACT(MONTH FROM maintenance_date) = EXTRACT(MONTH FROM CURRENT_DATE)",
+      "domain_keywords": ["custo", "total", "manutenções", "mês"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q007",
+      "query": "Top 5 equipamentos com mais falhas",
+      "category": "falhas",
+      "complexity": "medium",
+      "expected_route": "llm_sql",
+      "description": "Ranking de equipamentos por frequência de falhas",
+      "expected_sql_pattern": "SELECT equipment_id, COUNT(*) as failure_count FROM maintenances WHERE maintenance_type = 'Corretiva' GROUP BY equipment_id ORDER BY failure_count DESC LIMIT 5",
+      "domain_keywords": ["top", "equipamentos", "falhas"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q008",
+      "query": "Equipamentos críticos sem manutenção nos últimos 90 dias",
+      "category": "manutencao",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Query complexa combinando criticidade e temporalidade",
+      "expected_sql_pattern": "SELECT e.* FROM equipments e WHERE e.criticality = 'Critical' AND e.equipment_id NOT IN (SELECT DISTINCT equipment_id FROM maintenances WHERE maintenance_date >= CURRENT_DATE - INTERVAL '90 days')",
+      "domain_keywords": ["equipamentos", "críticos", "manutenção", "90 dias"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q009",
+      "query": "Evolução dos custos de manutenção por trimestre nos últimos 2 anos",
+      "category": "analises",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Análise temporal complexa com agregações",
+      "expected_sql_pattern": "SELECT EXTRACT(YEAR FROM maintenance_date) as year, EXTRACT(QUARTER FROM maintenance_date) as quarter, SUM(cost) as total_cost FROM maintenances WHERE maintenance_date >= CURRENT_DATE - INTERVAL '2 years' GROUP BY year, quarter ORDER BY year, quarter",
+      "domain_keywords": ["evolução", "custos", "manutenção", "trimestre", "anos"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q010",
+      "query": "Compare a eficiência de manutenção preventiva vs corretiva por tipo de equipamento",
+      "category": "analises",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Análise comparativa complexa com múltiplas dimensões",
+      "expected_sql_pattern": "SELECT e.equipment_type, m.maintenance_type, COUNT(*) as count, AVG(m.cost) as avg_cost, AVG(m.duration_hours) as avg_duration FROM maintenances m JOIN equipments e ON m.equipment_id = e.equipment_id WHERE m.maintenance_type IN ('Preventiva', 'Corretiva') GROUP BY e.equipment_type, m.maintenance_type",
+      "domain_keywords": ["compare", "eficiência", "preventiva", "corretiva", "tipo", "equipamento"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q011",
+      "query": "Equipamentos em manutenção agora",
+      "category": "status",
+      "complexity": "simple",
+      "expected_route": "rule_based",
+      "description": "Status atual em tempo real",
+      "expected_sql_pattern": "SELECT * FROM equipments WHERE status = 'Em Manutenção'",
+      "domain_keywords": ["equipamentos", "manutenção", "agora"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q012",
+      "query": "Histórico de falhas dos transformadores na subestação Norte",
+      "category": "falhas",
+      "complexity": "medium",
+      "expected_route": "llm_sql",
+      "description": "Consulta específica por localização e tipo",
+      "expected_sql_pattern": "SELECT m.* FROM maintenances m JOIN equipments e ON m.equipment_id = e.equipment_id WHERE e.equipment_type = 'Transformador' AND e.location LIKE '%Norte%' AND m.maintenance_type = 'Corretiva'",
+      "domain_keywords": ["histórico", "falhas", "transformadores", "subestação", "Norte"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q013",
+      "query": "Técnicos com mais manutenções realizadas este ano",
+      "category": "manutencao",
+      "complexity": "medium",
+      "expected_route": "llm_sql",
+      "description": "Ranking de técnicos por produtividade",
+      "expected_sql_pattern": "SELECT technician_name, COUNT(*) as maintenance_count FROM maintenances WHERE EXTRACT(YEAR FROM maintenance_date) = EXTRACT(YEAR FROM CURRENT_DATE) GROUP BY technician_name ORDER BY maintenance_count DESC",
+      "domain_keywords": ["técnicos", "manutenções", "realizadas", "ano"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q014",
+      "query": "Tempo médio entre falhas por tipo de equipamento",
+      "category": "analises",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Métrica de confiabilidade (MTBF)",
+      "expected_sql_pattern": "WITH failure_intervals AS (SELECT e.equipment_type, e.equipment_id, LAG(m.maintenance_date) OVER (PARTITION BY e.equipment_id ORDER BY m.maintenance_date) as prev_failure, m.maintenance_date as current_failure FROM maintenances m JOIN equipments e ON m.equipment_id = e.equipment_id WHERE m.maintenance_type = 'Corretiva') SELECT equipment_type, AVG(current_failure - prev_failure) as avg_mtbf FROM failure_intervals WHERE prev_failure IS NOT NULL GROUP BY equipment_type",
+      "domain_keywords": ["tempo", "médio", "falhas", "tipo", "equipamento"],
+      "test_priority": "low"
+    },
+    {
+      "id": "Q015",
+      "query": "Equipamentos que precisam de manutenção urgente",
+      "category": "manutencao",
+      "complexity": "medium",
+      "expected_route": "rule_based",
+      "description": "Alertas de manutenção baseados em regras",
+      "expected_sql_pattern": "SELECT * FROM equipments WHERE next_maintenance_date <= CURRENT_DATE + INTERVAL '7 days' OR status = 'Atenção'",
+      "domain_keywords": ["equipamentos", "manutenção", "urgente"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q016",
+      "query": "Qual o status dos equipamentos na subestação Sul?",
+      "category": "status",
+      "complexity": "simple",
+      "expected_route": "rule_based",
+      "description": "Consulta por localização específica",
+      "expected_sql_pattern": "SELECT equipment_id, status FROM equipments WHERE location LIKE '%Sul%'",
+      "domain_keywords": ["status", "equipamentos", "subestação", "Sul"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q017",
+      "query": "Análise de sazonalidade dos custos de manutenção nos últimos 3 anos",
+      "category": "analises",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Análise temporal de padrões sazonais",
+      "expected_sql_pattern": "SELECT EXTRACT(MONTH FROM maintenance_date) as month, EXTRACT(YEAR FROM maintenance_date) as year, SUM(cost) as monthly_cost FROM maintenances WHERE maintenance_date >= CURRENT_DATE - INTERVAL '3 years' GROUP BY year, month ORDER BY year, month",
+      "domain_keywords": ["análise", "sazonalidade", "custos", "manutenção", "anos"],
+      "test_priority": "low"
+    },
+    {
+      "id": "Q018",
+      "query": "Equipamentos instalados nos últimos 6 meses",
+      "category": "equipamentos",
+      "complexity": "simple",
+      "expected_route": "rule_based",
+      "description": "Consulta temporal simples",
+      "expected_sql_pattern": "SELECT * FROM equipments WHERE installation_date >= CURRENT_DATE - INTERVAL '6 months'",
+      "domain_keywords": ["equipamentos", "instalados", "6 meses"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q019",
+      "query": "Correlação entre idade do equipamento e frequência de manutenção",
+      "category": "analises",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Análise estatística de correlação",
+      "expected_sql_pattern": "SELECT EXTRACT(YEAR FROM AGE(CURRENT_DATE, e.installation_date)) as equipment_age, COUNT(m.maintenance_id) as maintenance_frequency FROM equipments e LEFT JOIN maintenances m ON e.equipment_id = m.equipment_id GROUP BY equipment_age ORDER BY equipment_age",
+      "domain_keywords": ["correlação", "idade", "equipamento", "frequência", "manutenção"],
+      "test_priority": "low"
+    },
+    {
+      "id": "Q020",
+      "query": "Manutenções em atraso",
+      "category": "manutencao",
+      "complexity": "simple",
+      "expected_route": "rule_based",
+      "description": "Identificação de atrasos em manutenção",
+      "expected_sql_pattern": "SELECT * FROM equipments WHERE next_maintenance_date < CURRENT_DATE",
+      "domain_keywords": ["manutenções", "atraso"],
+      "test_priority": "high"
+    },
+    {
+      "id": "Q021",
+      "query": "Esta query não faz sentido no contexto de manutenção @@@ erro",
+      "category": "fallback",
+      "complexity": "invalid",
+      "expected_route": "fallback",
+      "description": "Query inválida para testar sistema de fallback",
+      "expected_sql_pattern": null,
+      "domain_keywords": [],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q022",
+      "query": "Como funciona o sistema PROAtivo?",
+      "category": "fallback",
+      "complexity": "simple",
+      "expected_route": "fallback",
+      "description": "Query sobre o sistema (fora do domínio de dados)",
+      "expected_sql_pattern": null,
+      "domain_keywords": ["sistema", "PROAtivo"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q023",
+      "query": "Receita de bolo de chocolate",
+      "category": "fallback",
+      "complexity": "invalid",
+      "expected_route": "fallback",
+      "description": "Query completamente fora do domínio",
+      "expected_sql_pattern": null,
+      "domain_keywords": [],
+      "test_priority": "low"
+    },
+    {
+      "id": "Q024",
+      "query": "Previsão de falhas para os próximos 30 dias baseada em histórico",
+      "category": "analises",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Query de análise preditiva",
+      "expected_sql_pattern": "SELECT e.equipment_id, COUNT(m.maintenance_id) as failure_history, CASE WHEN COUNT(m.maintenance_id) > 3 THEN 'Alto Risco' WHEN COUNT(m.maintenance_id) > 1 THEN 'Médio Risco' ELSE 'Baixo Risco' END as risk_level FROM equipments e LEFT JOIN maintenances m ON e.equipment_id = m.equipment_id WHERE m.maintenance_type = 'Corretiva' AND m.maintenance_date >= CURRENT_DATE - INTERVAL '1 year' GROUP BY e.equipment_id",
+      "domain_keywords": ["previsão", "falhas", "30 dias", "histórico"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q025",
+      "query": "ROI das manutenções preventivas vs custos de falhas",
+      "category": "custos",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Análise financeira de retorno sobre investimento",
+      "expected_sql_pattern": "SELECT 'Preventiva' as type, SUM(cost) as total_cost, COUNT(*) as frequency FROM maintenances WHERE maintenance_type = 'Preventiva' UNION ALL SELECT 'Corretiva' as type, SUM(cost) as total_cost, COUNT(*) as frequency FROM maintenances WHERE maintenance_type = 'Corretiva'",
+      "domain_keywords": ["ROI", "manutenções", "preventivas", "custos", "falhas"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q026",
+      "query": "Disponibilidade média dos equipamentos críticos no último trimestre",
+      "category": "analises",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Métrica de disponibilidade com filtro de criticidade",
+      "expected_sql_pattern": "SELECT equipment_id, AVG(CASE WHEN status = 'Operacional' THEN 100.0 ELSE 0.0 END) as availability_percentage FROM data_history dh JOIN equipments e ON dh.equipment_id = e.equipment_id WHERE e.criticality = 'Critical' AND dh.timestamp >= CURRENT_DATE - INTERVAL '3 months' GROUP BY equipment_id",
+      "domain_keywords": ["disponibilidade", "média", "equipamentos", "críticos", "trimestre"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q027",
+      "query": "Impacto financeiro das paradas não programadas por tipo de equipamento",
+      "category": "custos",
+      "complexity": "complex",
+      "expected_route": "llm_sql",
+      "description": "Análise de impacto financeiro de falhas",
+      "expected_sql_pattern": "SELECT e.equipment_type, COUNT(m.maintenance_id) as unplanned_stops, SUM(m.cost + COALESCE(m.downtime_hours * 1000, 0)) as total_impact FROM maintenances m JOIN equipments e ON m.equipment_id = e.equipment_id WHERE m.maintenance_type = 'Corretiva' AND m.planned = false GROUP BY e.equipment_type ORDER BY total_impact DESC",
+      "domain_keywords": ["impacto", "financeiro", "paradas", "não programadas", "tipo", "equipamento"],
+      "test_priority": "medium"
+    },
+    {
+      "id": "Q028",
+      "query": "Quantos disjuntores estão em operação?",
+      "category": "equipamentos",
+      "complexity": "simple",
+      "expected_route": "rule_based",
+      "description": "Contagem específica por tipo de equipamento",
+      "expected_sql_pattern": "SELECT COUNT(*) FROM equipments WHERE equipment_type = 'Disjuntor' AND status = 'Operacional'",
+      "domain_keywords": ["quantos", "disjuntores", "operação"],
+      "test_priority": "high"
+    }
+  ],
+  "statistics": {
+    "total_queries": 28,
+    "by_category": {
+      "equipamentos": 5,
+      "manutencao": 6,
+      "custos": 3,
+      "falhas": 2,
+      "analises": 7,
+      "status": 3,
+      "fallback": 3
+    },
+    "by_complexity": {
+      "simple": 10,
+      "medium": 9,
+      "complex": 7,
+      "invalid": 2
+    },
+    "by_expected_route": {
+      "rule_based": 12,
+      "llm_sql": 13,
+      "fallback": 3
+    },
+    "by_priority": {
+      "high": 11,
+      "medium": 13,
+      "low": 4
+    }
+  },
+  "validation_criteria": {
+    "domain_coverage": "Covers all major aspects of electrical equipment maintenance",
+    "complexity_distribution": "Balanced across simple, medium, and complex queries",
+    "route_distribution": "Tests both rule-based and LLM SQL capabilities",
+    "fallback_testing": "Includes invalid queries to test fallback mechanisms",
+    "real_world_relevance": "Based on actual maintenance scenarios and KPIs"
+  }
+}

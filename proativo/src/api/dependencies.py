@@ -371,6 +371,36 @@ def get_fallback_service():
         )
 
 
+@lru_cache()
+def get_availability_router():
+    """
+    Dependência para obter o roteador de disponibilidade (singleton).
+    
+    O AvailabilityRouter decide automaticamente entre usar LLM SQL ou
+    sistema baseado em regras, baseado em disponibilidade e contexto.
+    
+    Returns:
+        AvailabilityRouter: Roteador inteligente para LLM vs Rules
+        
+    Raises:
+        LLMServiceError: Se não conseguir inicializar o roteador
+    """
+    try:
+        from .services.availability_router import AvailabilityRouter
+        
+        router = AvailabilityRouter()
+        logger.info("AvailabilityRouter created successfully")
+        return router
+        
+    except Exception as e:
+        logger.error(f"Failed to create availability router: {str(e)}", exc_info=True)
+        raise LLMServiceError(
+            message="Failed to initialize availability router",
+            service_name="AvailabilityRouter",
+            details={"error": str(e)}
+        )
+
+
 # =============================================================================
 # DEPENDÊNCIAS DE VALIDAÇÃO E SEGURANÇA
 # =============================================================================
