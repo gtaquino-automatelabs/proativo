@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<maintenance_orders>
+    <maintenance_order>
+        <id>ORD-001</id>
+        <equipment_id>TR-001</equipment_id>
+        <order_number>OM-2024-001</order_number>
+        <type>preventiva</type>
+        <priority>alta</priority>
+        <status>concluída</status>
+        <scheduled_date>2024-01-15</scheduled_date>
+        <start_date>2024-01-15T08:00:00</start_date>
+        <completion_date>2024-01-15T17:30:00</completion_date>
+        <description>Inspeção termográfica e análise de óleo isolante</description>
+        <cost>15500.00</cost>
+        <technician_team>Equipe A</technician_team>
+        <created_at>2024-01-01T09:00:00</created_at>
+        <updated_at>2024-01-15T18:00:00</updated_at>
+    </maintenance_order>
+    <maintenance_order>
+        <id>ORD-002</id>
+        <equipment_id>DJ-001</equipment_id>
+        <order_number>OM-2024-002</order_number>
+        <type>preventiva</type>
+        <priority>alta</priority>
+        <status>concluída</status>
+        <scheduled_date>2024-01-20</scheduled_date>
+        <start_date>2024-01-20T09:00:00</start_date>
+        <completion_date>2024-01-20T16:00:00</completion_date>
+        <description>Manutenção preventiva do sistema SF6 e atuadores</description>
+        <cost>22300.00</cost>
+        <technician_team>Equipe B</technician_team>
+        <created_at>2024-01-05T10:00:00</created_at>
+        <updated_at>2024-01-20T16:30:00</updated_at>
+    </maintenance_order>
+    <maintenance_order>
+        <id>ORD-003</id>
+        <equipment_id>TR-002</equipment_id>
+        <order_number>OM-2024-003</order_number>
+        <type>corretiva</type>
+        <priority>média</priority>
+        <status>concluída</status>
+        <scheduled_date>2024-02-05</scheduled_date>
+        <start_date>2024-02-05T08:30:00</start_date>
+        <completion_date>2024-02-06T14:00:00</completion_date>
+        <description>Troca de buchas danificadas por sobretensão</description>
+        <cost>45600.00</cost>
+        <technician_team>Equipe A</technician_team>
+        <created_at>2024-02-03T14:20:00</created_at>
+        <updated_at>2024-02-06T14:30:00</updated_at>
+    </maintenance_order>
+    <maintenance_order>
+        <id>ORD-004</id>
+        <equipment_id>SC-001</equipment_id>
+        <order_number>OM-2024-004</order_number>
+        <type>preventiva</type>
+        <priority>baixa</priority>
+        <status>concluída</status>
+        <scheduled_date>2024-02-18</scheduled_date>
+        <start_date>2024-02-18T10:00:00</start_date>
+        <completion_date>2024-02-18T15:00:00</completion_date>
+        <description>Lubrificação de contatos e inspeção visual</description>
+        <cost>3200.00</cost>
+        <technician_team>Equipe C</technician_team>
+        <created_at>2024-02-10T11:00:00</created_at>
+        <updated_at>2024-02-18T15:30:00</updated_at>
+    </maintenance_order>
+    <maintenance_order>
+        <id>ORD-005</id>
+        <equipment_id>TR-003</equipment_id>
+        <order_number>OM-2024-005</order_number>
+        <type>preventiva</type>
+        <priority>alta</priority>
+        <status>concluída</status>
+        <scheduled_date>2024-03-10</scheduled_date>
+        <start_date>2024-03-10T08:00:00</start_date>
+        <completion_date>2024-03-11T12:00:00</completion_date>
+        <description>Análise cromatográfica de gases e teste de isolação</description>
+        <cost>18700.00</cost>
+        <technician_team>Equipe A</technician_team>
+        <created_at>2024-03-01T09:00:00</created_at>
+        <updated_at>2024-03-11T12:30:00</updated_at>
+    </maintenance_order>
+    <maintenance_order>
+        <id>ORD-006</id>
+        <equipment_id>DJ-002</equipment_id>
+        <order_number>OM-2024-006</order_number>
+        <type>corretiva</type>
+        <priority>alta</priority>
+        <status>concluída</status>
+        <scheduled_date>2024-03-22</scheduled_date>
+        <start_date>2024-03-22T07:00:00</start_date>
+        <completion_date>2024-03-22T19:00:00</completion_date>
+        <description>Substituição de câmara de extinção defeituosa</description>
+        <cost>38900.00</cost>
+        <technician_team>Equipe B</technician_team>
+        <created_at>2024-03-21T16:30:00</created_at>
+        <updated_at>2024-03-22T19:30:00</updated_at>
+    </maintenance_order>
+    <maintenance_order>
+        <id>ORD-007</id>
+        <equipment_id>PR-001</equipment_id>
+        <order_number>OM-2024-007</order_number>
+        <type>preventiva</type>
+        <priority>baixa</priority>
+        <status>concluída</status>
+        <scheduled_date>2024-04-05</scheduled_date>
+        <start_date>2024-04-05T09:00:00</start_date>
+        <completion_date>2024-04-05T11:30:00</completion_date>
+        <description>Inspeção visual e teste de corrente de fuga</description>
+        <cost>1800.00</cost>
+        <technician_team>Equipe C</technician_team>
+        <created_at>2024-03-28T10:00:00</created_at>
+        <updated_at>2024-04-05T12:00:00</updated_at>
+    </maintenance_order>
+    <maintenance_order>
+        <id>ORD-008</id>
+        <equipment_id>TR-004</equipment_id>
+        <order_number>OM-2024-008</order_number>
+        <type>preventiva</type>
+        <priority>alta</priority>
+        <status>concluída</status>
+        <scheduled_date>2024-04-20</scheduled_date>
+        <start_date>2024-04-20T08:00:00</start_date>
+        <completion_date>2024-04-21T16:00:00</completion_date>
+        <description>Manutenção geral com troca de óleo isolante</description>
+        <cost>28400.00</cost>
+        <technician_team>Equipe A</technician_team>
+        <created_at>2024-04-10T09:00:00</created_at>
+        <updated_at>2024-04-21T16:30:00</updated_at>
+    </maintenance_order>
+    <maintenance_order>
+        <id>ORD-009</id>
+        <equipment_id>DJ-003</equipment_id>
+        <order_number>OM-2024-009</order_number>
+        <type>preventiva</type>
+        <priority>alta</priority>
+        <status>concluída</status>
+        <scheduled_date>2024-05-08</scheduled_date>
+        <start_date>2024-05-08T08:30:00</start_date>
+        <completion_date>2024-05-08T17:00:00</completion_date>
+        <description>Calibração de relés de proteção e teste funcional</description>
+        <cost>16200.00</cost>
+        <technician_team>Equipe B</technician_team>
+        <created_at>2024-05-01T10:00:00</created_at>
+        <updated_at>2024-05-08T17:30:00</updated_at>
+    </maintenance_order>
+    <maintenance_order>
+        <id>ORD-010</id>
+        <equipment_id>TR-008</equipment_id>
+        <order_number>OM-2024-020</order_number>
+        <type>corretiva</type>
+        <priority>alta</priority>
+        <status>em andamento</status>
+        <scheduled_date>2024-11-15</scheduled_date>
+        <start_date>2024-11-15T07:00:00</start_date>
+        <completion_date></completion_date>
+        <description>Reparo de sistema de refrigeração forçada</description>
+        <cost>67800.00</cost>
+        <technician_team>Equipe A</technician_team>
+        <created_at>2024-11-14T16:00:00</created_at>
+        <updated_at>2024-12-10T14:30:00</updated_at>
+    </maintenance_order>
+</maintenance_orders> 
