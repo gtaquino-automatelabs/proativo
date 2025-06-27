@@ -164,6 +164,14 @@ logs/
 *.log
 *.log.*
 
+# Relatórios gerados automaticamente
+proativo/reports/
+reports/
+*_report_*.json
+*_report_*.txt
+*_report_*.html
+*_report_*.pdf
+
 # Cache da aplicação
 proativo/cache/
 cache/

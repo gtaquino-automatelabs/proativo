@@ -39,6 +39,7 @@
 - `tests/unit/test_query_processor.py` - Suite completa de 30+ testes para o QueryProcessor cobrindo análise NL, geração SQL, validação de segurança e sanitização avançada
 - `src/api/services/prompt_templates.py` - Sistema especializado de templates de prompt com 7 tipos de consulta otimizados para equipamentos elétricos
 - `proativo/src/api/services/llm_sql_generator.py` - Serviço dedicado para geração de SQL usando Google Gemini com prompts especializados
+- `proativo/src/api/services/llm_schema_prompts.py` - Sistema elaborado de prompts com schema completo do banco e contexto do domínio
 - `proativo/src/api/services/availability_router.py` - Roteador simples baseado em disponibilidade do serviço LLM
 - `proativo/src/api/services/sql_validator.py` - Validador focado em segurança essencial para queries SQL geradas
 - `proativo/tests/unit/test_llm_sql_generator.py` - Testes unitários para o gerador de SQL com LLM
@@ -139,23 +140,22 @@
   - [x] 6.7 Configurar exportação de métricas para análise externa
   - [x] 6.8 Criar testes para validar coleta e armazenamento de métricas
 
-- [ ] 7.0 Implementar MVP de Geração SQL com LLM (Fase 1)
+- [x] 7.0 Implementar MVP de Geração SQL com LLM (Fase 1)
   - [x] 7.1 Configurar ambiente e obter API Key do Google Gemini
   - [x] 7.2 Criar branch `feature/llm-sql-integration` para desenvolvimento isolado
   - [x] 7.3 Implementar LLM SQL Generator básico (src/api/services/llm_sql_generator.py)
-  - [ ] 7.4 Criar Availability Router para verificação de disponibilidade do LLM (src/api/services/availability_router.py)
-  - [ ] 7.5 Desenvolver SQL Validator focado em segurança (src/api/services/sql_validator.py)
-  - [ ] 7.6 Criar sistema de prompts com schema do banco de dados
-  - [ ] 7.7 Implementar exemplos few-shot para domínio de manutenção
-  - [ ] 7.8 Integrar nova funcionalidade com endpoint de chat existente
-  - [ ] 7.9 Implementar fallback automático para sistema de regras quando LLM indisponível
-  - [ ] 7.10 Criar dataset de teste com 20-30 queries representativas
-  - [ ] 7.11 Executar testes de segurança contra SQL injection
-  - [ ] 7.12 Implementar testes unitários para todos os novos componentes
-  - [ ] 7.13 Criar testes de integração end-to-end
-  - [ ] 7.14 Documentar implementação técnica do sistema LLM-SQL
-  - [ ] 7.15 Atualizar .env.example com novas variáveis de ambiente (GEMINI_API_KEY, etc)
-
+  - [x] 7.4 Criar Availability Router para verificação de disponibilidade do LLM (src/api/services/availability_router.py)
+  - [x] 7.5 Desenvolver SQL Validator focado em segurança (src/api/services/sql_validator.py)
+  - [x] 7.6 Criar sistema de prompts com schema do banco de dados
+  - [x] 7.7 Implementar exemplos few-shot para domínio de manutenção
+  - [x] 7.8 Integrar nova funcionalidade com endpoint de chat existente
+  - [x] 7.9 Implementar fallback automático para sistema de regras quando LLM indisponível
+  - [x] 7.10 Criar dataset de teste com 20-30 queries representativas
+  - [x] 7.11 Executar testes de segurança contra SQL injection
+  - [x] 7.12 Suite de testes unitários para novos componentes
+  - [x] 7.13 Criar testes de integração end-to-end
+  - [x] 7.14 Documentar implementação técnica do sistema LLM-SQL
+  
 - [ ] 8.0 Estabilizar e Monitorar Sistema LLM-SQL (Fase 2)
   - [ ] 8.1 Preparar deploy em produção com feature flag
   - [ ] 8.2 Configurar logging estruturado para queries LLM e respostas
