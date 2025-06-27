@@ -106,6 +106,15 @@ class Settings(BaseSettings):
     gemini_timeout: int = 30
     gemini_max_retries: int = 3
     
+    # =============================================================================
+    # CONFIGURAÇÕES DO LLM SQL GENERATOR
+    # =============================================================================
+    
+    llm_sql_temperature: float = Field(default=0.1, env="LLM_SQL_TEMPERATURE")
+    llm_sql_max_tokens: int = Field(default=1000, env="LLM_SQL_MAX_TOKENS")
+    llm_sql_timeout: float = Field(default=5.0, env="LLM_SQL_TIMEOUT")
+    llm_sql_feature_enabled: bool = Field(default=False, env="LLM_SQL_FEATURE_ENABLED")
+    
     @field_validator("google_api_key")
     @classmethod
     def validate_google_api_key(cls, v):
