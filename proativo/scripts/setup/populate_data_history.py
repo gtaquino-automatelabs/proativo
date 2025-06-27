@@ -13,7 +13,7 @@ from datetime import datetime
 
 # Configurar paths
 current_dir = Path(__file__).parent
-project_dir = current_dir.parent
+project_dir = current_dir.parent.parent
 src_dir = project_dir / "src"
 sys.path.insert(0, str(project_dir))
 os.environ['PYTHONPATH'] = str(src_dir)

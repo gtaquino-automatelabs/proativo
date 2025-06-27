@@ -38,6 +38,14 @@
 - `proativo/tests/unit/test_llm_service.py` - Testes unitários completos para o LLMService com 27 cenários de teste
 - `tests/unit/test_query_processor.py` - Suite completa de 30+ testes para o QueryProcessor cobrindo análise NL, geração SQL, validação de segurança e sanitização avançada
 - `src/api/services/prompt_templates.py` - Sistema especializado de templates de prompt com 7 tipos de consulta otimizados para equipamentos elétricos
+- `proativo/src/api/services/llm_sql_generator.py` - Serviço dedicado para geração de SQL usando Google Gemini com prompts especializados
+- `proativo/src/api/services/availability_router.py` - Roteador simples baseado em disponibilidade do serviço LLM
+- `proativo/src/api/services/sql_validator.py` - Validador focado em segurança essencial para queries SQL geradas
+- `proativo/tests/unit/test_llm_sql_generator.py` - Testes unitários para o gerador de SQL com LLM
+- `proativo/tests/unit/test_availability_router.py` - Testes para o roteador de disponibilidade
+- `proativo/tests/unit/test_sql_validator.py` - Testes para validação de segurança SQL
+- `proativo/tests/integration/test_llm_sql_integration.py` - Testes de integração end-to-end para o sistema LLM-SQL
+- `proativo/docs/evolucao-llm-sql-implementacao.md` - Documentação técnica da implementação do sistema LLM-SQL
 - `proativo/requirements.txt` - Dependências Python com versões específicas
 - `proativo/docker-compose.yml` - Configuração Docker para PostgreSQL e aplicação
 - `proativo/Dockerfile` - Imagem Docker da aplicação Python
@@ -129,4 +137,36 @@
   - [x] 6.5 Criar sistema de logging para consultas que resultaram em "não sei"
   - [x] 6.6 Implementar dashboard básico para visualização de métricas
   - [x] 6.7 Configurar exportação de métricas para análise externa
-  - [x] 6.8 Criar testes para validar coleta e armazenamento de métricas 
+  - [x] 6.8 Criar testes para validar coleta e armazenamento de métricas
+
+- [ ] 7.0 Implementar MVP de Geração SQL com LLM (Fase 1)
+  - [ ] 7.1 Configurar ambiente e obter API Key do Google Gemini
+  - [ ] 7.2 Criar branch `feature/llm-sql-integration` para desenvolvimento isolado
+  - [ ] 7.3 Implementar LLM SQL Generator básico (src/api/services/llm_sql_generator.py)
+  - [ ] 7.4 Criar Availability Router para verificação de disponibilidade do LLM (src/api/services/availability_router.py)
+  - [ ] 7.5 Desenvolver SQL Validator focado em segurança (src/api/services/sql_validator.py)
+  - [ ] 7.6 Criar sistema de prompts com schema do banco de dados
+  - [ ] 7.7 Implementar exemplos few-shot para domínio de manutenção
+  - [ ] 7.8 Integrar nova funcionalidade com endpoint de chat existente
+  - [ ] 7.9 Implementar fallback automático para sistema de regras quando LLM indisponível
+  - [ ] 7.10 Criar dataset de teste com 20-30 queries representativas
+  - [ ] 7.11 Executar testes de segurança contra SQL injection
+  - [ ] 7.12 Implementar testes unitários para todos os novos componentes
+  - [ ] 7.13 Criar testes de integração end-to-end
+  - [ ] 7.14 Documentar implementação técnica do sistema LLM-SQL
+  - [ ] 7.15 Atualizar .env.example com novas variáveis de ambiente (GEMINI_API_KEY, etc)
+
+- [ ] 8.0 Estabilizar e Monitorar Sistema LLM-SQL (Fase 2)
+  - [ ] 8.1 Preparar deploy em produção com feature flag
+  - [ ] 8.2 Configurar logging estruturado para queries LLM e respostas
+  - [ ] 8.3 Implementar métricas de latência para geração SQL
+  - [ ] 8.4 Criar métricas de taxa de sucesso do LLM
+  - [ ] 8.5 Monitorar disponibilidade do serviço Gemini
+  - [ ] 8.6 Configurar alertas para falhas de serviço LLM
+  - [ ] 8.7 Criar dashboard simples de monitoramento LLM
+  - [ ] 8.8 Integrar coleta de feedback específico para queries LLM
+  - [ ] 8.9 Implementar análise semanal de queries problemáticas
+  - [ ] 8.10 Criar processo de ajuste incremental de prompts
+  - [ ] 8.11 Documentar guia de troubleshooting para problemas comuns
+  - [ ] 8.12 Atualizar README com instruções sobre nova funcionalidade LLM
+  - [ ] 8.13 Realizar merge da branch após validação completa 
