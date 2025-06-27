@@ -140,7 +140,7 @@
   - [x] 6.8 Criar testes para validar coleta e armazenamento de métricas
 
 - [ ] 7.0 Implementar MVP de Geração SQL com LLM (Fase 1)
-  - [ ] 7.1 Configurar ambiente e obter API Key do Google Gemini
+  - [x] 7.1 Configurar ambiente e obter API Key do Google Gemini
   - [ ] 7.2 Criar branch `feature/llm-sql-integration` para desenvolvimento isolado
   - [ ] 7.3 Implementar LLM SQL Generator básico (src/api/services/llm_sql_generator.py)
   - [ ] 7.4 Criar Availability Router para verificação de disponibilidade do LLM (src/api/services/availability_router.py)
