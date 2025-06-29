@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    postgresql-client \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -38,6 +39,17 @@ COPY main.py ./
 COPY scripts/ ./scripts/
 COPY docs/ ./docs/
 
+# Copiar e configurar scripts de inicialização
+COPY scripts/setup/entrypoint.sh ./entrypoint.sh
+COPY scripts/setup/wait-for-postgres.sh ./wait-for-postgres.sh
+COPY scripts/setup/setup_complete_database.py ./scripts/setup/setup_complete_database.py
+COPY scripts/setup/create_tables.py ./scripts/setup/create_tables.py
+COPY scripts/setup/populate_database.py ./scripts/setup/populate_database.py
+COPY scripts/setup/check_database.py ./scripts/setup/check_database.py
+
+# Configurar permissões para scripts de inicialização
+RUN chmod +x ./entrypoint.sh ./wait-for-postgres.sh
+
 # Mudar ownership para usuário não-root
 RUN chown -R proativo:proativo /app
 
@@ -51,5 +63,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Comando padrão para iniciar a aplicação FastAPI
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Configurar entrypoint para automação completa
+ENTRYPOINT ["./entrypoint.sh"]
+
+# Comando padrão para iniciar a aplicação FastAPI (pode ser sobrescrito)
+CMD ["api"]

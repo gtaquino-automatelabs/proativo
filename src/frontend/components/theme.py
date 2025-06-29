@@ -169,7 +169,8 @@ class ThemeManager:
         
         .metric-label {{
             font-size: 0.9rem;
-            color: #666;
+            color: {self.text_color};
+            opacity: 0.8;
             margin-top: 0.5rem;
         }}
         
@@ -531,7 +532,7 @@ class ThemeManager:
         
         help_html = ""
         if help_text:
-            help_html = f'<div style="font-size: 0.7rem; color: #888; margin-top: 0.5rem;">{help_text}</div>'
+            help_html = f'<div style="font-size: 0.7rem; color: {self.text_color}; opacity: 0.7; margin-top: 0.5rem;">{help_text}</div>'
         
         card_html = f"""
         <div class="metric-card fade-in">
@@ -578,7 +579,7 @@ class ThemeManager:
         
         timestamp_html = ""
         if timestamp:
-            timestamp_html = f'<div style="font-size: 0.7rem; color: #888; margin-top: 0.5rem;">{timestamp}</div>'
+            timestamp_html = f'<div style="font-size: 0.7rem; color: {self.text_color}; opacity: 0.6; margin-top: 0.5rem;">{timestamp}</div>'
         
         bubble_html = f"""
         <div class="chat-message {role_class} fade-in">

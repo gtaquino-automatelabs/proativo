@@ -52,6 +52,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    command: ["api"]  # Usar entrypoint automático para API
     environment:
       # Configurações de Banco de Dados
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-proativo_user}:${POSTGRES_PASSWORD:-proativo_password}@postgres:5432/${POSTGRES_DB:-proativo_db}
@@ -96,7 +97,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s  # Tempo maior para permitir população automática
 
   # Frontend Streamlit
   streamlit-app:
@@ -107,9 +108,18 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    command: ["streamlit", "run", "app.py", "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
-    working_dir: /app/src/frontend
+    command: ["streamlit"]  # Usar entrypoint automático para Streamlit
     environment:
+      # Configurações de Banco de Dados (necessárias para entrypoint e scripts)
+      database_url: postgresql+asyncpg://${POSTGRES_USER:-proativo_user}:${POSTGRES_PASSWORD:-proativo_password}@postgres:5432/${POSTGRES_DB:-proativo_db}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-proativo_user}:${POSTGRES_PASSWORD:-proativo_password}@postgres:5432/${POSTGRES_DB:-proativo_db}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-proativo_db}
+      POSTGRES_USER: ${POSTGRES_USER:-proativo_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-proativo_password}
+      
+      # Configurações do Streamlit
       API_BASE_URL: http://proativo-app:8000
       STREAMLIT_HOST: ${STREAMLIT_HOST:-0.0.0.0}
       STREAMLIT_PORT: ${STREAMLIT_PORT:-8501}
