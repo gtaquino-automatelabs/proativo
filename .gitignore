@@ -169,10 +169,10 @@ proativo/cache/
 cache/
 .cache/
 
-# Uploads de usuários
-proativo/data/uploads/
-uploads/
-temp_uploads/
+# Uploads de usuários - HABILITADO PARA VERSIONAMENTO
+# proativo/data/uploads/  # COMENTADO - agora será commitado
+# uploads/               # COMENTADO - agora será commitado
+temp_uploads/          # COMENTADO - agora será commitado
 
 # Arquivos temporários de processamento ETL
 proativo/data/temp/
@@ -185,18 +185,15 @@ backups/
 *.bak
 *.backup
 
-# Dados de produção (nunca commitar dados reais)
-proativo/data/production/
-production_data/
+# Dados de produção - HABILITADO PARA VERSIONAMENTO
+# proativo/data/production/  # COMENTADO - agora será commitado
+# production_data/           # COMENTADO - agora será commitado
 
-# Arquivos de dados grandes (usar Git LFS se necessário)
-*.xlsx
-*.xls
-*.csv
-# Exceção para dados de exemplo (pequenos)
-!proativo/data/samples/*.xlsx
-!proativo/data/samples/*.csv
-!proativo/data/samples/*.xml
+# Arquivos de dados - HABILITADO PARA VERSIONAMENTO
+# *.xlsx                 # COMENTADO - agora será commitado
+# *.xls                  # COMENTADO - agora será commitado  
+# *.csv                  # COMENTADO - agora será commitado
+# Todos os arquivos da pasta data/ agora serão versionados
 
 # ============================================================================
 # DOCKER
