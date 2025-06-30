@@ -38,7 +38,7 @@ async def create_additional_tables():
     print("🔧 Criando tabelas adicionais...")
     
     # Tabela failures (se não existir nos models)
-    failures_sql = """
+    failures_table_sql = """
     CREATE TABLE IF NOT EXISTS failures (
         id SERIAL PRIMARY KEY,
         equipment_id VARCHAR(50) NOT NULL,
@@ -49,14 +49,17 @@ async def create_additional_tables():
         cost DECIMAL(10,2),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    CREATE INDEX IF NOT EXISTS idx_failures_equipment_id ON failures(equipment_id);
-    CREATE INDEX IF NOT EXISTS idx_failures_date ON failures(failure_date);
+    )
     """
     
+    failures_index1_sql = "CREATE INDEX IF NOT EXISTS idx_failures_equipment_id ON failures(equipment_id)"
+    failures_index2_sql = "CREATE INDEX IF NOT EXISTS idx_failures_date ON failures(failure_date)"
+    
     async with db_connection.get_session() as session:
-        await session.execute(text(failures_sql))
+        # Executar comandos separadamente
+        await session.execute(text(failures_table_sql))
+        await session.execute(text(failures_index1_sql))
+        await session.execute(text(failures_index2_sql))
         await session.commit()
     
     print("✅ Tabelas adicionais criadas")
