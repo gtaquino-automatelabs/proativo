@@ -1,0 +1,20 @@
+[project]
+name = "proativo-notebooks"
+version = "0.1.0"
+dependencies = [
+    "langchain-community>=0.2.0",
+    "langchain-google-genai>=1.0.0", 
+    "psycopg2-binary>=2.9.0",
+    "sqlalchemy>=2.0.0",
+    "jupyter>=1.0.0",
+    "ipykernel>=6.0.0",
+    "langgraph>=0.2.0",
+    "langchainhub>=0.1.0"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+dev-dependencies = []
