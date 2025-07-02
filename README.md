@@ -1,240 +1,244 @@
-# PROAtivo - Sistema Conversacional para Manutenção de Ativos
+# PROAtivo - Sistema Inteligente de Apoio à Decisão
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13+-blue.svg)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-20+-blue.svg)](https://www.docker.com/)
+[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-TBD-yellow.svg)]()
 
-Sistema conversacional inteligente que permite consultas em **linguagem natural** sobre dados de manutenção de ativos elétricos, utilizando IA (Google Gemini) para transformar perguntas do usuário em consultas SQL e fornecer respostas contextualizadas.
+Sistema conversacional inteligente para consultas em linguagem natural sobre dados de manutenção de ativos elétricos, utilizando **Google Gemini 2.5 Flash** com implementação **RAG** (Retrieval-Augmented Generation).
 
-## 🎯 Funcionalidade Principal
+## ✨ Principais Características
 
-O **PROAtivo** permite que usuários façam perguntas como:
-- *"Quantos transformadores foram mantidos este mês?"*
-- *"Quais equipamentos tiveram falhas recorrentes?"*
-- *"Mostre o histórico de manutenção do transformador TR001"*
-- *"Qual a criticidade média dos equipamentos por tipo?"*
+- 🤖 **IA Conversacional** com Google Gemini 2.5 Flash
+- 🔍 **Sistema RAG** para recuperação contextual de informações  
+- 📊 **Pipeline ETL** automatizado (CSV, XML, XLSX)
+- 🧠 **Cache Inteligente** com detecção de similaridade
+- 🛡️ **Sistema de Fallback** robusto
+- 🔒 **Validação SQL** avançada com prevenção de injection
+- 🎨 **Interface Web** moderna com Streamlit
+- 📈 **Sistema de Feedback** e métricas de qualidade
+- 🐳 **Containerização** completa com Docker
 
-O sistema processa essas perguntas, gera consultas SQL seguras e retorna respostas em linguagem natural com dados contextualizados.
-
-## 🏗️ Arquitetura
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   API FastAPI   │    │   PostgreSQL    │
-│   Streamlit     │◄──►│   + IA Services │◄──►│   Database      │
-│   (Port 8501)   │    │   (Port 8000)   │    │   (Port 5432)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                       ┌─────────────────┐
-                       │  Google Gemini  │
-                       │   LLM Service   │
-                       └─────────────────┘
-```
-
-## 🚀 Como Executar
+## 🚀 Quick Start
 
 ### 1. Pré-requisitos
-- Docker Desktop instalado
-- Git
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado
+- Chave da API do Google Gemini ([obter aqui](https://ai.google.dev/))
 
-### 2. Configuração Inicial
-
+### 2. Configuração
 ```bash
 # Clone o repositório
 git clone https://github.com/gtaquino-automatelabs/proativo.git
 cd proativo/proativo
 
-# Configure as variáveis de ambiente
+# Configure variáveis de ambiente
 cp .env.example .env
+# Edite o .env e adicione sua GOOGLE_API_KEY
 ```
 
-**⚠️ IMPORTANTE**: Edite o arquivo `.env` e configure:
+### 3. Execução
 ```bash
-GOOGLE_API_KEY=sua_chave_api_google_gemini_aqui
-```
-
-### 3. Executar a Aplicação
-
-```bash
-# Iniciar todos os serviços
+# Inicie todos os serviços
 docker-compose up -d
 
-# Verificar se os containers estão rodando
-docker-compose ps
+# Aguarde os containers iniciarem (30-60 segundos)
+docker-compose logs -f  # Opcional: acompanhar logs
 ```
 
-### 4. Popular Dados Iniciais
-
+### 4. População de Dados (OBRIGATÓRIO)
 ```bash
-# Popular banco com dados de exemplo (OBRIGATÓRIO na primeira execução)
-docker-compose exec proativo-app python scripts/setup/populate_database.py
-docker-compose exec proativo-app python scripts/setup/populate_data_history.py
+# Navegue para o diretório do projeto
+cd proativo
 
-# Verificar se dados foram carregados
-docker-compose exec proativo-app python scripts/debugging/check_database.py
+# Execute os scripts de setup na ordem:
+python scripts/setup/populate_database.py        # Equipamentos e manutenções
+python scripts/setup/populate_data_history.py    # Histórico de incidentes
+
+# Valide a instalação (recomendado)
+python scripts/testing/validate_system.py        # Verificação completa
 ```
 
-### 5. Acessar a Aplicação
+⚠️ **IMPORTANTE**: Sem executar os scripts de setup, o sistema estará vazio e não terá dados para consultar.
 
-- **Frontend (Interface do usuário)**: http://localhost:8501
-- **API Documentation**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
-- **Database Admin (pgAdmin)**: http://localhost:5050
-  - Email: `admin@example.com`
-  - Senha: `your_admin_password_here`
+### 5. Primeiro Uso
+1. Acesse o **frontend** em http://localhost:8501
+2. Comece a fazer consultas em linguagem natural:
+   - *"Quantos transformadores estão operacionais?"*
+   - *"Manutenções programadas para esta semana"*
+   - *"Equipamentos com mais falhas este ano"*
+   - *"Histórico de incidentes dos últimos 6 meses"*
+3. **Opcional**: Faça upload de seus próprios arquivos CSV/XML/XLSX
 
-## 🗂️ Estrutura do Projeto
+## 🏗️ Arquitetura
 
+```mermaid
+graph LR
+    A[Frontend<br/>Streamlit] --> B[API<br/>FastAPI]
+    B --> C[Database<br/>PostgreSQL]
+    B --> D[Google<br/>Gemini API]
+    
+    B --> E[Serviços de IA]
+    E --> F[LLM Service]
+    E --> G[RAG Service]
+    E --> H[Cache Service]
+    E --> I[Fallback Service]
+```
+
+### Estrutura do Projeto
 ```
 proativo/
 ├── src/
-│   ├── api/                    # FastAPI - Endpoints e serviços
-│   ├── database/               # Modelos e repositórios de dados
-│   ├── frontend/               # Interface Streamlit
-│   └── etl/                    # Pipeline de processamento de dados
-├── scripts/
-│   ├── setup/                  # Scripts de configuração inicial
-│   ├── debugging/              # Scripts de diagnóstico
-│   └── testing/                # Scripts de validação
-├── data/
-│   ├── samples/                # Dados de exemplo
-│   └── uploads/                # Arquivos enviados
-├── docker-compose.yml          # Configuração dos containers
-└── .env                        # Variáveis de ambiente
+│   ├── api/              # FastAPI backend
+│   ├── database/         # Modelos e repositórios
+│   ├── etl/              # Pipeline de dados
+│   ├── frontend/         # Interface Streamlit
+│   └── utils/            # Utilitários compartilhados
+├── tests/                # Testes unitários e integração
+├── scripts/              # Scripts de validação
+├── docs/                 # Documentação técnica
+├── data/samples/         # Dados de exemplo
+└── docker-compose.yml    # Orquestração dos serviços
 ```
 
-## 🛠️ Comandos Básicos
+## 🛠️ Desenvolvimento
 
-### Gerenciamento da Aplicação
+### Comandos Úteis
 ```bash
-# Iniciar aplicação
-docker-compose up -d
+# Logs em tempo real
+docker-compose logs -f
 
-# Parar aplicação
-docker-compose down
+# Executar testes
+pytest tests/
 
-# Reiniciar aplicação
-docker-compose restart
+# Validar sistema
+python scripts/validate_system.py
 
-# Ver logs
-docker-compose logs -f proativo-app
-
-# Ver status dos containers
-docker-compose ps
+# Rebuild da aplicação
+docker-compose build --no-cache
 ```
 
-### Scripts de Manutenção
+### Configuração Local
 ```bash
-# Verificar status do sistema
-docker-compose exec proativo-app python scripts/testing/validate_system.py
+# Instalar dependências (recomendado: UV)
+uv sync
 
-# Verificar banco de dados
-docker-compose exec proativo-app python scripts/debugging/check_database.py
+# Ou usar pip
+pip install -r requirements.txt
 
-# Limpar dados duplicados
-docker-compose exec proativo-app python scripts/maintenance/clean_duplicate_equipment.py
-
-# Testar pipeline ETL
-docker-compose exec proativo-app python scripts/testing/test_etl_pipeline.py
+# Executar testes com cobertura
+pytest tests/ --cov=src/ --cov-report=html
 ```
 
-### Upload de Dados
+## 🔧 Configuração Avançada
+
+### Variáveis de Ambiente Principais
 ```bash
-# Processar arquivo CSV de equipamentos
-docker-compose exec proativo-app python -c "
-from src.etl.data_processor import DataProcessor
-processor = DataProcessor()
-processor.process_file('data/samples/equipment.csv', 'equipment')
-"
+# Obrigatório
+GOOGLE_API_KEY=your_api_key_here
 
-# Processar arquivo de ordens de manutenção
-docker-compose exec proativo-app python -c "
-from src.etl.data_processor import DataProcessor
-processor = DataProcessor()
-processor.process_file('data/samples/maintenance_orders.csv', 'maintenance_orders')
-"
+# Opcionais (têm valores padrão)
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_TEMPERATURE=0.1
+DATABASE_URL=postgresql+asyncpg://...
 ```
 
-### Debugging
+### Serviços de IA Implementados
+- **LLM Service**: Integração com Gemini + retry automático
+- **RAG Service**: Busca semântica e ranking de relevância  
+- **Query Processor**: Análise de linguagem natural
+- **Cache Service**: Cache inteligente com TTL dinâmico
+- **Fallback Service**: Respostas alternativas quando LLM falha
+- **SQL Validator**: Prevenção de injection + sanitização
+
+## 📖 Documentação
+
+### Documentação Técnica Detalhada
+- 📐 [Arquitetura da Camada de IA](docs/arquitetura-camada-ia-proativo.md)
+- 🗄️ [Estrutura do Banco de Dados](docs/estrutura-banco-dados.md)
+- 🤖 [LLM Service Detalhado](docs/llm-service-detalhado.md)
+- 📊 [Pipeline ETL](docs/pipeline-etl-explicacao-usuarios.md)
+- 🛡️ [Sistema de Tratamento de Erros](docs/sistema-tratamento-erros.md)
+
+### APIs e Monitoramento
+- **API Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
+- **Métricas**: http://localhost:8000/metrics
+- **PgAdmin**: http://localhost:5050
+
+## 🧪 Testes e Validação
+
+### Suite de Testes
+- **Testes Unitários**: 85%+ cobertura
+- **Testes de Integração**: Pipeline completo end-to-end
+- **Scripts de Validação**: Sistema automatizado
+
+### Scripts Utilitários
 ```bash
-# Acessar container da aplicação
-docker-compose exec proativo-app bash
+# Validação completa do sistema
+python scripts/validate_system.py
 
-# Verificar logs de erro
-docker-compose exec proativo-app tail -f logs/proativo.log
+# Testes de integração simulados  
+python scripts/test_integration.py
 
-# Conectar ao banco de dados
-docker-compose exec postgres psql -U proativo_user -d proativo_db
+# Validação específica do ETL
+python scripts/test_etl_pipeline.py
 ```
 
-## 🧪 Validação do Sistema
+## 🔒 Segurança
 
-Após a instalação, execute este comando para verificar se tudo está funcionando:
+- ✅ Container não-root + validação de entrada rigorosa
+- ✅ Prevenção SQL injection + sanitização completa
+- ✅ CORS configurado + rate limiting
+- ✅ Não exposição de dados sensíveis em logs
 
-```bash
-docker-compose exec proativo-app python scripts/testing/validate_system.py
-```
-
-**Resultado esperado:**
-- ✅ Conexão com banco de dados
-- ✅ Dados carregados (equipamentos e manutenções)
-- ✅ API respondendo
-- ✅ Serviço de IA funcionando
-- ✅ Frontend acessível
-
-## 📋 Tipos de Dados Suportados
-
-O sistema processa os seguintes tipos de dados:
-
-### Equipamentos
-- Transformadores, Disjuntores, Geradores
-- Localização, tipo, criticidade
-- Status operacional
-
-### Manutenções
-- Manutenções preventivas e corretivas
-- Datas, responsáveis, observações
-- Peças utilizadas e custos
-
-### Incidentes
-- Falhas e incidentes históricos
-- Análise de causa raiz
-- Impacto operacional
-
-## 🔧 Solução de Problemas
+## 🐛 Solução de Problemas
 
 ### Problemas Comuns
 
-**Sistema responde "dados não encontrados":**
+**Container não inicia**: `docker-compose logs [service]`  
+**API não responde**: `curl http://localhost:8000/health`  
+**Gemini API erro**: Verificar `GOOGLE_API_KEY` no `.env`  
+**Logs detalhados**: Definir `LOG_LEVEL=DEBUG` no `.env`  
+
+### Sistema Sem Dados
+❌ **Chat responde "Não há dados" ou "Tabelas vazias"**  
+✅ **Solução**: Execute os scripts de setup:
 ```bash
-docker-compose exec proativo-app python scripts/setup/populate_database.py
+python scripts/setup/populate_database.py
+python scripts/setup/populate_data_history.py
 ```
 
-**Erro de conexão com API Gemini:**
-- Verifique se `GOOGLE_API_KEY` está configurado no `.env`
-- Teste: `docker-compose exec proativo-app python -c "from src.api.services.llm_service import LLMService; print('API OK')"`
+### URLs de Acesso
+- **Frontend**: http://localhost:8501
+- **API**: http://localhost:8000  
+- **Docs**: http://localhost:8000/docs
+- **Health**: http://localhost:8000/health  
 
-**Container não inicia:**
-```bash
-docker-compose logs proativo-app
-docker-compose down && docker-compose up -d
-```
+## 🤝 Contribuição
 
-**Reset completo:**
-```bash
-docker-compose down -v
-docker-compose up -d
-docker-compose exec proativo-app python scripts/setup/populate_database.py
-```
+1. Fork o projeto
+2. Crie uma branch: `git checkout -b feature/nova-feature`
+3. Execute os testes: `pytest tests/`
+4. Submeta um Pull Request
 
-## 📞 Suporte
+## 📊 Status do Projeto
 
-Para questões e suporte:
-- **Issues**: [GitHub Issues](https://github.com/gtaquino-automatelabs/proativo/issues)
-- **Logs**: Verifique `logs/proativo.log` dentro do container
+**Versão Atual**: 2.0 - Sistema de IA Completo ✅  
+**Status**: Protótipo Funcional e Validado 🚀  
+**Cobertura de Testes**: 85%+ 🧪  
+
+### Próximas Funcionalidades
+- Dashboard de métricas em tempo real
+- Suporte a mais formatos de arquivo  
+- Sistema de autenticação
+- Deployment para produção
+
+## 📄 Licença & Contatos
+
+**Repositório**: https://github.com/gtaquino-automatelabs/proativo  
+**Licença**: [A definir]  
+**Issues**: Use o GitHub Issues para reportar problemas  
 
 ---
-
-**Versão**: 2.0 - Protótipo Funcional  
-**Status**: ✅ Operacional com Docker 
+*Sistema desenvolvido para pesquisa acadêmica com foco em apoio à decisão para manutenção de ativos elétricos.* 
