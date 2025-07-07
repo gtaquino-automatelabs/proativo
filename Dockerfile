@@ -60,7 +60,7 @@ USER proativo
 EXPOSE 8000
 
 # Health check para monitoramento
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Configurar entrypoint para automação completa
