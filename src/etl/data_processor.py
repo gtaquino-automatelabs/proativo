@@ -36,7 +36,7 @@ class DataType(Enum):
     """Tipos de dados suportados."""
     EQUIPMENT = "equipment"
     MAINTENANCE = "maintenance"
-    DATA_HISTORY = "data_history"
+    FAILURE = "failure"
 
 
 class DataProcessor:

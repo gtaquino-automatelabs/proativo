@@ -7,7 +7,7 @@ fornecendo operações CRUD e consultas específicas do domínio.
 
 import logging
 from typing import List, Optional, Dict, Any, Sequence
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select, update, delete, func, and_, or_, desc, asc
@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
-from .models import Equipment, Maintenance, DataHistory, UserFeedback, UploadStatus
+from .models import Equipment, Maintenance, Failure, UserFeedback, UploadStatus
 
 logger = logging.getLogger(__name__)
 
@@ -520,19 +520,19 @@ class MaintenanceRepository(BaseRepository):
         ]
 
 
-class DataHistoryRepository(BaseRepository):
-    """Repository para histórico de dados."""
+class FailureRepository(BaseRepository):
+    """Repository para registros de falhas."""
     
     def __init__(self, session: AsyncSession):
-        super().__init__(session, DataHistory)
+        super().__init__(session, Failure)
     
     async def list_by_equipment(
         self, 
         equipment_id: str, 
         limit: int = 100,
         offset: int = 0
-    ) -> List[DataHistory]:
-        """Lista histórico de dados de um equipamento.
+    ) -> List[Failure]:
+        """Lista falhas de um equipamento.
         
         Args:
             equipment_id: ID do equipamento
@@ -540,35 +540,35 @@ class DataHistoryRepository(BaseRepository):
             offset: Número de registros para pular
             
         Returns:
-            Lista de registros de histórico
+            Lista de registros de falhas
         """
         result = await self.session.execute(
-            select(DataHistory)
-            .where(DataHistory.equipment_id == equipment_id)
-            .order_by(desc(DataHistory.timestamp))
+            select(Failure)
+            .where(Failure.equipment_id == equipment_id)
+            .order_by(desc(Failure.failure_date))
             .offset(offset)
             .limit(limit)
         )
         return list(result.scalars().all())
     
-    async def list_by_data_type(self, data_type: str) -> List[DataHistory]:
-        """Lista dados por tipo.
+    async def list_by_failure_type(self, failure_type: str) -> List[Failure]:
+        """Lista falhas por tipo.
         
         Args:
-            data_type: Tipo de dados
+            failure_type: Tipo de falha
             
         Returns:
             Lista de registros
         """
         result = await self.session.execute(
-            select(DataHistory)
-            .where(DataHistory.data_type == data_type)
-            .order_by(desc(DataHistory.timestamp))
+            select(Failure)
+            .where(Failure.failure_type == failure_type)
+            .order_by(desc(Failure.failure_date))
         )
         return list(result.scalars().all())
     
-    async def list_by_source(self, data_source: str) -> List[DataHistory]:
-        """Lista dados por fonte.
+    async def list_by_source(self, data_source: str) -> List[Failure]:
+        """Lista falhas por fonte de dados.
         
         Args:
             data_source: Fonte dos dados
@@ -577,41 +577,57 @@ class DataHistoryRepository(BaseRepository):
             Lista de registros
         """
         result = await self.session.execute(
-            select(DataHistory)
-            .where(DataHistory.data_source == data_source)
-            .order_by(desc(DataHistory.timestamp))
+            select(Failure)
+            .where(Failure.data_source == data_source)
+            .order_by(desc(Failure.failure_date))
         )
         return list(result.scalars().all())
     
-    async def list_by_condition_status(self, condition_status: str) -> List[DataHistory]:
-        """Lista dados por status de condição.
+    async def list_by_severity(self, severity: str) -> List[Failure]:
+        """Lista falhas por severidade.
         
         Args:
-            condition_status: Status da condição
+            severity: Severidade da falha
             
         Returns:
             Lista de registros
         """
         result = await self.session.execute(
-            select(DataHistory)
-            .where(DataHistory.condition_status == condition_status)
-            .order_by(desc(DataHistory.timestamp))
+            select(Failure)
+            .where(Failure.severity == severity)
+            .order_by(desc(Failure.failure_date))
         )
         return list(result.scalars().all())
     
-    async def list_by_alert_level(self, alert_level: str) -> List[DataHistory]:
-        """Lista dados por nível de alerta.
+    async def list_by_impact_level(self, impact_level: str) -> List[Failure]:
+        """Lista falhas por nível de impacto.
         
         Args:
-            alert_level: Nível de alerta
+            impact_level: Nível de impacto
             
         Returns:
             Lista de registros
         """
         result = await self.session.execute(
-            select(DataHistory)
-            .where(DataHistory.alert_level == alert_level)
-            .order_by(desc(DataHistory.timestamp))
+            select(Failure)
+            .where(Failure.impact_level == impact_level)
+            .order_by(desc(Failure.failure_date))
+        )
+        return list(result.scalars().all())
+    
+    async def list_by_status(self, status: str) -> List[Failure]:
+        """Lista falhas por status.
+        
+        Args:
+            status: Status da falha
+            
+        Returns:
+            Lista de registros
+        """
+        result = await self.session.execute(
+            select(Failure)
+            .where(Failure.status == status)
+            .order_by(desc(Failure.failure_date))
         )
         return list(result.scalars().all())
     
@@ -620,8 +636,8 @@ class DataHistoryRepository(BaseRepository):
         start_date: datetime, 
         end_date: datetime,
         equipment_id: Optional[str] = None
-    ) -> List[DataHistory]:
-        """Lista dados em um período específico.
+    ) -> List[Failure]:
+        """Lista falhas em um período específico.
         
         Args:
             start_date: Data inicial
@@ -631,94 +647,194 @@ class DataHistoryRepository(BaseRepository):
         Returns:
             Lista de registros no período
         """
-        query = select(DataHistory).where(
+        query = select(Failure).where(
             and_(
-                DataHistory.timestamp >= start_date,
-                DataHistory.timestamp <= end_date
+                Failure.failure_date >= start_date,
+                Failure.failure_date <= end_date
             )
         )
         
         if equipment_id:
-            query = query.where(DataHistory.equipment_id == equipment_id)
+            query = query.where(Failure.equipment_id == equipment_id)
         
-        query = query.order_by(desc(DataHistory.timestamp))
+        query = query.order_by(desc(Failure.failure_date))
         
         result = await self.session.execute(query)
         return list(result.scalars().all())
     
-    async def list_unvalidated(self) -> List[DataHistory]:
-        """Lista dados não validados.
+    async def list_unvalidated(self) -> List[Failure]:
+        """Lista falhas não validadas.
         
         Returns:
             Lista de registros não validados
         """
         result = await self.session.execute(
-            select(DataHistory)
-            .where(DataHistory.is_validated == False)
-            .order_by(desc(DataHistory.timestamp))
+            select(Failure)
+            .where(Failure.is_validated == False)
+            .order_by(desc(Failure.failure_date))
         )
         return list(result.scalars().all())
     
-    async def get_latest_by_equipment(self, equipment_id: str) -> Optional[DataHistory]:
-        """Busca o registro mais recente de um equipamento.
+    async def list_unresolved(self) -> List[Failure]:
+        """Lista falhas não resolvidas.
+        
+        Returns:
+            Lista de falhas em aberto
+        """
+        result = await self.session.execute(
+            select(Failure)
+            .where(Failure.status.in_(["Reported", "InProgress"]))
+            .order_by(desc(Failure.failure_date))
+        )
+        return list(result.scalars().all())
+    
+    async def get_latest_by_equipment(self, equipment_id: str) -> Optional[Failure]:
+        """Busca a falha mais recente de um equipamento.
         
         Args:
             equipment_id: ID do equipamento
             
         Returns:
-            Registro mais recente ou None
+            Falha mais recente ou None
         """
         result = await self.session.execute(
-            select(DataHistory)
-            .where(DataHistory.equipment_id == equipment_id)
-            .order_by(desc(DataHistory.timestamp))
+            select(Failure)
+            .where(Failure.equipment_id == equipment_id)
+            .order_by(desc(Failure.failure_date))
             .limit(1)
         )
         return result.scalar_one_or_none()
     
-    async def get_measurement_series(
-        self,
-        equipment_id: str,
-        measurement_type: str,
-        start_date: datetime,
-        end_date: datetime
-    ) -> List[DataHistory]:
-        """Busca série temporal de medições específicas.
+    async def get_by_incident_id(self, incident_id: str) -> Optional[Failure]:
+        """Busca falha por ID do incidente.
         
         Args:
-            equipment_id: ID do equipamento
-            measurement_type: Tipo de medição
-            start_date: Data inicial
-            end_date: Data final
+            incident_id: ID do incidente
             
         Returns:
-            Lista ordenada por timestamp
+            Falha encontrada ou None
         """
         result = await self.session.execute(
-            select(DataHistory)
-            .where(
-                and_(
-                    DataHistory.equipment_id == equipment_id,
-                    DataHistory.measurement_type == measurement_type,
-                    DataHistory.timestamp >= start_date,
-                    DataHistory.timestamp <= end_date
-                )
-            )
-            .order_by(asc(DataHistory.timestamp))
+            select(Failure)
+            .where(Failure.incident_id == incident_id)
         )
-        return list(result.scalars().all())
+        return result.scalar_one_or_none()
     
-    async def bulk_create(self, data_records: List[Dict[str, Any]]) -> List[DataHistory]:
-        """Criação em lote de registros de dados.
+    async def get_critical_failures(
+        self,
+        equipment_id: Optional[str] = None,
+        days_back: int = 30
+    ) -> List[Failure]:
+        """Busca falhas críticas recentes.
         
         Args:
-            data_records: Lista de dicionários com dados
+            equipment_id: ID do equipamento (opcional)
+            days_back: Número de dias para buscar (padrão: 30)
+            
+        Returns:
+            Lista de falhas críticas
+        """
+        cutoff_date = datetime.now() - timedelta(days=days_back)
+        
+        query = select(Failure).where(
+            and_(
+                Failure.severity == "Critical",
+                Failure.failure_date >= cutoff_date
+            )
+        )
+        
+        if equipment_id:
+            query = query.where(Failure.equipment_id == equipment_id)
+        
+        query = query.order_by(desc(Failure.failure_date))
+        
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+    
+    async def get_failure_stats(
+        self,
+        equipment_id: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> Dict[str, Any]:
+        """Calcula estatísticas de falhas.
+        
+        Args:
+            equipment_id: ID do equipamento (opcional)
+            start_date: Data inicial (opcional)
+            end_date: Data final (opcional)
+            
+        Returns:
+            Dicionário com estatísticas
+        """
+        from sqlalchemy import func, case
+        
+        query = select(
+            func.count(Failure.id).label('total_failures'),
+            func.avg(Failure.downtime_hours).label('avg_downtime'),
+            func.sum(Failure.downtime_hours).label('total_downtime'),
+            func.avg(Failure.cost).label('avg_cost'),
+            func.sum(Failure.cost).label('total_cost'),
+            func.sum(
+                case(
+                    (Failure.severity == 'Critical', 1),
+                    else_=0
+                )
+            ).label('critical_count'),
+            func.sum(
+                case(
+                    (Failure.severity == 'High', 1),
+                    else_=0
+                )
+            ).label('high_count'),
+            func.sum(
+                case(
+                    (Failure.severity == 'Medium', 1),
+                    else_=0
+                )
+            ).label('medium_count'),
+            func.sum(
+                case(
+                    (Failure.severity == 'Low', 1),
+                    else_=0
+                )
+            ).label('low_count')
+        )
+        
+        # Aplicar filtros
+        if equipment_id:
+            query = query.where(Failure.equipment_id == equipment_id)
+        if start_date:
+            query = query.where(Failure.failure_date >= start_date)
+        if end_date:
+            query = query.where(Failure.failure_date <= end_date)
+        
+        result = await self.session.execute(query)
+        row = result.first()
+        
+        return {
+            'total_failures': row.total_failures or 0,
+            'avg_downtime_hours': float(row.avg_downtime) if row.avg_downtime else 0.0,
+            'total_downtime_hours': float(row.total_downtime) if row.total_downtime else 0.0,
+            'avg_cost': float(row.avg_cost) if row.avg_cost else 0.0,
+            'total_cost': float(row.total_cost) if row.total_cost else 0.0,
+            'critical_count': row.critical_count or 0,
+            'high_count': row.high_count or 0,
+            'medium_count': row.medium_count or 0,
+            'low_count': row.low_count or 0
+        }
+    
+    async def bulk_create(self, failure_records: List[Dict[str, Any]]) -> List[Failure]:
+        """Criação em lote de registros de falhas.
+        
+        Args:
+            failure_records: Lista de dicionários com dados de falhas
             
         Returns:
             Lista de registros criados
         """
         try:
-            instances = [DataHistory(**record) for record in data_records]
+            instances = [Failure(**record) for record in failure_records]
             self.session.add_all(instances)
             await self.session.flush()
             
@@ -726,28 +842,27 @@ class DataHistoryRepository(BaseRepository):
             for instance in instances:
                 await self.session.refresh(instance)
             
-            logger.info(f"Criados {len(instances)} registros de DataHistory em lote")
+            logger.info(f"Criados {len(instances)} registros de Failure em lote")
             return instances
         except IntegrityError as e:
             await self.session.rollback()
-            logger.error(f"Erro ao criar registros em lote: {e}")
+            logger.error(f"Erro ao criar registros de falhas em lote: {e}")
             raise
     
     async def get_data_quality_stats(self) -> Dict[str, Any]:
-        """Estatísticas de qualidade dos dados.
+        """Estatísticas de qualidade dos dados de falhas.
         
         Returns:
             Dicionário com estatísticas de qualidade
         """
         result = await self.session.execute(
             select(
-                func.count(DataHistory.id).label('total_records'),
+                func.count(Failure.id).label('total_records'),
                 func.count(
-                    func.nullif(DataHistory.is_validated, False)
+                    func.nullif(Failure.is_validated, False)
                 ).label('validated_count'),
-                func.avg(DataHistory.quality_score).label('avg_quality_score'),
                 func.count(
-                    func.nullif(DataHistory.validation_status != 'Valid', False)
+                    func.nullif(Failure.validation_status != 'Valid', False)
                 ).label('valid_count')
             )
         )
@@ -756,7 +871,6 @@ class DataHistoryRepository(BaseRepository):
             'total_records': row.total_records or 0,
             'validated_count': row.validated_count or 0,
             'validation_rate': round((row.validated_count / row.total_records) * 100, 2) if row.total_records > 0 else 0,
-            'avg_quality_score': float(row.avg_quality_score or 0),
             'valid_count': row.valid_count or 0
         } if row else {}
 
@@ -969,7 +1083,7 @@ class RepositoryManager:
         self.session = session
         self.equipment = EquipmentRepository(session)
         self.maintenance = MaintenanceRepository(session)
-        self.data_history = DataHistoryRepository(session)
+        self.failures = FailureRepository(session)
         self.user_feedback = UserFeedbackRepository(session)
         self.upload_status = UploadStatusRepository(session)
     

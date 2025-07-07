@@ -262,7 +262,7 @@ class CSVProcessor:
         
         Args:
             df: DataFrame com dados
-            data_type: Tipo de dados ('equipment', 'maintenance', 'data_history')
+            data_type: Tipo de dados ('equipment', 'maintenance', 'failure')
             
         Returns:
             DataFrame com tipos convertidos
@@ -366,7 +366,7 @@ class CSVProcessor:
         required_columns = {
             'equipment': ['code', 'name', 'equipment_type'],
             'maintenance': ['equipment_id', 'maintenance_type', 'title'],
-            'data_history': ['equipment_id', 'data_source', 'data_type', 'timestamp']
+            'failure': ['equipment_id', 'failure_date', 'failure_type']
         }
         
         if data_type not in required_columns:

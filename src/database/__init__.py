@@ -19,13 +19,13 @@ from .connection import (
 from .models import (
     Equipment,
     Maintenance,
-    DataHistory,
+    Failure,
 )
 from .repositories import (
     BaseRepository,
     EquipmentRepository,
     MaintenanceRepository,
-    DataHistoryRepository,
+    FailureRepository,
     RepositoryManager,
 )
 
@@ -42,11 +42,11 @@ __all__ = [
     "check_database_connection",
     "Equipment",
     "Maintenance",
-    "DataHistory",
+    "Failure",
     "BaseRepository",
     "EquipmentRepository",
     "MaintenanceRepository",
-    "DataHistoryRepository",
+    "FailureRepository",
     "UserFeedbackRepository",
     "RepositoryManager",
 ]

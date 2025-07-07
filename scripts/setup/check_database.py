@@ -38,14 +38,14 @@ async def check_database_empty():
             # Conta registros em tabelas principais
             equipment_count = await repo_manager.equipment.count()
             maintenance_count = await repo_manager.maintenance.count()
-            history_count = await repo_manager.data_history.count()
+            failure_count = await repo_manager.failures.count()
             
-            total_records = equipment_count + maintenance_count + history_count
+            total_records = equipment_count + maintenance_count + failure_count
             
             print(f"📊 Registros encontrados:")
             print(f"   Equipamentos: {equipment_count}")
             print(f"   Manutenções: {maintenance_count}")
-            print(f"   Histórico: {history_count}")
+            print(f"   Falhas: {failure_count}")
             print(f"   Total: {total_records}")
             
             is_empty = total_records == 0

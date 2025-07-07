@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script unificado para popular TODOS os dados no banco PROAtivo.
-Substitui: populate_equipment.py + populate_data_history.py
+Substitui: populate_equipment.py + populate_failures.py
 """
 
 import asyncio
@@ -19,7 +19,7 @@ os.environ['PYTHONPATH'] = str(project_dir)
 
 from src.etl.data_processor import DataProcessor, DataType
 from src.database.repositories import RepositoryManager
-from src.database.connection import db_connection, create_tables
+from src.database.connection import db_connection, create_tables, init_database
 
 
 async def populate_equipments():
@@ -117,9 +117,9 @@ async def populate_maintenances(equipment_map):
         await session.commit()
 
 
-async def populate_history(equipment_map):
-    """Popula histórico de dados."""
-    print("📈 ETAPA 3: Populando histórico...")
+async def populate_failures(equipment_map):
+    """Popula registros de falhas."""
+    print("💥 ETAPA 3: Populando falhas...")
     
     file_path = Path("data/samples/failures_incidents.csv")
     if not file_path.exists():
@@ -135,77 +135,99 @@ async def populate_history(equipment_map):
         df = pd.read_csv(file_path, dtype=str)
         
         # Processar registros
-        history_records = []
+        failure_records = []
         for _, row in df.iterrows():
             equipment_code = row['equipment_id']
             
             if equipment_code not in equipment_map:
                 continue
             
-            # Mapear impacto
-            impact_mapping = {
+            # Mapear nível de impacto para severidade
+            severity_mapping = {
                 'Alto': 'Critical',
-                'Médio': 'Warning', 
-                'Baixo': 'Good'
+                'Médio': 'High', 
+                'Baixo': 'Medium'
             }
             
             # Converter data
             try:
-                occurrence_date = pd.to_datetime(row['occurrence_date'])
-                if occurrence_date.tz is None:
-                    occurrence_date = occurrence_date.tz_localize('UTC')
+                failure_date = pd.to_datetime(row['occurrence_date'])
+                if failure_date.tz is None:
+                    failure_date = failure_date.tz_localize('UTC')
             except:
                 continue
             
+            # Converter valores numéricos
+            downtime_hours = None
+            affected_customers = None
+            
+            try:
+                downtime_str = str(row['downtime_hours']).strip()
+                if downtime_str and downtime_str.lower() not in ['nan', 'none', '']:
+                    downtime_hours = float(downtime_str)
+            except (ValueError, TypeError):
+                pass
+            
+            try:
+                customers_str = str(row['affected_customers']).strip()
+                if customers_str and customers_str.lower() not in ['nan', 'none', '']:
+                    affected_customers = int(customers_str)
+            except (ValueError, TypeError):
+                pass
+            
             record = {
                 'equipment_id': equipment_map[equipment_code],
+                'incident_id': row['id'],
+                'incident_number': row['incident_number'],
+                'failure_date': failure_date,
+                'failure_type': row['failure_type'],
+                'description': f"Falha do tipo {row['failure_type']} - {str(row['root_cause'])}",
+                'root_cause': str(row['root_cause']),
+                'severity': severity_mapping.get(str(row['impact_level']), 'Medium'),
+                'impact_level': row['impact_level'],
+                'downtime_hours': downtime_hours,
+                'affected_customers': affected_customers,
+                'resolution_description': str(row['resolution_description']) if str(row['resolution_description']) != 'nan' else '',
+                'lessons_learned': str(row['lessons_learned']) if str(row['lessons_learned']) != 'nan' else '',
                 'data_source': 'CSV',
-                'data_type': 'Event',
-                'timestamp': occurrence_date,
-                'measurement_type': row['failure_type'],
-                'measurement_value': float(row['downtime_hours']) if row['downtime_hours'] else None,
-                'measurement_unit': 'hours',
-                'text_value': row['incident_number'],
-                'condition_status': impact_mapping.get(row['impact_level'], 'Unknown'),
-                'alert_level': 'Critical' if row['impact_level'] == 'Alto' else 
-                             'Warning' if row['impact_level'] == 'Médio' else 'Normal',
-                'inspector': 'Sistema Automático',
-                'collection_method': 'Manual',
                 'source_file': 'failures_incidents.csv',
+                'status': 'Resolved',  # Assumindo que incidentes históricos já foram resolvidos
                 'is_validated': True,
                 'validation_status': 'Valid',
-                'quality_score': 0.95,
                 'raw_data': {
-                    'incident_id': row['id'],
-                    'root_cause': row['root_cause'],
+                    'original_incident_id': row['id'],
                     'original_data': dict(row)
                 },
                 'processed_data': {
-                    'failure_type': row['failure_type'],
-                    'impact_summary': {
-                        'level': row['impact_level'],
-                        'downtime_hours': float(row['downtime_hours']) if row['downtime_hours'] else 0,
+                    'severity_mapping': {
+                        'original': row['impact_level'],
+                        'mapped': severity_mapping.get(str(row['impact_level']), 'Medium')
+                    },
+                    'data_quality': {
+                        'downtime_parsed': downtime_hours is not None,
+                        'customers_parsed': affected_customers is not None
                     }
                 },
                 'metadata_json': {
                     'source_file': 'failures_incidents.csv',
-                    'processed_at': datetime.now().isoformat()
+                    'processed_at': datetime.now().isoformat(),
+                    'data_version': '1.0'
                 }
             }
             
-            history_records.append(record)
+            failure_records.append(record)
         
         # Salvar registros
         saved_count = 0
-        for record in history_records:
+        for record in failure_records:
             try:
-                await repo_manager.data_history.create(**record)
+                await repo_manager.failures.create(**record)
                 saved_count += 1
             except Exception as e:
-                print(f"   ⚠️  Erro ao salvar registro: {e}")
+                print(f"   ⚠️  Erro ao salvar falha: {e}")
         
         await session.commit()
-        print(f"   ✅ {saved_count} registros de histórico salvos")
+        print(f"   ✅ {saved_count} registros de falhas salvos")
 
 
 async def verify_population():
@@ -217,12 +239,12 @@ async def verify_population():
         
         equipment_count = await repo_manager.equipment.count()
         maintenance_count = await repo_manager.maintenance.count()
-        history_count = await repo_manager.data_history.count()
+        failure_count = await repo_manager.failures.count()
         
         print(f"   📊 Equipamentos: {equipment_count}")
         print(f"   📊 Manutenções: {maintenance_count}")
-        print(f"   📊 Histórico: {history_count}")
-        print(f"   📊 Total: {equipment_count + maintenance_count + history_count}")
+        print(f"   📊 Falhas: {failure_count}")
+        print(f"   📊 Total: {equipment_count + maintenance_count + failure_count}")
         
         return equipment_count > 0
 
@@ -233,6 +255,9 @@ async def main():
     print("=================================")
     
     try:
+        # Inicializar conexão com banco
+        await init_database()
+        
         # Criar tabelas se necessário
         await create_tables()
         
@@ -246,8 +271,8 @@ async def main():
         # Etapa 2: Manutenções
         await populate_maintenances(equipment_map)
         
-        # Etapa 3: Histórico
-        await populate_history(equipment_map)
+        # Etapa 3: Falhas
+        await populate_failures(equipment_map)
         
         # Etapa 4: Verificação
         success = await verify_population()

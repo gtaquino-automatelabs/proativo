@@ -151,8 +151,8 @@ class Equipment(Base):
         back_populates="equipment",
         cascade="all, delete-orphan"
     )
-    data_history: Mapped[List["DataHistory"]] = relationship(
-        "DataHistory", 
+    failures: Mapped[List["Failure"]] = relationship(
+        "Failure", 
         back_populates="equipment",
         cascade="all, delete-orphan"
     )
@@ -372,17 +372,18 @@ class Maintenance(Base):
         return f"<Maintenance(id='{self.id}', type='{self.maintenance_type}', status='{self.status}')>"
 
 
-class DataHistory(Base):
-    """Modelo para histórico de dados dos equipamentos."""
+
+class Failure(Base):
+    """Modelo para registros de falhas e incidentes em equipamentos."""
     
-    __tablename__ = "data_history"
+    __tablename__ = "failures"
     
     # Chave primária
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), 
         primary_key=True, 
         default=lambda: str(uuid.uuid4()),
-        comment="Identificador único do registro"
+        comment="Identificador único da falha"
     )
     
     # Relacionamento com equipamento
@@ -393,66 +394,87 @@ class DataHistory(Base):
         comment="ID do equipamento"
     )
     
-    # Origem e tipo dos dados
-    data_source: Mapped[str] = mapped_column(
-        String(50), 
-        nullable=False,
-        comment="Fonte dos dados: CSV, XML, XLSX, Manual, API"
+    # Identificação do incidente
+    incident_id: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        comment="ID original do incidente (ex: INC-001)"
     )
-    data_type: Mapped[str] = mapped_column(
-        String(50), 
-        nullable=False,
-        comment="Tipo de dados: Measurement, Inspection, Test, Event"
+    incident_number: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        comment="Número do incidente (ex: INC-2024-001)"
     )
     
-    # Timestamp dos dados
-    timestamp: Mapped[datetime] = mapped_column(
+    # Data e tipo da falha
+    failure_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False,
-        comment="Timestamp dos dados originais"
+        comment="Data de ocorrência da falha"
+    )
+    failure_type: Mapped[str] = mapped_column(
+        String(100), 
+        nullable=False,
+        comment="Tipo de falha (ex: Falha de Isolação, Falha de Operação)"
     )
     
-    # Valores medidos/observados
-    measurement_type: Mapped[Optional[str]] = mapped_column(
-        String(100),
-        comment="Tipo de medição (ex: Temperatura, Vibração, etc.)"
-    )
-    measurement_value: Mapped[Optional[Decimal]] = mapped_column(
-        Numeric(15, 4),
-        comment="Valor numérico medido"
-    )
-    measurement_unit: Mapped[Optional[str]] = mapped_column(
-        String(20),
-        comment="Unidade de medida"
-    )
-    
-    # Dados textuais
-    text_value: Mapped[Optional[str]] = mapped_column(
+    # Descrição e causa
+    description: Mapped[Optional[str]] = mapped_column(
         Text,
-        comment="Valor textual ou observação"
+        comment="Descrição detalhada da falha"
+    )
+    root_cause: Mapped[Optional[str]] = mapped_column(
+        Text,
+        comment="Causa raiz da falha"
     )
     
-    # Status e condição
-    condition_status: Mapped[Optional[str]] = mapped_column(
-        String(50),
-        comment="Status da condição: Good, Warning, Critical, Unknown"
+    # Severidade e impacto
+    severity: Mapped[str] = mapped_column(
+        String(20), 
+        nullable=False, 
+        default="Medium",
+        comment="Severidade: Critical, High, Medium, Low"
     )
-    alert_level: Mapped[Optional[str]] = mapped_column(
+    impact_level: Mapped[Optional[str]] = mapped_column(
         String(20),
-        comment="Nível de alerta: Normal, Warning, Critical"
+        comment="Nível de impacto: Alto, Médio, Baixo"
     )
     
-    # Contexto da coleta
-    inspector: Mapped[Optional[str]] = mapped_column(
-        String(100),
-        comment="Responsável pela coleta/inspeção"
+    # Tempos e custos
+    downtime_hours: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(8, 2),
+        comment="Horas de parada causada pela falha"
     )
-    collection_method: Mapped[Optional[str]] = mapped_column(
-        String(50),
-        comment="Método de coleta: Automatic, Manual, Remote"
+    resolution_time: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        comment="Tempo de resolução em minutos"
+    )
+    cost: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(12, 2),
+        comment="Custo de reparo (R$)"
     )
     
-    # Arquivo fonte
+    # Impacto operacional
+    affected_customers: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        comment="Número de clientes afetados"
+    )
+    
+    # Resolução e aprendizado
+    resolution_description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        comment="Descrição da resolução aplicada"
+    )
+    lessons_learned: Mapped[Optional[str]] = mapped_column(
+        Text,
+        comment="Lições aprendidas e recomendações"
+    )
+    
+    # Origem dos dados
+    data_source: Mapped[str] = mapped_column(
+        String(50), 
+        nullable=False, 
+        default="Manual",
+        comment="Fonte dos dados: CSV, XML, XLSX, Manual, API"
+    )
     source_file: Mapped[Optional[str]] = mapped_column(
         String(255),
         comment="Nome do arquivo fonte dos dados"
@@ -462,7 +484,13 @@ class DataHistory(Base):
         comment="Linha do arquivo fonte"
     )
     
-    # Validação e qualidade
+    # Status e validação
+    status: Mapped[str] = mapped_column(
+        String(20), 
+        nullable=False, 
+        default="Reported",
+        comment="Status: Reported, InProgress, Resolved, Closed"
+    )
     is_validated: Mapped[bool] = mapped_column(
         Boolean, 
         default=False,
@@ -471,10 +499,6 @@ class DataHistory(Base):
     validation_status: Mapped[Optional[str]] = mapped_column(
         String(20),
         comment="Status da validação: Valid, Invalid, Pending"
-    )
-    quality_score: Mapped[Optional[Decimal]] = mapped_column(
-        Numeric(3, 2),
-        comment="Score de qualidade dos dados (0.00-1.00)"
     )
     
     # Dados estruturados adicionais
@@ -486,8 +510,6 @@ class DataHistory(Base):
         JSONB,
         comment="Dados processados em formato JSON"
     )
-    
-    # Metadados
     metadata_json: Mapped[Optional[dict]] = mapped_column(
         JSONB,
         comment="Metadados adicionais"
@@ -499,53 +521,70 @@ class DataHistory(Base):
         server_default=func.now(),
         comment="Data de criação do registro"
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(), 
+        onupdate=func.now(),
+        comment="Data da última atualização"
+    )
     
     # Relacionamentos
     equipment: Mapped["Equipment"] = relationship(
         "Equipment", 
-        back_populates="data_history"
+        back_populates="failures"
     )
     
     # Constraints
     __table_args__ = (
         CheckConstraint(
+            "severity IN ('Critical', 'High', 'Medium', 'Low')", 
+            name="ck_failure_severity"
+        ),
+        CheckConstraint(
+            "impact_level IS NULL OR impact_level IN ('Alto', 'Médio', 'Baixo')", 
+            name="ck_failure_impact"
+        ),
+        CheckConstraint(
+            "status IN ('Reported', 'InProgress', 'Resolved', 'Closed')", 
+            name="ck_failure_status"
+        ),
+        CheckConstraint(
             "data_source IN ('CSV', 'XML', 'XLSX', 'Manual', 'API')", 
-            name="ck_data_history_source"
-        ),
-        CheckConstraint(
-            "data_type IN ('Measurement', 'Inspection', 'Test', 'Event')", 
-            name="ck_data_history_type"
-        ),
-        CheckConstraint(
-            "condition_status IS NULL OR condition_status IN ('Good', 'Warning', 'Critical', 'Unknown')", 
-            name="ck_data_history_condition"
-        ),
-        CheckConstraint(
-            "alert_level IS NULL OR alert_level IN ('Normal', 'Warning', 'Critical')", 
-            name="ck_data_history_alert"
+            name="ck_failure_source"
         ),
         CheckConstraint(
             "validation_status IS NULL OR validation_status IN ('Valid', 'Invalid', 'Pending')", 
-            name="ck_data_history_validation"
+            name="ck_failure_validation"
         ),
         CheckConstraint(
-            "quality_score IS NULL OR (quality_score >= 0.00 AND quality_score <= 1.00)", 
-            name="ck_data_history_quality"
+            "downtime_hours IS NULL OR downtime_hours >= 0", 
+            name="ck_failure_downtime"
         ),
-        Index("idx_data_history_equipment", "equipment_id"),
-        Index("idx_data_history_timestamp", "timestamp"),
-        Index("idx_data_history_source", "data_source"),
-        Index("idx_data_history_type", "data_type"),
-        Index("idx_data_history_measurement", "measurement_type"),
-        Index("idx_data_history_condition", "condition_status"),
-        Index("idx_data_history_alert", "alert_level"),
-        # Índice composto para queries comuns
-        Index("idx_data_history_equipment_timestamp", "equipment_id", "timestamp"),
-        Index("idx_data_history_equipment_type", "equipment_id", "data_type"),
+        CheckConstraint(
+            "resolution_time IS NULL OR resolution_time >= 0", 
+            name="ck_failure_resolution_time"
+        ),
+        CheckConstraint(
+            "cost IS NULL OR cost >= 0", 
+            name="ck_failure_cost"
+        ),
+        CheckConstraint(
+            "affected_customers IS NULL OR affected_customers >= 0", 
+            name="ck_failure_customers"
+        ),
+        Index("idx_failure_equipment", "equipment_id"),
+        Index("idx_failure_date", "failure_date"),
+        Index("idx_failure_type", "failure_type"),
+        Index("idx_failure_severity", "severity"),
+        Index("idx_failure_status", "status"),
+        Index("idx_failure_source", "data_source"),
+        # Índices compostos para queries comuns
+        Index("idx_failure_equipment_date", "equipment_id", "failure_date"),
+        Index("idx_failure_equipment_severity", "equipment_id", "severity"),
     )
     
     def __repr__(self) -> str:
-        return f"<DataHistory(id='{self.id}', equipment_id='{self.equipment_id}', type='{self.data_type}')>"
+        return f"<Failure(id='{self.id}', equipment_id='{self.equipment_id}', type='{self.failure_type}')>"
 
 
 class UserFeedback(Base):

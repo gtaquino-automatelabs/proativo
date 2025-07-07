@@ -38,8 +38,8 @@ async def run_script(script_name, description):
             from scripts.setup.populate_database import main as populate_main
             success = await populate_main()
         elif script_name == "check_database.py":
-            from scripts.setup.check_database import check_database
-            success = await check_database()
+            from scripts.setup.check_database import check_database_empty
+            success = not await check_database_empty()  # Inverte lógica: True se tem dados (sucesso)
         else:
             print(f"❌ Script não reconhecido: {script_name}")
             return False
@@ -72,14 +72,14 @@ async def check_initial_status():
             try:
                 equipment_count = await repo_manager.equipment.count()
                 maintenance_count = await repo_manager.maintenance.count()
-                history_count = await repo_manager.data_history.count()
+                failure_count = await repo_manager.failures.count()
                 
-                total_records = equipment_count + maintenance_count + history_count
+                total_records = equipment_count + maintenance_count + failure_count
                 
                 print(f"📊 Status atual do banco:")
                 print(f"   Equipamentos: {equipment_count}")
                 print(f"   Manutenções: {maintenance_count}")
-                print(f"   Histórico: {history_count}")
+                print(f"   Falhas: {failure_count}")
                 print(f"   Total: {total_records}")
                 
                 if total_records == 0:

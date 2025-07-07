@@ -35,34 +35,12 @@ async def create_all_tables():
 
 async def create_additional_tables():
     """Cria tabelas adicionais não cobertas pelos models."""
-    print("🔧 Criando tabelas adicionais...")
+    print("🔧 Verificando tabelas adicionais...")
     
-    # Tabela failures (se não existir nos models)
-    failures_table_sql = """
-    CREATE TABLE IF NOT EXISTS failures (
-        id SERIAL PRIMARY KEY,
-        equipment_id VARCHAR(50) NOT NULL,
-        failure_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        description TEXT,
-        severity VARCHAR(20) DEFAULT 'medium',
-        resolution_time INTEGER,
-        cost DECIMAL(10,2),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """
+    # Nota: A tabela 'failures' agora é criada via SQLAlchemy models
+    # Esta função é mantida para futuras extensões, mas não executa nada por enquanto
     
-    failures_index1_sql = "CREATE INDEX IF NOT EXISTS idx_failures_equipment_id ON failures(equipment_id)"
-    failures_index2_sql = "CREATE INDEX IF NOT EXISTS idx_failures_date ON failures(failure_date)"
-    
-    async with db_connection.get_session() as session:
-        # Executar comandos separadamente
-        await session.execute(text(failures_table_sql))
-        await session.execute(text(failures_index1_sql))
-        await session.execute(text(failures_index2_sql))
-        await session.commit()
-    
-    print("✅ Tabelas adicionais criadas")
+    print("✅ Nenhuma tabela adicional necessária - todas criadas via SQLAlchemy")
 
 
 async def verify_tables():
@@ -81,8 +59,8 @@ async def verify_tables():
         tables = [row[0] for row in result.fetchall()]
     
     essential_tables = [
-        'equipments', 'maintenances', 'data_history', 
-        'user_feedback', 'upload_status', 'failures'
+        'equipments', 'maintenances', 'failures', 
+        'user_feedback', 'upload_status'
     ]
     
     print(f"📊 {len(tables)} tabelas encontradas:")
