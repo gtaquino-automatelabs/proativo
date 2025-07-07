@@ -348,7 +348,7 @@ profile_results/
 # ============================================================================
 
 # Modelos de ML baixados
-models/
+#models/
 *.model
 *.pkl
 *.joblib
