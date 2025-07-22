@@ -31,42 +31,49 @@ run_with_timeout() {
     log "✅ Concluído: $description"
 }
 
-# ETAPA 1: Aguardar PostgreSQL estar pronto
-log "ETAPA 1: Aguardando PostgreSQL..."
-echo "Host: $POSTGRES_HOST"
-echo "Usuário: $POSTGRES_USER"
-echo "Banco: $POSTGRES_DB"
+# Determinar comando antes das etapas de setup
+if [ "$1" = "streamlit" ]; then
+    log "🎨 MODO STREAMLIT - Pulando configuração de banco"
+    log "Streamlit se conectará via API em: $API_BASE_URL"
+    cd $PYTHON_PATH
+else
+    # ETAPA 1: Aguardar PostgreSQL estar pronto (apenas para API)
+    log "ETAPA 1: Aguardando PostgreSQL..."
+    echo "Host: $POSTGRES_HOST"
+    echo "Usuário: $POSTGRES_USER"
+    echo "Banco: $POSTGRES_DB"
 
-run_with_timeout 60 "
-    until pg_isready -h $POSTGRES_HOST -p 5432 -U $POSTGRES_USER; do
-        echo '⏳ PostgreSQL não está pronto, aguardando...'
-        sleep 2
-    done
-" "Verificação PostgreSQL" || {
-    log "❌ FALHA: PostgreSQL não respondeu a tempo"
-    exit 1
-}
+    run_with_timeout 60 "
+        until pg_isready -h $POSTGRES_HOST -p 5432 -U $POSTGRES_USER; do
+            echo '⏳ PostgreSQL não está pronto, aguardando...'
+            sleep 2
+        done
+    " "Verificação PostgreSQL" || {
+        log "❌ FALHA: PostgreSQL não respondeu a tempo"
+        exit 1
+    }
 
-# ETAPA 2: Verificar se banco precisa ser populado
-log "ETAPA 2: Verificando necessidade de população..."
+    # ETAPA 2: Verificar se banco precisa ser populado
+    log "ETAPA 2: Verificando necessidade de população..."
 
-cd $PYTHON_PATH
+    cd $PYTHON_PATH
 
-# ETAPA 3: Configuração completa do banco (master script)
-log "ETAPA 3: Configuração automática do banco..."
+    # ETAPA 3: Configuração completa do banco (master script)
+    log "ETAPA 3: Configuração automática do banco..."
 
-# Força a string de conexão correta para os scripts Python
-export database_url="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}"
-export DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}"
+    # Força a string de conexão correta para os scripts Python
+    export database_url="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}"
+    export DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}"
 
-log "🔗 Usando conexão: $database_url"
+    log "🔗 Usando conexão: $database_url"
 
-run_with_timeout $POPULATE_TIMEOUT "
-    python3 scripts/setup/setup_complete_database.py
-" "Configuração completa do banco" || {
-    log "❌ FALHA na configuração do banco"
-    exit 1
-}
+    run_with_timeout $POPULATE_TIMEOUT "
+        python3 scripts/setup/setup_complete_database.py
+    " "Configuração completa do banco" || {
+        log "❌ FALHA na configuração do banco"
+        exit 1
+    }
+fi
 
 # ETAPA 4: Iniciar aplicação
 log "ETAPA 4: Iniciando aplicação PROAtivo..."

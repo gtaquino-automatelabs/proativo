@@ -348,7 +348,7 @@ profile_results/
 # ============================================================================
 
 # Modelos de ML baixados
-models/
+#models/
 *.model
 *.pkl
 *.joblib
@@ -449,3 +449,12 @@ integration_test_results/
 # Cursor IDE files
 .cursorindexingignore
 .specstory/
+
+.env
+.cursorrules
+.cursor/rules/agilista.mdc
+.cursor/rules/analista-requisitos.mdc
+.cursor/rules/arquiteto.mdc
+.cursor/rules/dev-proativo.mdc
+.cursor/rules/gerente-de-projetos.mdc
+.specstory/history

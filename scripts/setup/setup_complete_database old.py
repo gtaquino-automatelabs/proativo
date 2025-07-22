@@ -1,11 +1,15 @@
-# File: scripts/setup/setup_complete_database.py
+#!/usr/bin/env python3
+"""
+MASTER SCRIPT - Configuração completa automática do banco PROAtivo.
+Orquestra: criação de tabelas + população de dados + verificação final.
+"""
 
 import asyncio
 import sys
 import os
 from pathlib import Path
 
-# Configurar paths (already present in your file)
+# Configurar paths
 current_dir = Path(__file__).parent
 project_dir = current_dir.parent.parent
 sys.path.insert(0, str(project_dir))
@@ -15,14 +19,14 @@ from src.database.connection import db_connection, init_database
 
 
 async def run_script(script_name, description):
-    """Executa um script e retorna sucesso/falha. (Function remains unchanged)"""
+    """Executa um script e retorna sucesso/falha."""
     print(f"\n🔄 {description}")
     print("=" * 50)
     
     script_path = current_dir / script_name
     
     if not script_path.exists():
-        print(f"❌ Script não encontrado: {script_path}")
+        print(f"❌ Script não encontrado: {script_name}")
         return False
     
     try:
@@ -44,7 +48,7 @@ async def run_script(script_name, description):
             success = await populate_pmm_2_main()
         elif script_name == "check_database.py":
             from scripts.setup.check_database import check_database_empty
-            success = not await check_database_empty()
+            success = not await check_database_empty()  # Inverte lógica: True se tem dados (sucesso)
         else:
             print(f"❌ Script não reconhecido: {script_name}")
             return False
@@ -62,7 +66,7 @@ async def run_script(script_name, description):
 
 
 async def check_initial_status():
-    """Verifica o status detalhado do banco e determina que ações são necessárias. (Function remains unchanged)"""
+    """Verifica o status detalhado do banco e determina que ações são necessárias."""
     print("🔍 VERIFICAÇÃO INICIAL")
     print("=" * 50)
     
@@ -72,25 +76,32 @@ async def check_initial_status():
         from scripts.setup.check_database import check_database_status
         status = await check_database_status()
         
+        # Determina se há tabelas que não existem
         missing_tables = [table for table, info in status.items() if not info['table_exists']]
+        
+        # Determina se há tabelas que precisam ser populadas
         empty_tables = [table for table, info in status.items() if info['needs_population'] and info['table_exists']]
+        
+        # Calcula total de registros
         total_records = sum(table['count'] for table in status.values())
         
+        # Determina o tipo de ação necessária
         if missing_tables:
             print("🔧 Algumas tabelas não existem - criação necessária")
-            return status, "Tabelas faltando"
+            return status, "missing_tables"
         elif total_records == 0:
             print("💡 Banco vazio - configuração completa necessária")
-            return status, "Vazio"
+            return status, "empty"
         elif empty_tables:
             print(f"📋 Algumas tabelas precisam ser populadas: {', '.join(empty_tables)}")
-            return status, "População parcial"
+            return status, "partial_population"
         else:
             print("✅ Banco já está completamente populado")
-            return status, "Populado"
+            return status, "populated"
             
     except Exception as e:
         print(f"❌ Erro na verificação inicial: {e}")
+        # Em caso de erro, assume status vazio
         error_status = {
             'equipment': {'count': 0, 'needs_population': True, 'table_exists': False},
             'maintenance': {'count': 0, 'needs_population': True, 'table_exists': False},
@@ -103,56 +114,60 @@ async def check_initial_status():
 
 def determine_required_scripts(status, status_type):
     """
-    Determines which scripts should be executed based on table status. (Function remains unchanged)
+    Determina quais scripts devem ser executados baseados no status das tabelas.
     
     Args:
-        status: Dict with detailed table status
-        status_type: Type of status ("empty", "missing_tables", "partial_population", "populated")
+        status: Dict com status detalhado das tabelas
+        status_type: Tipo de status ("empty", "missing_tables", "partial_population", "populated")
     
     Returns:
-        Dict with scripts that should be executed
+        Dict com scripts que devem ser executados
     """
     scripts_to_run = {
         'create_tables': False,
-        'populate_database': False, # This will now encompass deriving equipments
+        'populate_database': False,
         'import_localidades_sap': False,
-        'correlate_equipment_locations': False, # This step is now effectively merged into populate_database
+        'correlate_equipment_locations': False,
         'populate_pmm_2': False
     }
     
     if status_type in ["empty", "missing_tables", "error"]:
-        # If empty or tables missing, run everything in correct order
+        # Se está vazio ou com tabelas faltando, executa tudo
         scripts_to_run['create_tables'] = True
-        scripts_to_run['import_localidades_sap'] = True # Need SAP locations first
-        scripts_to_run['populate_pmm_2'] = True # Need PMM_2 data first
-        scripts_to_run['populate_database'] = True # This now derives equipment and populates other data
-        # scripts_to_run['correlate_equipment_locations'] = True # No longer strictly needed for initial setup
+        scripts_to_run['populate_database'] = True
+        scripts_to_run['import_localidades_sap'] = True
+        scripts_to_run['correlate_equipment_locations'] = True
+        scripts_to_run['populate_pmm_2'] = True
     
     elif status_type == "partial_population":
-        # If partial, execute only necessary parts
-        if not status['equipment']['table_exists'] or not status['maintenance']['table_exists'] or not status['failure']['table_exists'] or not status['sap_location']['table_exists'] or not status['pmm_2']['table_exists']:
-            scripts_to_run['create_tables'] = True # Ensure tables exist if any are missing
-
+        # Se é população parcial, executa apenas os necessários
+        
+        # Se não tem tabelas, cria primeiro
+        missing_tables = [table for table, info in status.items() if not info['table_exists']]
+        if missing_tables:
+            scripts_to_run['create_tables'] = True
+        
+        # Dados básicos (equipamentos, manutenções, falhas)
+        needs_basic_data = (
+            status['equipment']['needs_population'] or 
+            status['maintenance']['needs_population'] or 
+            status['failure']['needs_population']
+        )
+        if needs_basic_data:
+            scripts_to_run['populate_database'] = True
+        
+        # Localidades SAP
         if status['sap_location']['needs_population']:
             scripts_to_run['import_localidades_sap'] = True
         
+        # Correlação (apenas se tem equipamentos e localidades)
+        if (not status['equipment']['needs_population'] and 
+            not status['sap_location']['needs_population']):
+            scripts_to_run['correlate_equipment_locations'] = True
+        
+        # PMM_2
         if status['pmm_2']['needs_population']:
             scripts_to_run['populate_pmm_2'] = True
-        
-        # If equipments, maintenances, or failures need population, run populate_database.
-        # This implicitly means SAP locations and PMM_2 should have been populated first.
-        if (status['equipment']['needs_population'] or 
-            status['maintenance']['needs_population'] or 
-            status['failure']['needs_population']):
-            scripts_to_run['populate_database'] = True
-            
-        # Correlate is mostly redundant now for initial linking, but might be kept for other purposes.
-        # For this request, we'll remove it from the 'partial_population' logic as well.
-        # if (not status['equipment']['needs_population'] and 
-        #     not status['sap_location']['needs_population'] and
-        #     status['correlate_equipment_locations'] # This flag would need to be added to status
-        #    ):
-        #    scripts_to_run['correlate_equipment_locations'] = True
     
     return scripts_to_run
 
@@ -165,10 +180,11 @@ async def main():
     print("   1️⃣  Verificar status detalhado de cada tabela")
     print("   2️⃣  Determinar scripts necessários automaticamente")
     print("   3️⃣  Criar tabelas (se necessário)")
-    print("   4️⃣  Importar localidades SAP (se necessário)")
-    print("   5️⃣  Popular dados PMM_2 (se necessário)")
-    print("   6️⃣  Popular dados básicos (equipamentos, manutenções, falhas) a partir de PMM_2 (se necessário)")
-    print("   7️⃣  Verificar resultado final")
+    print("   4️⃣  Popular dados básicos (se necessário)")
+    print("   5️⃣  Importar localidades SAP (se necessário)")
+    print("   6️⃣  Correlacionar equipamentos com localidades (se necessário)")
+    print("   7️⃣  Popular dados PMM_2 (se necessário)")
+    print("   8️⃣  Verificar resultado final")
     print("=" * 60)
     print("✨ NOVO: Executa apenas os scripts necessários para cada tabela!")
     
@@ -192,39 +208,42 @@ async def main():
             else:
                 print(f"   ⏭️  {script} (não necessário)")
         
-        # ETAPA 3: Criar tabelas (se necessário) - Must run first to ensure tables exist
+        # ETAPA 3: Criar tabelas (se necessário)
         if scripts_to_run['create_tables']:
             success = await run_script("create_tables.py", "CRIANDO TABELAS")
             if not success:
                 print("\n❌ FALHA na criação de tabelas - abortando")
                 return False
         
-        # ETAPA 4: Importar localidades SAP (MOVED HERE: needed before equipment population)
-        if scripts_to_run['import_localidades_sap']:
-            success = await run_script("import_localidades_sap.py", "IMPORTANDO LOCALIDADES SAP")
-            if not success:
-                print("\n⚠️  FALHA na importação de localidades SAP - continuando (mas pode afetar a vinculação de equipamentos)")
-        
-        # ETAPA 5: Popular dados PMM_2 (MOVED HERE: needed before equipment population)
-        if scripts_to_run['populate_pmm_2']:
-            success = await run_script("populate_pmm_2.py", "POPULANDO DADOS PMM_2")
-            if not success:
-                print("\n⚠️  FALHA na população de PMM_2 - continuando (mas pode afetar a derivação de equipamentos)")
-
-        # ETAPA 6: Popular dados básicos (equipamentos, manutenções, falhas) 
-        # This now includes equipment derivation from PMM_2 and relies on previous steps
+        # ETAPA 4: Popular dados básicos (se necessário)
         if scripts_to_run['populate_database']:
-            success = await run_script("populate_database.py", "POPULANDO DADOS BÁSICOS (EQUIPAMENTOS, MANUTENÇÕES, FALHAS)")
+            success = await run_script("populate_database.py", "POPULANDO DADOS BÁSICOS")
             if not success:
                 print("\n❌ FALHA na população básica - abortando")
                 return False
         
-        # Correlate_equipment_locations is removed from the explicit sequence here,
-        # as the linking is now handled during equipment derivation in populate_database.py
-        # If it serves other purposes, it could be called conditionally elsewhere.
-        # Removed: if scripts_to_run['correlate_equipment_locations']: ...
+        # ETAPA 5: Importar localidades SAP (se necessário)
+        if scripts_to_run['import_localidades_sap']:
+            success = await run_script("import_localidades_sap.py", "IMPORTANDO LOCALIDADES SAP")
+            if not success:
+                print("\n⚠️  FALHA na importação de localidades SAP - continuando")
+                # Não aborta aqui, pois é não-crítico
         
-        # ETAPA 7: Verificação final
+        # ETAPA 6: Correlacionar equipamentos com localidades (se necessário)
+        if scripts_to_run['correlate_equipment_locations']:
+            success = await run_script("correlate_equipment_locations.py", "CORRELACIONANDO EQUIPAMENTOS COM LOCALIDADES")
+            if not success:
+                print("\n⚠️  FALHA na correlação de localidades - continuando")
+                # Não aborta aqui, pois é não-crítico
+        
+        # ETAPA 7: Popular dados PMM_2 (se necessário)
+        if scripts_to_run['populate_pmm_2']:
+            success = await run_script("populate_pmm_2.py", "POPULANDO DADOS PMM_2")
+            if not success:
+                print("\n⚠️  FALHA na população de PMM_2 - continuando")
+                # Não aborta aqui, pois é não-crítico
+        
+        # ETAPA 8: Verificação final
         success = await run_script("check_database.py", "VERIFICAÇÃO FINAL")
         
         if success:
@@ -232,9 +251,10 @@ async def main():
             print("🎉 CONFIGURAÇÃO COMPLETA FINALIZADA COM SUCESSO!")
             print("=" * 60)
             print("✅ Tabelas criadas")
+            print("✅ Dados básicos populados")
             print("✅ Localidades SAP importadas")
+            print("✅ Equipamentos correlacionados com localidades")
             print("✅ Dados PMM_2 populados")
-            print("✅ Dados básicos (equipamentos, manutenções, falhas) populados a partir de PMM_2")
             print("✅ Sistema pronto para uso")
             print("=" * 60)
             return True
@@ -258,4 +278,4 @@ if __name__ == "__main__":
         sys.exit(0)
     else:
         print("\n💥 Configuração falhou!")
-        sys.exit(1)
+        sys.exit(1) 

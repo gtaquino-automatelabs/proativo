@@ -19,15 +19,15 @@ from src.database.connection import db_connection, init_database
 from src.database.repositories import RepositoryManager
 
 
-async def check_database_empty():
+async def check_database_status():
     """
-    Verifica se o banco está vazio.
+    Verifica o status detalhado do banco de dados.
     
     Returns:
-        bool: True se vazio, False se já tem dados
+        dict: Status detalhado de cada tabela
     """
     try:
-        print("🔍 Verificando se banco de dados está vazio...")
+        print("🔍 Verificando status detalhado do banco de dados...")
         
         # Inicializa conexão
         await init_database()
@@ -35,32 +35,118 @@ async def check_database_empty():
         async with db_connection.get_session() as session:
             repo_manager = RepositoryManager(session)
             
-            # Conta registros em tabelas principais
-            equipment_count = await repo_manager.equipment.count()
-            maintenance_count = await repo_manager.maintenance.count()
-            history_count = await repo_manager.data_history.count()
+            # Verifica cada tabela individualmente
+            status = {
+                'equipment': {'count': 0, 'needs_population': True, 'table_exists': False},
+                'maintenance': {'count': 0, 'needs_population': True, 'table_exists': False},
+                'failure': {'count': 0, 'needs_population': True, 'table_exists': False},
+                'sap_location': {'count': 0, 'needs_population': True, 'table_exists': False},
+                'pmm_2': {'count': 0, 'needs_population': True, 'table_exists': False}
+            }
             
-            total_records = equipment_count + maintenance_count + history_count
+            # Equipamentos
+            try:
+                equipment_count = await repo_manager.equipment.count()
+                status['equipment']['count'] = equipment_count
+                status['equipment']['needs_population'] = equipment_count == 0
+                status['equipment']['table_exists'] = True
+            except Exception as e:
+                print(f"   ⚠️  Erro ao verificar equipamentos: {e}")
+                status['equipment']['table_exists'] = False
             
-            print(f"📊 Registros encontrados:")
-            print(f"   Equipamentos: {equipment_count}")
-            print(f"   Manutenções: {maintenance_count}")
-            print(f"   Histórico: {history_count}")
+            # Manutenções
+            try:
+                maintenance_count = await repo_manager.maintenance.count()
+                status['maintenance']['count'] = maintenance_count
+                status['maintenance']['needs_population'] = maintenance_count == 0
+                status['maintenance']['table_exists'] = True
+            except Exception as e:
+                print(f"   ⚠️  Erro ao verificar manutenções: {e}")
+                status['maintenance']['table_exists'] = False
+            
+            # Falhas
+            try:
+                failure_count = await repo_manager.failures.count()
+                status['failure']['count'] = failure_count
+                status['failure']['needs_population'] = failure_count == 0
+                status['failure']['table_exists'] = True
+            except Exception as e:
+                print(f"   ⚠️  Erro ao verificar falhas: {e}")
+                status['failure']['table_exists'] = False
+            
+            # Localidades SAP
+            try:
+                sap_location_count = await repo_manager.sap_location.count()
+                status['sap_location']['count'] = sap_location_count
+                status['sap_location']['needs_population'] = sap_location_count == 0
+                status['sap_location']['table_exists'] = True
+            except Exception as e:
+                print(f"   ⚠️  Erro ao verificar localidades SAP: {e}")
+                status['sap_location']['table_exists'] = False
+            
+            # PMM_2
+            try:
+                pmm_2_count = await repo_manager.pmm_2.count()
+                status['pmm_2']['count'] = pmm_2_count
+                status['pmm_2']['needs_population'] = pmm_2_count == 0
+                status['pmm_2']['table_exists'] = True
+            except Exception as e:
+                print(f"   ⚠️  Erro ao verificar PMM_2: {e}")
+                status['pmm_2']['table_exists'] = False
+            
+            # Exibe status detalhado
+            total_records = sum(table['count'] for table in status.values())
+            
+            print(f"📊 Status detalhado do banco:")
+            print(f"   Equipamentos: {status['equipment']['count']} {'❌' if status['equipment']['needs_population'] else '✅'}")
+            print(f"   Manutenções: {status['maintenance']['count']} {'❌' if status['maintenance']['needs_population'] else '✅'}")
+            print(f"   Falhas: {status['failure']['count']} {'❌' if status['failure']['needs_population'] else '✅'}")
+            print(f"   Localidades SAP: {status['sap_location']['count']} {'❌' if status['sap_location']['needs_population'] else '✅'}")
+            print(f"   Planos PMM_2: {status['pmm_2']['count']} {'❌' if status['pmm_2']['needs_population'] else '✅'}")
             print(f"   Total: {total_records}")
             
-            is_empty = total_records == 0
+            # Identifica tabelas que precisam ser populadas
+            empty_tables = [table for table, info in status.items() if info['needs_population'] and info['table_exists']]
+            missing_tables = [table for table, info in status.items() if not info['table_exists']]
             
-            if is_empty:
-                print("💡 Banco está vazio - população necessária")
-                return True
-            else:
-                print("✅ Banco já contém dados - população não necessária")
-                return False
+            if empty_tables:
+                print(f"📋 Tabelas que precisam ser populadas: {', '.join(empty_tables)}")
+            
+            if missing_tables:
+                print(f"🔧 Tabelas que não existem: {', '.join(missing_tables)}")
+            
+            return status
                 
     except Exception as e:
         print(f"❌ Erro ao verificar banco: {e}")
-        # Em caso de erro, assume que precisa popular
+        # Em caso de erro, assume que tudo precisa ser populado
+        return {
+            'equipment': {'count': 0, 'needs_population': True, 'table_exists': False},
+            'maintenance': {'count': 0, 'needs_population': True, 'table_exists': False},
+            'failure': {'count': 0, 'needs_population': True, 'table_exists': False},
+            'sap_location': {'count': 0, 'needs_population': True, 'table_exists': False},
+            'pmm_2': {'count': 0, 'needs_population': True, 'table_exists': False}
+        }
+
+
+async def check_database_empty():
+    """
+    Verifica se o banco está vazio (compatibilidade com versão anterior).
+    
+    Returns:
+        bool: True se vazio, False se já tem dados
+    """
+    status = await check_database_status()
+    total_records = sum(table['count'] for table in status.values())
+    
+    is_empty = total_records == 0
+    
+    if is_empty:
+        print("💡 Banco está vazio - população necessária")
         return True
+    else:
+        print("✅ Banco já contém dados - população não necessária")
+        return False
 
 
 async def main():

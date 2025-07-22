@@ -19,13 +19,19 @@ from .connection import (
 from .models import (
     Equipment,
     Maintenance,
-    DataHistory,
+    Failure,
+    PMM_2,
+    SAPLocation,
 )
 from .repositories import (
     BaseRepository,
     EquipmentRepository,
     MaintenanceRepository,
-    DataHistoryRepository,
+    FailureRepository,
+    UserFeedbackRepository,
+    UploadStatusRepository,
+    PMM_2Repository,
+    SAPLocationRepository,
     RepositoryManager,
 )
 
@@ -42,11 +48,16 @@ __all__ = [
     "check_database_connection",
     "Equipment",
     "Maintenance",
-    "DataHistory",
+    "Failure",
+    "PMM_2",
+    "SAPLocation",
     "BaseRepository",
     "EquipmentRepository",
     "MaintenanceRepository",
-    "DataHistoryRepository",
+    "FailureRepository",
     "UserFeedbackRepository",
+    "UploadStatusRepository",
+    "PMM_2Repository",
+    "SAPLocationRepository",
     "RepositoryManager",
 ]

@@ -138,7 +138,7 @@ class SQLValidator:
         # Tabelas permitidas (whitelist) - Nomes reais do banco
         self.allowed_tables = {
             # Nomes reais das tabelas no banco de dados
-            "equipments", "maintenances", "data_history", "user_feedback",
+            "equipments", "maintenances", "failures", "user_feedback",
             # Nomes alternativos e sinônimos para compatibilidade
             "equipment", "maintenance", "maintenance_orders", "failures", 
             "spare_parts", "technicians", "locations",
@@ -162,13 +162,13 @@ class SQLValidator:
                 "materials_used", "observations", "requires_followup", "followup_date",
                 "metadata_json", "created_at", "updated_at"
             },
-            "data_history": {
-                "id", "equipment_id", "data_source", "data_type", "timestamp",
-                "measurement_type", "measurement_value", "measurement_unit",
-                "text_value", "condition_status", "alert_level", "inspector",
-                "collection_method", "source_file", "source_row", "is_validated",
-                "validation_status", "quality_score", "raw_data", "processed_data",
-                "metadata_json", "created_at"
+            "failures": {
+                "id", "equipment_id", "incident_id", "incident_number", "failure_date",
+                "failure_type", "description", "root_cause", "severity", "impact_level",
+                "downtime_hours", "resolution_time", "cost", "affected_customers",
+                "resolution_description", "lessons_learned", "data_source", "source_file",
+                "source_row", "status", "is_validated", "validation_status", "raw_data",
+                "processed_data", "metadata_json", "created_at", "updated_at"
             },
             "user_feedback": {
                 "id", "session_id", "message_id", "rating", "helpful", "comment",

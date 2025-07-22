@@ -12,11 +12,33 @@ from datetime import datetime, date
 from pathlib import Path
 from decimal import Decimal
 import re
+import json
 
 from ..exceptions import DataProcessingError, ValidationError
 from ...utils.validators import DataValidator
 
 logger = logging.getLogger(__name__)
+
+
+def convert_timestamps_to_iso(data: Any) -> Any:
+    """Converte objetos Timestamp para string ISO para serialização JSON.
+    
+    Args:
+        data: Dados que podem conter Timestamps
+        
+    Returns:
+        Dados com Timestamps convertidos para string ISO
+    """
+    if isinstance(data, pd.Timestamp):
+        return data.isoformat()
+    elif isinstance(data, datetime):
+        return data.isoformat()
+    elif isinstance(data, dict):
+        return {key: convert_timestamps_to_iso(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [convert_timestamps_to_iso(item) for item in data]
+    else:
+        return data
 
 
 class CSVProcessor:
@@ -104,7 +126,8 @@ class CSVProcessor:
                 delimiter=delimiter,
                 dtype=str,  # Ler tudo como string inicialmente
                 na_values=['', 'NULL', 'null', 'N/A', 'n/a', '-'],
-                keep_default_na=True
+                keep_default_na=True,
+                na_filter=False  # Evita interpretação automática de NA como boolean
             )
             
             # Remove espaços em branco das colunas
@@ -262,7 +285,7 @@ class CSVProcessor:
         
         Args:
             df: DataFrame com dados
-            data_type: Tipo de dados ('equipment', 'maintenance', 'data_history')
+            data_type: Tipo de dados ('equipment', 'maintenance', 'failure')
             
         Returns:
             DataFrame com tipos convertidos
@@ -366,7 +389,7 @@ class CSVProcessor:
         required_columns = {
             'equipment': ['code', 'name', 'equipment_type'],
             'maintenance': ['equipment_id', 'maintenance_type', 'title'],
-            'data_history': ['equipment_id', 'data_source', 'data_type', 'timestamp']
+            'failure': ['equipment_id', 'failure_date', 'failure_type']
         }
         
         if data_type not in required_columns:
@@ -431,7 +454,7 @@ class CSVProcessor:
         
         try:
             # Lê o CSV
-            df = pd.read_csv(file_path, dtype=str)
+            df = pd.read_csv(file_path, dtype=str, na_filter=False)
             
             # Padroniza nomes das colunas
             column_mapping = {
@@ -483,7 +506,8 @@ class CSVProcessor:
                 
                 record['metadata_json'] = {
                     'source_file': file_path.name,
-                    'processed_at': datetime.now().isoformat()
+                    'processed_at': datetime.now().isoformat(),
+                    'original_data': convert_timestamps_to_iso(record)
                 }
                 
                 equipment_records.append(record)
@@ -507,7 +531,7 @@ class CSVProcessor:
         
         try:
             # Lê o CSV
-            df = pd.read_csv(file_path, dtype=str)
+            df = pd.read_csv(file_path, dtype=str, na_filter=False)
             logger.info(f"CSV lido com {len(df)} linhas e colunas: {list(df.columns)}")
             
             # Padroniza nomes das colunas
@@ -583,7 +607,8 @@ class CSVProcessor:
                 
                 record['metadata_json'] = {
                     'source_file': file_path.name,
-                    'processed_at': datetime.now().isoformat()
+                    'processed_at': datetime.now().isoformat(),
+                    'original_data': convert_timestamps_to_iso(record)
                 }
                 
                 maintenance_records.append(record)

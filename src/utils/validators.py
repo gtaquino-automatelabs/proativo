@@ -220,6 +220,152 @@ class DataValidator:
         
         return validated
     
+    def validate_pmm_2_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Valida registro completo de PMM_2."""
+        validated = {}
+        errors = []
+        
+        try:
+            # Campos obrigatórios
+            self.validate_required_field(record.get('maintenance_plan_code'), 'maintenance_plan_code')
+            validated['maintenance_plan_code'] = record['maintenance_plan_code'].strip().upper()
+            
+            self.validate_required_field(record.get('work_center'), 'work_center')
+            validated['work_center'] = record['work_center'].strip().upper()
+            
+            self.validate_required_field(record.get('maintenance_item_text'), 'maintenance_item_text')
+            validated['maintenance_item_text'] = record['maintenance_item_text'].strip()
+            
+            # Campo opcional - installation_location pode não existir
+            if record.get('installation_location'):
+                validated['installation_location'] = record['installation_location'].strip()
+            
+        except ValidationError as e:
+            errors.append(str(e))
+        
+        # Campos opcionais
+        for field in ['equipment_code', 'abbreviation', 'status', 'data_source']:
+            if record.get(field):
+                validated[field] = str(record[field]).strip()
+        
+        # Datas
+        for field in ['planned_date', 'scheduled_start_date', 'completion_date']:
+            if record.get(field):
+                validated[field] = record[field]
+        
+        # Campos de ordem
+        for field in ['last_order', 'current_order']:
+            if record.get(field):
+                validated[field] = str(record[field]).strip()
+        
+        if errors:
+            raise ValidationError(f"Erros de validação: {'; '.join(errors)}")
+        
+        # Mantém metadados
+        if 'metadata_json' in record:
+            validated['metadata_json'] = record['metadata_json']
+        
+        return validated
+    
+    def validate_failure_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Valida registro completo de falha."""
+        validated = {}
+        errors = []
+        
+        try:
+            # Campos obrigatórios
+            self.validate_required_field(record.get('equipment_id'), 'equipment_id')
+            validated['equipment_id'] = record['equipment_id']
+            
+            self.validate_required_field(record.get('failure_date'), 'failure_date')
+            validated['failure_date'] = record['failure_date']
+            
+            self.validate_required_field(record.get('description'), 'description')
+            validated['description'] = record['description'].strip()
+            
+        except ValidationError as e:
+            errors.append(str(e))
+        
+        # Campos opcionais
+        for field in ['failure_type', 'severity', 'resolution_time', 'cost', 'equipment_name']:
+            if record.get(field):
+                validated[field] = str(record[field]).strip()
+        
+        # Campo severity com conversão português -> inglês
+        if record.get('severity'):
+            raw_severity = record['severity'].strip().lower()
+            severity_mapping = {
+                'crítica': 'Critical',
+                'critica': 'Critical',
+                'critical': 'Critical',
+                'alta': 'High',
+                'high': 'High',
+                'média': 'Medium',
+                'media': 'Medium',
+                'medium': 'Medium',
+                'baixa': 'Low',
+                'low': 'Low'
+            }
+            validated['severity'] = severity_mapping.get(raw_severity, 'Medium')
+        
+        # Campos numéricos
+        for field in ['resolution_time', 'cost']:
+            if record.get(field) is not None:
+                try:
+                    validated[field] = float(record[field])
+                except (ValueError, TypeError):
+                    errors.append(f"Valor numérico inválido para {field}: {record[field]}")
+        
+        if errors:
+            raise ValidationError(f"Erros de validação: {'; '.join(errors)}")
+        
+        # Mantém metadados
+        if 'metadata_json' in record:
+            validated['metadata_json'] = record['metadata_json']
+        
+        return validated
+    
+    def validate_localidades_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Valida registro completo de localidade."""
+        validated = {}
+        errors = []
+        
+        try:
+            # Campos obrigatórios
+            self.validate_required_field(record.get('location_code'), 'location_code')
+            validated['location_code'] = record['location_code'].strip().upper()
+            
+            self.validate_required_field(record.get('denomination'), 'denomination')
+            validated['denomination'] = record['denomination'].strip()
+            
+        except ValidationError as e:
+            errors.append(str(e))
+        
+        # Campos opcionais
+        for field in ['abbreviation', 'region', 'type_code', 'status', 'data_source']:
+            if record.get(field):
+                validated[field] = str(record[field]).strip()
+        
+        # Campo status com conversão português -> inglês
+        if record.get('status'):
+            raw_status = record['status'].strip().lower()
+            status_mapping = {
+                'ativo': 'Active',
+                'active': 'Active',
+                'inativo': 'Inactive',
+                'inactive': 'Inactive'
+            }
+            validated['status'] = status_mapping.get(raw_status, 'Active')
+        
+        if errors:
+            raise ValidationError(f"Erros de validação: {'; '.join(errors)}")
+        
+        # Mantém metadados
+        if 'metadata_json' in record:
+            validated['metadata_json'] = record['metadata_json']
+        
+        return validated
+    
     def validate_batch(self, records: List[Dict[str, Any]], record_type: str) -> Tuple[List[Dict[str, Any]], List[str]]:
         """Valida lote de registros."""
         valid_records = []
@@ -227,7 +373,10 @@ class DataValidator:
         
         validator_map = {
             'equipment': self.validate_equipment_record,
-            'maintenance': self.validate_maintenance_record
+            'maintenance': self.validate_maintenance_record,
+            'pmm_2': self.validate_pmm_2_record,
+            'failure': self.validate_failure_record,
+            'localidades': self.validate_localidades_record
         }
         
         if record_type not in validator_map:
