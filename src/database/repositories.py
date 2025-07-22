@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
-from .models import Equipment, Maintenance, Failure, UserFeedback, UploadStatus
+from .models import Equipment, Maintenance, Failure, UserFeedback, UploadStatus, PMM_2, SAPLocation
 
 logger = logging.getLogger(__name__)
 
@@ -1071,6 +1071,566 @@ class UploadStatusRepository(BaseRepository):
         }
 
 
+class PMM_2Repository(BaseRepository):
+    """Repository para PMM_2 (Planos de Manutenção Maestro)."""
+    
+    def __init__(self, session: AsyncSession):
+        """Inicializa o repository.
+        
+        Args:
+            session: Sessão async do SQLAlchemy
+        """
+        super().__init__(session, PMM_2)
+    
+    async def find_by_maintenance_plan_code(self, maintenance_plan_code: str) -> Optional[PMM_2]:
+        """Busca um plano pelo código de manutenção.
+        
+        Args:
+            maintenance_plan_code: Código do plano de manutenção
+            
+        Returns:
+            Plano PMM_2 ou None se não encontrado
+        """
+        result = await self.session.execute(
+            select(PMM_2)
+            .where(PMM_2.maintenance_plan_code == maintenance_plan_code)
+        )
+        return result.scalars().first()
+    
+    async def find_by_equipment_code(self, equipment_code: str) -> List[PMM_2]:
+        """Busca planos pelo código do equipamento.
+        
+        Args:
+            equipment_code: Código do equipamento
+            
+        Returns:
+            Lista de planos PMM_2
+        """
+        result = await self.session.execute(
+            select(PMM_2)
+            .where(PMM_2.equipment_code == equipment_code)
+            .order_by(PMM_2.planned_date.desc())
+        )
+        return list(result.scalars().all())
+    
+    async def find_by_work_center(self, work_center: str) -> List[PMM_2]:
+        """Busca planos pelo centro de trabalho.
+        
+        Args:
+            work_center: Centro de trabalho
+            
+        Returns:
+            Lista de planos PMM_2
+        """
+        result = await self.session.execute(
+            select(PMM_2)
+            .where(PMM_2.work_center == work_center)
+            .order_by(PMM_2.planned_date.desc())
+        )
+        return list(result.scalars().all())
+    
+    async def find_by_installation_location(self, installation_location: str) -> List[PMM_2]:
+        """Busca planos pela localização de instalação.
+        
+        Args:
+            installation_location: Localização de instalação
+            
+        Returns:
+            Lista de planos PMM_2
+        """
+        result = await self.session.execute(
+            select(PMM_2)
+            .where(PMM_2.installation_location == installation_location)
+            .order_by(PMM_2.planned_date.desc())
+        )
+        return list(result.scalars().all())
+    
+    async def find_by_date_range(self, start_date: date, end_date: date) -> List[PMM_2]:
+        """Busca planos por intervalo de datas.
+        
+        Args:
+            start_date: Data de início
+            end_date: Data de fim
+            
+        Returns:
+            Lista de planos PMM_2
+        """
+        result = await self.session.execute(
+            select(PMM_2)
+            .where(
+                and_(
+                    PMM_2.planned_date >= start_date,
+                    PMM_2.planned_date <= end_date
+                )
+            )
+            .order_by(PMM_2.planned_date.asc())
+        )
+        return list(result.scalars().all())
+    
+    async def find_by_status(self, status: str) -> List[PMM_2]:
+        """Busca planos pelo status.
+        
+        Args:
+            status: Status do plano
+            
+        Returns:
+            Lista de planos PMM_2
+        """
+        result = await self.session.execute(
+            select(PMM_2)
+            .where(PMM_2.status == status)
+            .order_by(PMM_2.planned_date.desc())
+        )
+        return list(result.scalars().all())
+    
+    async def find_by_import_batch(self, import_batch_id: str) -> List[PMM_2]:
+        """Busca planos por lote de importação.
+        
+        Args:
+            import_batch_id: ID do lote de importação
+            
+        Returns:
+            Lista de planos PMM_2
+        """
+        result = await self.session.execute(
+            select(PMM_2)
+            .where(PMM_2.import_batch_id == import_batch_id)
+            .order_by(PMM_2.created_at.desc())
+        )
+        return list(result.scalars().all())
+    
+    async def find_orphaned_plans(self) -> List[PMM_2]:
+        """Busca planos sem equipamento associado.
+        
+        Returns:
+            Lista de planos PMM_2 sem equipamento
+        """
+        result = await self.session.execute(
+            select(PMM_2)
+            .where(PMM_2.equipment_id.is_(None))
+            .order_by(PMM_2.planned_date.desc())
+        )
+        return list(result.scalars().all())
+    
+    async def find_with_equipment(self, load_relationships: bool = True) -> List[PMM_2]:
+        """Busca planos com equipamento associado.
+        
+        Args:
+            load_relationships: Se deve carregar relacionamentos
+            
+        Returns:
+            Lista de planos PMM_2 com equipamento
+        """
+        query = select(PMM_2).where(PMM_2.equipment_id.is_not(None))
+        
+        if load_relationships:
+            query = query.options(selectinload(PMM_2.equipment))
+        
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+    
+    async def upsert(self, maintenance_plan_code: str, **kwargs) -> PMM_2:
+        """Insere ou atualiza um plano PMM_2.
+        
+        Args:
+            maintenance_plan_code: Código do plano de manutenção
+            **kwargs: Dados do plano
+            
+        Returns:
+            Instância do plano PMM_2
+        """
+        try:
+            existing = await self.find_by_maintenance_plan_code(maintenance_plan_code)
+            
+            if existing:
+                # Atualiza registro existente
+                for key, value in kwargs.items():
+                    if hasattr(existing, key):
+                        setattr(existing, key, value)
+                await self.session.commit()
+                return existing
+            else:
+                # Cria novo registro
+                return await self.create(
+                    maintenance_plan_code=maintenance_plan_code,
+                    **kwargs
+                )
+        except IntegrityError as e:
+            await self.session.rollback()
+            logger.error(f"Erro de integridade ao fazer upsert PMM_2: {e}")
+            raise
+    
+    async def bulk_upsert(self, plans_data: List[Dict[str, Any]]) -> List[PMM_2]:
+        """Inserção ou atualização em lote.
+        
+        Args:
+            plans_data: Lista de dados dos planos
+            
+        Returns:
+            Lista de planos PMM_2 processados
+        """
+        results = []
+        
+        for plan_data in plans_data:
+            maintenance_plan_code = plan_data.pop('maintenance_plan_code')
+            plan = await self.upsert(maintenance_plan_code, **plan_data)
+            results.append(plan)
+        
+        return results
+    
+    async def link_to_equipment(self, pmm_2_id: str, equipment_id: str) -> bool:
+        """Vincula um plano PMM_2 a um equipamento.
+        
+        Args:
+            pmm_2_id: ID do plano PMM_2
+            equipment_id: ID do equipamento
+            
+        Returns:
+            True se vinculado com sucesso
+        """
+        try:
+            await self.session.execute(
+                update(PMM_2)
+                .where(PMM_2.id == pmm_2_id)
+                .values(equipment_id=equipment_id)
+            )
+            await self.session.commit()
+            return True
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Erro ao vincular PMM_2 ao equipamento: {e}")
+            return False
+    
+    async def unlink_from_equipment(self, pmm_2_id: str) -> bool:
+        """Remove a vinculação de um plano PMM_2 com equipamento.
+        
+        Args:
+            pmm_2_id: ID do plano PMM_2
+            
+        Returns:
+            True se desvinculado com sucesso
+        """
+        try:
+            await self.session.execute(
+                update(PMM_2)
+                .where(PMM_2.id == pmm_2_id)
+                .values(equipment_id=None, equipment_code=None)
+            )
+            await self.session.commit()
+            return True
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Erro ao desvincular PMM_2 do equipamento: {e}")
+            return False
+    
+    async def get_statistics(self) -> Dict[str, Any]:
+        """Retorna estatísticas dos planos PMM_2.
+        
+        Returns:
+            Dicionário com estatísticas
+        """
+        # Total de planos
+        total_result = await self.session.execute(
+            select(func.count(PMM_2.id))
+        )
+        total = total_result.scalar()
+        
+        # Por status
+        status_result = await self.session.execute(
+            select(PMM_2.status, func.count(PMM_2.id))
+            .group_by(PMM_2.status)
+        )
+        status_counts = dict(status_result.all())
+        
+        # Por centro de trabalho
+        work_center_result = await self.session.execute(
+            select(PMM_2.work_center, func.count(PMM_2.id))
+            .group_by(PMM_2.work_center)
+            .order_by(func.count(PMM_2.id).desc())
+            .limit(10)
+        )
+        work_center_counts = dict(work_center_result.all())
+        
+        # Planos órfãos
+        orphaned_result = await self.session.execute(
+            select(func.count(PMM_2.id))
+            .where(PMM_2.equipment_id.is_(None))
+        )
+        orphaned_count = orphaned_result.scalar()
+        
+        # Planos por período
+        now = datetime.now()
+        future_result = await self.session.execute(
+            select(func.count(PMM_2.id))
+            .where(PMM_2.planned_date > now)
+        )
+        future_plans = future_result.scalar()
+        
+        return {
+            'total_plans': total,
+            'by_status': status_counts,
+            'by_work_center': work_center_counts,
+            'orphaned_plans': orphaned_count,
+            'future_plans': future_plans,
+            'linked_rate': ((total - orphaned_count) / total * 100) if total > 0 else 0
+        }
+
+
+class SAPLocationRepository(BaseRepository):
+    """Repository para localidades SAP."""
+    
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, SAPLocation)
+    
+    async def get_by_code(self, location_code: str) -> Optional[SAPLocation]:
+        """Busca localidade por código.
+        
+        Args:
+            location_code: Código da localidade (ex: MT-S-72183)
+            
+        Returns:
+            Localidade ou None se não encontrado
+        """
+        result = await self.session.execute(
+            select(SAPLocation).where(SAPLocation.location_code == location_code)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_denomination(self, denomination: str) -> Optional[SAPLocation]:
+        """Busca localidade por denominação.
+        
+        Args:
+            denomination: Denominação da localidade
+            
+        Returns:
+            Localidade ou None se não encontrado
+        """
+        result = await self.session.execute(
+            select(SAPLocation).where(SAPLocation.denomination == denomination)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_by_abbreviation(self, abbreviation: str) -> Optional[SAPLocation]:
+        """Busca localidade por abreviação.
+        
+        Args:
+            abbreviation: Abreviação da localidade (ex: BDP)
+            
+        Returns:
+            Localidade ou None se não encontrado
+        """
+        result = await self.session.execute(
+            select(SAPLocation).where(SAPLocation.abbreviation == abbreviation)
+        )
+        return result.scalar_one_or_none()
+    
+    async def list_by_region(self, region: str) -> List[SAPLocation]:
+        """Lista localidades por região.
+        
+        Args:
+            region: Código da região (ex: MT)
+            
+        Returns:
+            Lista de localidades da região
+        """
+        result = await self.session.execute(
+            select(SAPLocation)
+            .where(SAPLocation.region == region)
+            .order_by(SAPLocation.location_code)
+        )
+        return list(result.scalars().all())
+    
+    async def list_by_type(self, type_code: str) -> List[SAPLocation]:
+        """Lista localidades por tipo.
+        
+        Args:
+            type_code: Código do tipo (ex: S para subestação)
+            
+        Returns:
+            Lista de localidades do tipo
+        """
+        result = await self.session.execute(
+            select(SAPLocation)
+            .where(SAPLocation.type_code == type_code)
+            .order_by(SAPLocation.location_code)
+        )
+        return list(result.scalars().all())
+    
+    async def list_active(self) -> List[SAPLocation]:
+        """Lista localidades ativas.
+        
+        Returns:
+            Lista de localidades ativas
+        """
+        result = await self.session.execute(
+            select(SAPLocation)
+            .where(SAPLocation.status == "Active")
+            .order_by(SAPLocation.location_code)
+        )
+        return list(result.scalars().all())
+    
+    async def search(self, query: str) -> List[SAPLocation]:
+        """Busca localidades por texto.
+        
+        Args:
+            query: Texto para busca (código, denominação, abreviação)
+            
+        Returns:
+            Lista de localidades encontradas
+        """
+        search_pattern = f"%{query}%"
+        result = await self.session.execute(
+            select(SAPLocation)
+            .where(
+                or_(
+                    SAPLocation.location_code.ilike(search_pattern),
+                    SAPLocation.denomination.ilike(search_pattern),
+                    SAPLocation.abbreviation.ilike(search_pattern)
+                )
+            )
+            .order_by(SAPLocation.location_code)
+        )
+        return list(result.scalars().all())
+    
+    async def get_with_equipments(self, location_id: str) -> Optional[SAPLocation]:
+        """Busca localidade com seus equipamentos carregados.
+        
+        Args:
+            location_id: ID da localidade
+            
+        Returns:
+            Localidade com equipamentos ou None
+        """
+        result = await self.session.execute(
+            select(SAPLocation)
+            .options(selectinload(SAPLocation.equipments))
+            .where(SAPLocation.id == location_id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def correlate_with_equipment(self, location_code: str, equipment_id: str) -> bool:
+        """Correlaciona uma localidade com um equipamento.
+        
+        Args:
+            location_code: Código da localidade
+            equipment_id: ID do equipamento
+            
+        Returns:
+            True se correlacionado com sucesso
+        """
+        try:
+            # Buscar a localidade
+            location = await self.get_by_code(location_code)
+            if not location:
+                return False
+            
+            # Atualizar o equipamento
+            await self.session.execute(
+                update(Equipment)
+                .where(Equipment.id == equipment_id)
+                .values(sap_location_id=location.id)
+            )
+            await self.session.commit()
+            return True
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Erro ao correlacionar localidade com equipamento: {e}")
+            return False
+    
+    async def find_matching_locations(self, location_pattern: str) -> List[SAPLocation]:
+        """Encontra localidades que correspondem a um padrão.
+        
+        Args:
+            location_pattern: Padrão para busca (ex: MT-S-70113)
+            
+        Returns:
+            Lista de localidades correspondentes
+        """
+        # Busca por código exato
+        exact_match = await self.get_by_code(location_pattern)
+        if exact_match:
+            return [exact_match]
+        
+        # Busca por padrão parcial
+        pattern = f"%{location_pattern}%"
+        result = await self.session.execute(
+            select(SAPLocation)
+            .where(SAPLocation.location_code.ilike(pattern))
+            .order_by(SAPLocation.location_code)
+        )
+        return list(result.scalars().all())
+    
+    async def get_stats(self) -> Dict[str, Any]:
+        """Estatísticas das localidades.
+        
+        Returns:
+            Dicionário com estatísticas
+        """
+        # Total de localidades
+        total_result = await self.session.execute(
+            select(func.count(SAPLocation.id))
+        )
+        total = total_result.scalar()
+        
+        # Por status
+        status_result = await self.session.execute(
+            select(SAPLocation.status, func.count(SAPLocation.id))
+            .group_by(SAPLocation.status)
+        )
+        status_counts = dict(status_result.all())
+        
+        # Por região
+        region_result = await self.session.execute(
+            select(SAPLocation.region, func.count(SAPLocation.id))
+            .group_by(SAPLocation.region)
+            .order_by(func.count(SAPLocation.id).desc())
+        )
+        region_counts = dict(region_result.all())
+        
+        # Com equipamentos vinculados
+        linked_result = await self.session.execute(
+            select(func.count(func.distinct(Equipment.sap_location_id)))
+            .select_from(Equipment)
+            .where(Equipment.sap_location_id.is_not(None))
+        )
+        linked_count = linked_result.scalar()
+        
+        return {
+            'total_locations': total,
+            'by_status': status_counts,
+            'by_region': region_counts,
+            'linked_locations': linked_count,
+            'linking_rate': (linked_count / total * 100) if total > 0 else 0
+        }
+    
+    async def bulk_create(self, locations_data: List[Dict[str, Any]]) -> List[SAPLocation]:
+        """Cria múltiplas localidades em lote.
+        
+        Args:
+            locations_data: Lista de dados das localidades
+            
+        Returns:
+            Lista de localidades criadas
+        """
+        try:
+            locations = []
+            for data in locations_data:
+                location = SAPLocation(**data)
+                locations.append(location)
+                self.session.add(location)
+            
+            await self.session.flush()
+            for location in locations:
+                await self.session.refresh(location)
+            
+            logger.info(f"Criadas {len(locations)} localidades em lote")
+            return locations
+        except IntegrityError as e:
+            await self.session.rollback()
+            logger.error(f"Erro ao criar localidades em lote: {e}")
+            raise
+
+
 class RepositoryManager:
     """Gerenciador centralizado de repositories."""
     
@@ -1086,6 +1646,8 @@ class RepositoryManager:
         self.failures = FailureRepository(session)
         self.user_feedback = UserFeedbackRepository(session)
         self.upload_status = UploadStatusRepository(session)
+        self.pmm_2 = PMM_2Repository(session)
+        self.sap_location = SAPLocationRepository(session)
     
     async def commit(self):
         """Confirma todas as transações pendentes."""

@@ -15,6 +15,7 @@ from enum import Enum
 from .processors.csv_processor import CSVProcessor
 from .processors.xml_processor import XMLProcessor
 from .processors.xlsx_processor import XLSXProcessor
+from .processors.pmm_processor import PMM_2Processor
 from .exceptions import DataProcessingError, ValidationError, FileFormatError
 from ..utils.validators import DataValidator
 try:
@@ -37,6 +38,7 @@ class DataType(Enum):
     EQUIPMENT = "equipment"
     MAINTENANCE = "maintenance"
     FAILURE = "failure"
+    PMM_2 = "pmm_2"
 
 
 class DataProcessor:
@@ -55,6 +57,7 @@ class DataProcessor:
         self.csv_processor = CSVProcessor()
         self.xml_processor = XMLProcessor()
         self.xlsx_processor = XLSXProcessor()
+        self.pmm_2_processor = PMM_2Processor()
         
         # Estatísticas de processamento
         self.stats = {
@@ -111,6 +114,9 @@ class DataProcessor:
             
         filename_lower = file_path.name.lower()
         
+        # Palavras-chave para PMM_2
+        pmm_2_keywords = ['pmm_2', 'pmm2', 'pmm-2', 'plano_manutencao_maestro', 'plano_manut']
+        
         # Palavras-chave para equipamentos
         equipment_keywords = ['equipment', 'equipamento', 'equip', 'asset', 'ativo']
         
@@ -118,6 +124,10 @@ class DataProcessor:
         maintenance_keywords = ['maintenance', 'manutencao', 'manutenção', 'maint', 'servico', 'serviço']
         
         # Verifica nome do arquivo
+        for keyword in pmm_2_keywords:
+            if keyword in filename_lower:
+                return DataType.PMM_2
+        
         for keyword in equipment_keywords:
             if keyword in filename_lower:
                 return DataType.EQUIPMENT
@@ -213,6 +223,8 @@ class DataProcessor:
                 return self.csv_processor.process_equipment_csv(file_path)
             elif data_type == DataType.MAINTENANCE:
                 return self.csv_processor.process_maintenance_csv(file_path)
+            elif data_type == DataType.PMM_2:
+                return self.pmm_2_processor.process_pmm_2_csv(file_path)
             
         elif file_format == FileFormat.XML:
             if data_type == DataType.EQUIPMENT:
@@ -303,6 +315,38 @@ class DataProcessor:
                     except Exception as e:
                         logger.error(f"Erro ao salvar manutenção: {e}")
                 
+                return saved_count
+                
+            elif data_type == DataType.PMM_2:
+                # Converte para objetos PMM_2
+                pmm_2_objects = []
+                for record in records:
+                    # Remove metadados antes de criar o objeto
+                    clean_record = {k: v for k, v in record.items() if k != 'metadata_json'}
+                    pmm_2_objects.append(clean_record)
+                
+                # Salva usando repository com lógica upsert
+                saved_count = 0
+                updated_count = 0
+                for pmm_2_data in pmm_2_objects:
+                    try:
+                        # Usa upsert baseado no código do plano de manutenção
+                        maintenance_plan_code = pmm_2_data.get('maintenance_plan_code')
+                        if maintenance_plan_code:
+                            # Remove o código do plano antes de passar para upsert
+                            upsert_data = {k: v for k, v in pmm_2_data.items() if k != 'maintenance_plan_code'}
+                            
+                            # Usa upsert do repository
+                            await self.repository_manager.pmm_2.upsert(maintenance_plan_code, **upsert_data)
+                            saved_count += 1
+                            logger.info(f"PMM_2 processado: {maintenance_plan_code}")
+                        else:
+                            logger.warning("PMM_2 sem código de plano de manutenção, ignorando")
+                            
+                    except Exception as e:
+                        logger.error(f"Erro ao salvar PMM_2 {pmm_2_data.get('maintenance_plan_code', 'UNKNOWN')}: {e}")
+                
+                logger.info(f"PMM_2 processados: {saved_count} registros")
                 return saved_count
             
         except Exception as e:

@@ -20,12 +20,18 @@ from .models import (
     Equipment,
     Maintenance,
     Failure,
+    PMM_2,
+    SAPLocation,
 )
 from .repositories import (
     BaseRepository,
     EquipmentRepository,
     MaintenanceRepository,
     FailureRepository,
+    UserFeedbackRepository,
+    UploadStatusRepository,
+    PMM_2Repository,
+    SAPLocationRepository,
     RepositoryManager,
 )
 
@@ -43,10 +49,15 @@ __all__ = [
     "Equipment",
     "Maintenance",
     "Failure",
+    "PMM_2",
+    "SAPLocation",
     "BaseRepository",
     "EquipmentRepository",
     "MaintenanceRepository",
     "FailureRepository",
     "UserFeedbackRepository",
+    "UploadStatusRepository",
+    "PMM_2Repository",
+    "SAPLocationRepository",
     "RepositoryManager",
 ]

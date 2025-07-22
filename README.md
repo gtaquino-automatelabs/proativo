@@ -46,20 +46,24 @@ docker-compose up -d
 docker-compose logs -f  # Opcional: acompanhar logs
 ```
 
-### 4. População de Dados (OBRIGATÓRIO)
+### 4. Inicialização Automática Inteligente 🚀
 ```bash
-# Navegue para o diretório do projeto
-cd proativo
+# A inicialização é totalmente AUTOMÁTICA via Docker! 🎉
+# O sistema configura automaticamente:
+# ✅ Criação de todas as tabelas
+# ✅ População de dados básicos (equipamentos, manutenções, falhas)
+# ✅ Importação de localidades SAP
+# ✅ Correlação de equipamentos com localidades
+# ✅ População de dados PMM_2
+# ✅ Verificação final da integridade
 
-# Execute os scripts de setup na ordem:
-python scripts/setup/populate_database.py        # Equipamentos e manutenções
-python scripts/setup/populate_data_history.py    # Histórico de incidentes
-
-# Valide a instalação (recomendado)
+# Valide a instalação (opcional)
 python scripts/testing/validate_system.py        # Verificação completa
 ```
 
-⚠️ **IMPORTANTE**: Sem executar os scripts de setup, o sistema estará vazio e não terá dados para consultar.
+🎯 **Verificação Granular**: O sistema analisa cada tabela individualmente e executa apenas os scripts necessários para popular tabelas vazias!
+
+🚀 **Sem configuração manual necessária** - tudo é configurado automaticamente durante a inicialização!
 
 ### 5. Primeiro Uso
 1. Acesse o **frontend** em http://localhost:8501
@@ -203,10 +207,10 @@ python scripts/test_etl_pipeline.py
 
 ### Sistema Sem Dados
 ❌ **Chat responde "Não há dados" ou "Tabelas vazias"**  
-✅ **Solução**: Execute os scripts de setup:
+✅ **Solução**: A inicialização é automática. Se ainda assim não há dados:
 ```bash
-python scripts/setup/populate_database.py
-python scripts/setup/populate_data_history.py
+# Execute manualmente a configuração completa
+python scripts/setup/setup_complete_database.py
 ```
 
 ### URLs de Acesso

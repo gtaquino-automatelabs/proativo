@@ -77,6 +77,14 @@ class Equipment(Base):
         comment="Subestação onde está instalado"
     )
     
+    # Relacionamento com localidade SAP
+    sap_location_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False), 
+        ForeignKey("sap_locations.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="ID da localidade SAP relacionada"
+    )
+    
     # Características técnicas
     manufacturer: Mapped[Optional[str]] = mapped_column(
         String(100),
@@ -156,6 +164,10 @@ class Equipment(Base):
         back_populates="equipment",
         cascade="all, delete-orphan"
     )
+    sap_location: Mapped[Optional["SAPLocation"]] = relationship(
+        "SAPLocation", 
+        back_populates="equipments"
+    )
     
     # Constraints
     __table_args__ = (
@@ -176,6 +188,7 @@ class Equipment(Base):
         Index("idx_equipment_status", "status"),
         Index("idx_equipment_location", "location"),
         Index("idx_equipment_criticality", "criticality"),
+        Index("idx_equipment_sap_location", "sap_location_id"),
     )
     
     def __repr__(self) -> str:
@@ -919,3 +932,304 @@ class UploadStatus(Base):
     
     def __repr__(self) -> str:
         return f"<UploadStatus(upload_id='{self.upload_id}', filename='{self.original_filename}', status='{self.status}')>"
+
+
+class PMM_2(Base):
+    """Modelo para Planos de Manutenção Maestro (PMM_2) - dados importados do SAP."""
+    
+    __tablename__ = "pmm_2"
+    
+    # Chave primária
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), 
+        primary_key=True, 
+        default=lambda: str(uuid.uuid4()),
+        comment="Identificador único do registro PMM_2"
+    )
+    
+    # Chave de negócio
+    maintenance_plan_code: Mapped[str] = mapped_column(
+        String(20), 
+        nullable=False,
+        comment="Código do plano de manutenção (ex: TBDPDTCH001A)"
+    )
+    
+    # Informações do plano
+    work_center: Mapped[str] = mapped_column(
+        String(20), 
+        nullable=False,
+        comment="Centro de trabalho responsável (ex: TTABDPM)"
+    )
+    maintenance_item_text: Mapped[str] = mapped_column(
+        String(500), 
+        nullable=False,
+        comment="Texto do item de manutenção/descrição"
+    )
+    
+    # Localização do equipamento
+    installation_location: Mapped[str] = mapped_column(
+        String(100), 
+        nullable=False,
+        comment="Localização de instalação (ex: MT-S-70113-FE01-CH-301F7T)"
+    )
+    
+    # Relacionamento com equipamento
+    equipment_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False), 
+        ForeignKey("equipments.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="ID do equipamento relacionado"
+    )
+    equipment_code: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Código do equipamento extraído da localização"
+    )
+    
+    # Relacionamento com localidade SAP
+    sap_location_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False), 
+        ForeignKey("sap_locations.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="ID da localidade SAP relacionada"
+    )
+    
+    # Datas do plano
+    planned_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment="Data planejada para execução"
+    )
+    scheduled_start_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment="Data de início programada"
+    )
+    completion_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        comment="Data de encerramento"
+    )
+    
+    # Ordens de manutenção
+    last_order: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        comment="Número da última ordem executada"
+    )
+    current_order: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        comment="Número da ordem atual"
+    )
+    
+    # Relacionamento com manutenção
+    maintenance_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False), 
+        ForeignKey("maintenances.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="ID da manutenção relacionada"
+    )
+    
+    # Status do plano
+    status: Mapped[str] = mapped_column(
+        String(20), 
+        nullable=False, 
+        default="Active",
+        comment="Status do plano: Active, Completed, Cancelled, Suspended"
+    )
+    
+    # Metadados de importação
+    import_batch_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        comment="ID do lote de importação"
+    )
+    import_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(),
+        comment="Data de importação dos dados"
+    )
+    data_source: Mapped[str] = mapped_column(
+        String(50), 
+        nullable=False, 
+        default="SAP",
+        comment="Fonte dos dados (SAP, Manual, etc.)"
+    )
+    
+    # Metadados adicionais
+    metadata_json: Mapped[Optional[dict]] = mapped_column(
+        JSONB,
+        comment="Dados adicionais em formato JSON"
+    )
+    
+    # Auditoria
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(),
+        comment="Data de criação do registro"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(), 
+        onupdate=func.now(),
+        comment="Data da última atualização"
+    )
+    
+    # Relacionamentos
+    equipment: Mapped[Optional["Equipment"]] = relationship(
+        "Equipment", 
+        backref="pmm_2_plans"
+    )
+    maintenance: Mapped[Optional["Maintenance"]] = relationship(
+        "Maintenance", 
+        backref="pmm_2_plan"
+    )
+    sap_location: Mapped[Optional["SAPLocation"]] = relationship(
+        "SAPLocation", 
+        backref="pmm_2_plans"
+    )
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('Active', 'Completed', 'Cancelled', 'Suspended')", 
+            name="ck_pmm2_status"
+        ),
+        CheckConstraint(
+            "data_source IN ('SAP', 'Manual', 'Import', 'Migration')", 
+            name="ck_pmm2_data_source"
+        ),
+        # Unique constraint para evitar duplicatas
+        Index("idx_pmm2_maintenance_plan_code", "maintenance_plan_code"),
+        Index("idx_pmm2_work_center", "work_center"),
+        Index("idx_pmm2_equipment_code", "equipment_code"),
+        Index("idx_pmm2_installation_location", "installation_location"),
+        Index("idx_pmm2_equipment_id", "equipment_id"),
+        Index("idx_pmm2_maintenance_id", "maintenance_id"),
+        Index("idx_pmm2_sap_location_id", "sap_location_id"),
+        Index("idx_pmm2_status", "status"),
+        Index("idx_pmm2_planned_date", "planned_date"),
+        Index("idx_pmm2_import_batch_id", "import_batch_id"),
+        Index("idx_pmm2_data_source", "data_source"),
+        # Índice composto para busca de duplicatas
+        Index("idx_pmm2_duplicate_check", "maintenance_plan_code", "installation_location", "planned_date"),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<PMM_2(maintenance_plan_code='{self.maintenance_plan_code}', work_center='{self.work_center}', equipment_code='{self.equipment_code}')>"
+
+
+class SAPLocation(Base):
+    """Modelo para localidades/instalações SAP."""
+    
+    __tablename__ = "sap_locations"
+    
+    # Chave primária
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), 
+        primary_key=True, 
+        default=lambda: str(uuid.uuid4()),
+        comment="Identificador único da localidade"
+    )
+    
+    # Código da localização (chave de negócio)
+    location_code: Mapped[str] = mapped_column(
+        String(50), 
+        unique=True, 
+        nullable=False,
+        comment="Código de localização/instalação (ex: MT-S-72183)"
+    )
+    
+    # Nome/denominação da localidade
+    denomination: Mapped[str] = mapped_column(
+        String(200), 
+        nullable=False,
+        comment="Denominação da localidade (ex: Baguari_230 KV)"
+    )
+    
+    # Abreviação da localidade (opcional)
+    abbreviation: Mapped[Optional[str]] = mapped_column(
+        String(20),
+        comment="Abreviação da localidade (ex: BDP, UEM)"
+    )
+    
+    # Informações adicionais extraídas do código
+    region: Mapped[Optional[str]] = mapped_column(
+        String(10),
+        comment="Região extraída do código (ex: MT para Minas Gerais)"
+    )
+    type_code: Mapped[Optional[str]] = mapped_column(
+        String(10),
+        comment="Tipo de instalação (ex: S para subestação)"
+    )
+    
+    # Status da localidade
+    status: Mapped[str] = mapped_column(
+        String(20), 
+        nullable=False, 
+        default="Active",
+        comment="Status da localidade: Active, Inactive, Maintenance"
+    )
+    
+    # Metadados de importação
+    import_batch_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        comment="ID do lote de importação"
+    )
+    import_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(),
+        comment="Data de importação dos dados"
+    )
+    data_source: Mapped[str] = mapped_column(
+        String(50), 
+        nullable=False, 
+        default="SAP",
+        comment="Fonte dos dados (SAP, CSV, Manual)"
+    )
+    
+    # Metadados adicionais
+    metadata_json: Mapped[Optional[dict]] = mapped_column(
+        JSONB,
+        comment="Dados adicionais em formato JSON"
+    )
+    
+    # Auditoria
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(),
+        comment="Data de criação do registro"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(), 
+        onupdate=func.now(),
+        comment="Data da última atualização"
+    )
+    
+    # Relacionamentos (serão adicionados quando os outros modelos forem atualizados)
+    equipments: Mapped[List["Equipment"]] = relationship(
+        "Equipment", 
+        back_populates="sap_location",
+        cascade="all, delete-orphan"
+    )
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('Active', 'Inactive', 'Maintenance')", 
+            name="ck_sap_location_status"
+        ),
+        CheckConstraint(
+            "data_source IN ('SAP', 'CSV', 'Manual', 'Import')", 
+            name="ck_sap_location_data_source"
+        ),
+        # Índices para performance
+        Index("idx_sap_location_code", "location_code"),
+        Index("idx_sap_location_denomination", "denomination"),
+        Index("idx_sap_location_abbreviation", "abbreviation"),
+        Index("idx_sap_location_region", "region"),
+        Index("idx_sap_location_status", "status"),
+        Index("idx_sap_location_import_batch", "import_batch_id"),
+        Index("idx_sap_location_data_source", "data_source"),
+        # Índice composto para busca
+        Index("idx_sap_location_search", "location_code", "denomination"),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<SAPLocation(location_code='{self.location_code}', denomination='{self.denomination}')>"

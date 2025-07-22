@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-"""
-Script unificado para popular TODOS os dados no banco PROAtivo.
-Substitui: populate_equipment.py + populate_failures.py
-"""
+# File: scripts/setup/populate_database.py
 
 import asyncio
 import os
@@ -10,8 +6,9 @@ import sys
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
+from sqlalchemy import text # Import text for raw SQL queries
 
-# Configurar paths
+# Configurar paths (already present in your file)
 current_dir = Path(__file__).parent
 project_dir = current_dir.parent.parent
 sys.path.insert(0, str(project_dir))
@@ -22,67 +19,139 @@ from src.database.repositories import RepositoryManager
 from src.database.connection import db_connection, create_tables, init_database
 
 
-async def populate_equipments():
-    """Popula equipamentos no banco."""
-    print("📊 ETAPA 1: Populando equipamentos...")
+async def derive_and_populate_equipments():
+    """
+    Derives equipment data from the PMM_2 table and populates the equipments table.
+    Links equipments to SAP locations based on location codes.
+    """
+    print("📊 ETAPA 1: Derivando e populando equipamentos a partir da PMM_2...")
     
     async with db_connection.get_session() as session:
         repo_manager = RepositoryManager(session)
-        processor = DataProcessor(repo_manager)
+        processor = DataProcessor(repo_manager) # Use the existing ETL DataProcessor
+
+        # --- IMPORTANT: Clear existing equipment, maintenance, and failure data ---
+        # This ensures a full replacement. Be aware this will DELETE all existing data
+        # in these tables.
+        print("   ⚠️  Limpando tabelas de falhas, manutenções e equipamentos existentes para substituição completa...")
+        try:
+            # Truncate in order of foreign key dependency: failures -> maintenances -> equipments
+            # Ensure CASCADE is handled by your DB schema or truncate order is correct
+            await session.execute(text("TRUNCATE TABLE failures RESTART IDENTITY CASCADE;")) # Added CASCADE
+            await session.execute(text("TRUNCATE TABLE maintenances RESTART IDENTITY CASCADE;")) # Added CASCADE
+            await session.execute(text("TRUNCATE TABLE equipments RESTART IDENTITY CASCADE;")) # Added CASCADE
+            await session.commit() # Commit the truncation
+            print("   ✅ Tabelas limpas com sucesso.")
+        except Exception as e:
+            print(f"   ❌ Erro ao limpar tabelas: {e}. Verifique se não há outras transações ativas ou problemas de permissão.")
+            # If cleanup fails, it's safer to abort as subsequent steps might fail or create inconsistent data.
+            raise 
+
+        # --- Fetch data from already populated tables ---
+        print("   📚 Coletando dados da PMM_2 e localidades SAP do banco de dados...")
+        pmm_2_records = await repo_manager.pmm_2.list_all() # Get all PMM_2 records from DB
+        sap_locations = await repo_manager.sap_location.list_all() # Get all SAP Locations from DB
         
-        equipment_files = [
-            "data/samples/equipment.csv",
-            # Adicionar outros se necessário
-        ]
-        
-        total_processed = 0
-        equipment_map = {}
-        
-        for file_path_str in equipment_files:
-            file_path = Path(file_path_str)
-            if not file_path.exists():
-                print(f"   ⚠️  Arquivo não encontrado: {file_path}")
+        # Create a map for quick lookup of SAP location UUIDs by their code
+        sap_location_map = {loc.location_code: str(loc.id) for loc in sap_locations}
+
+        if not pmm_2_records:
+            print("   ⚠️  Nenhum registro encontrado na tabela PMM_2. Verifique se o PMM_2 foi populado antes.")
+            return {}
+
+        derived_equipments_for_save = []
+        unique_equipment_codes = set() # To ensure we create unique equipment records
+
+        for pmm_record in pmm_2_records:
+            # Assuming pmm_processor.py already extracted 'equipment_code' and 'installation_location'
+            # and they are available as attributes on the PMM_2 model objects.
+            equipment_code = getattr(pmm_record, 'equipment_code', None)
+            full_installation_code = getattr(pmm_record, 'installation_location', None)
+
+            if not equipment_code or not full_installation_code:
+                print(f"   ⚠️  Registro PMM_2 ({getattr(pmm_record, 'maintenance_plan_code', 'N/A')}) sem 'equipment_code' ou 'installation_location' completo. Pulando derivação.")
                 continue
             
-            print(f"   📁 Processando: {file_path.name}")
+            if equipment_code in unique_equipment_codes:
+                continue # Already processed this equipment from another PMM_2 entry
+
+            unique_equipment_codes.add(equipment_code)
+
+            # Extract SAP Location Code (e.g., MT-S-70113 from MT-S-70113-FE01-CH-301F7T)
+            # This logic should be consistent with how sap_location codes are stored.
+            sap_location_prefix_parts = full_installation_code.split('-')[0:3]
+            sap_location_code = "-".join(sap_location_prefix_parts) if len(sap_location_prefix_parts) == 3 else None
+
+            sap_location_id = None
+            if sap_location_code:
+                sap_location_id = sap_location_map.get(sap_location_code)
+                if not sap_location_id:
+                    print(f"   ⚠️  Localidade SAP '{sap_location_code}' não encontrada para o código de instalação '{full_installation_code}'. Equipamento '{equipment_code}' não será associado a uma localidade SAP existente.")
             
-            try:
-                result = await processor.process_and_save(file_path, DataType.EQUIPMENT)
-                
-                if result['success']:
-                    total_processed += result['saved_records']
-                    print(f"   ✅ {result['saved_records']} equipamentos salvos")
-                else:
-                    print(f"   ❌ Erro: {result.get('error', 'Desconhecido')}")
-                    
-            except Exception as e:
-                print(f"   ❌ Erro: {e}")
+            # Derive equipment_type (e.g., 'CH', 'DJ') from equipment_code
+            equipment_type = equipment_code.split('-')[0] if '-' in equipment_code else 'UNKNOWN'
+
+            # Construct the new equipment record for DataProcessor.save_to_database
+            equipment_record = {
+                'code': equipment_code,
+                'name': f"Equipamento {equipment_code} ({full_installation_code})", 
+                'type': equipment_type, # Derived from equipment_code
+                'location': full_installation_code, # Store the full string as textual location
+                'sap_location_id': sap_location_id, # Link to SAP_Location UUID
+                'manufacturer': 'PMM_2 Source', # Placeholder as it's not in PMM_2 data
+                'model': 'Derived', # Placeholder
+                'installation_date': datetime.now(), # Use current datetime or try to parse from PMM_2 if a relevant date exists
+                'rated_power': 0.0, # Default
+                'voltage_level': 'N/A', # Default
+                'status': 'Active', # Default in English for consistency
+                'criticality': 'Medium', # Default in English for consistency
+                'description': f"Equipamento derivado do plano de manutenção {getattr(pmm_record, 'maintenance_plan_code', 'N/A')} - {getattr(pmm_record, 'maintenance_item_text', 'N/A')}.",
+                'data_source': 'PMM_2_Derived',
+                'source_file': 'PMM_2.csv (derived)',
+                'is_validated': True,
+                'validation_status': 'Valid',
+                'metadata_json': {
+                    'derived_from_pmm_2_plan_code': getattr(pmm_record, 'maintenance_plan_code', 'N/A'),
+                    'original_installation_location': full_installation_code,
+                    'processed_at': datetime.now().isoformat()
+                }
+            }
+            derived_equipments_for_save.append(equipment_record)
+
+        if not derived_equipments_for_save:
+            print("   ℹ️  Nenhum equipamento válido para criar a partir dos dados da PMM_2.")
+            return {}
         
-        # Atualizar mapeamento código->UUID
-        equipments = await repo_manager.equipment.list_all(limit=1000)
-        for eq in equipments:
-            equipment_map[eq.code] = str(eq.id)
+        # Use the DataProcessor to save the derived equipment records
+        print(f"   📝 Salvando {len(derived_equipments_for_save)} equipamentos derivados no banco...")
+        save_result = await processor.save_to_database(derived_equipments_for_save, DataType.EQUIPMENT)
         
-        print(f"   📈 Total: {total_processed} equipamentos, {len(equipment_map)} no banco")
+        # Get the new equipment map (code -> UUID) after saving
+        newly_created_equipments = await repo_manager.equipment.list_all() 
+        equipment_map = {eq.code: str(eq.id) for eq in newly_created_equipments if eq.code} # Ensure code exists
+        
+        # Ensure session is committed
         await session.commit()
+
+        print(f"   📈 Total: {save_result} equipamentos salvos/atualizados. Mapeamento de {len(equipment_map)} códigos para UUIDs.")
         
         return equipment_map
 
 
 async def populate_maintenances(equipment_map):
-    """Popula manutenções no banco."""
+    """Populates maintenance records in the database, using the new equipment_map."""
     print("🔧 ETAPA 2: Populando manutenções...")
     
     async with db_connection.get_session() as session:
         repo_manager = RepositoryManager(session)
-        processor = DataProcessor(repo_manager)
+        processor = DataProcessor(repo_manager) # Use the ETL DataProcessor
         
         maintenance_files = [
             "data/samples/maintenance_orders.csv",
             "data/samples/maintenance_schedules.csv",
         ]
         
-        total_processed = 0
+        total_processed_records = 0
         
         for file_path_str in maintenance_files:
             file_path = Path(file_path_str)
@@ -93,32 +162,38 @@ async def populate_maintenances(equipment_map):
             print(f"   📁 Processando: {file_path.name}")
             
             try:
-                # Processar arquivo
+                # Use DataProcessor.process_file to read, standardize, and validate
                 valid_records, validation_errors = processor.process_file(file_path, DataType.MAINTENANCE)
                 
-                # Converter códigos para UUIDs
                 converted_records = []
                 for record in valid_records:
-                    equipment_code = record.get('equipment_id')
-                    if equipment_code and equipment_code in equipment_map:
-                        record['equipment_id'] = equipment_map[equipment_code]
+                    # Assuming equipment_id in maintenance CSVs now matches the new equipment_code (e.g., CH-301F7T)
+                    equipment_code_from_csv = record.get('equipment_id') 
+                    if equipment_code_from_csv and equipment_code_from_csv in equipment_map:
+                        record['equipment_id'] = equipment_map[equipment_code_from_csv]
                         converted_records.append(record)
-                
-                # Salvar
+                    else:
+                        print(f"   ⚠️  Manutenção para equipamento '{equipment_code_from_csv}' não encontrado no novo mapeamento de equipamentos. Pulando registro.")
+
                 if converted_records:
+                    # Use DataProcessor.save_to_database for bulk insert/upsert
                     saved_count = await processor.save_to_database(converted_records, DataType.MAINTENANCE)
-                    total_processed += saved_count
-                    print(f"   ✅ {saved_count} manutenções salvas")
+                    total_processed_records += saved_count
+                    print(f"   ✅ {saved_count} manutenções salvas.")
+                else:
+                    print("   ℹ️  Nenhuma manutenção válida para salvar após mapeamento.")
                 
             except Exception as e:
-                print(f"   ❌ Erro: {e}")
+                print(f"   ❌ Erro ao processar manutenções de {file_path.name}: {e}")
+                import traceback
+                traceback.print_exc() # Print full traceback for debugging
         
-        print(f"   📈 Total: {total_processed} manutenções processadas")
+        print(f"   📈 Total: {total_processed_records} manutenções processadas.")
         await session.commit()
 
 
 async def populate_failures(equipment_map):
-    """Popula registros de falhas."""
+    """Populates failure records in the database, using the new equipment_map."""
     print("💥 ETAPA 3: Populando falhas...")
     
     file_path = Path("data/samples/failures_incidents.csv")
@@ -130,108 +205,32 @@ async def populate_failures(equipment_map):
     
     async with db_connection.get_session() as session:
         repo_manager = RepositoryManager(session)
+        processor = DataProcessor(repo_manager) # Use the ETL DataProcessor
         
-        # Ler CSV
-        df = pd.read_csv(file_path, dtype=str)
-        
-        # Processar registros
-        failure_records = []
-        for _, row in df.iterrows():
-            equipment_code = row['equipment_id']
-            
-            if equipment_code not in equipment_map:
-                continue
-            
-            # Mapear nível de impacto para severidade
-            severity_mapping = {
-                'Alto': 'Critical',
-                'Médio': 'High', 
-                'Baixo': 'Medium'
-            }
-            
-            # Converter data
-            try:
-                failure_date = pd.to_datetime(row['occurrence_date'])
-                if failure_date.tz is None:
-                    failure_date = failure_date.tz_localize('UTC')
-            except:
-                continue
-            
-            # Converter valores numéricos
-            downtime_hours = None
-            affected_customers = None
-            
-            try:
-                downtime_str = str(row['downtime_hours']).strip()
-                if downtime_str and downtime_str.lower() not in ['nan', 'none', '']:
-                    downtime_hours = float(downtime_str)
-            except (ValueError, TypeError):
-                pass
-            
-            try:
-                customers_str = str(row['affected_customers']).strip()
-                if customers_str and customers_str.lower() not in ['nan', 'none', '']:
-                    affected_customers = int(customers_str)
-            except (ValueError, TypeError):
-                pass
-            
-            record = {
-                'equipment_id': equipment_map[equipment_code],
-                'incident_id': row['id'],
-                'incident_number': row['incident_number'],
-                'failure_date': failure_date,
-                'failure_type': row['failure_type'],
-                'description': f"Falha do tipo {row['failure_type']} - {str(row['root_cause'])}",
-                'root_cause': str(row['root_cause']),
-                'severity': severity_mapping.get(str(row['impact_level']), 'Medium'),
-                'impact_level': row['impact_level'],
-                'downtime_hours': downtime_hours,
-                'affected_customers': affected_customers,
-                'resolution_description': str(row['resolution_description']) if str(row['resolution_description']) != 'nan' else '',
-                'lessons_learned': str(row['lessons_learned']) if str(row['lessons_learned']) != 'nan' else '',
-                'data_source': 'CSV',
-                'source_file': 'failures_incidents.csv',
-                'status': 'Resolved',  # Assumindo que incidentes históricos já foram resolvidos
-                'is_validated': True,
-                'validation_status': 'Valid',
-                'raw_data': {
-                    'original_incident_id': row['id'],
-                    'original_data': dict(row)
-                },
-                'processed_data': {
-                    'severity_mapping': {
-                        'original': row['impact_level'],
-                        'mapped': severity_mapping.get(str(row['impact_level']), 'Medium')
-                    },
-                    'data_quality': {
-                        'downtime_parsed': downtime_hours is not None,
-                        'customers_parsed': affected_customers is not None
-                    }
-                },
-                'metadata_json': {
-                    'source_file': 'failures_incidents.csv',
-                    'processed_at': datetime.now().isoformat(),
-                    'data_version': '1.0'
-                }
-            }
-            
-            failure_records.append(record)
-        
-        # Salvar registros
-        saved_count = 0
-        for record in failure_records:
-            try:
-                await repo_manager.failures.create(**record)
-                saved_count += 1
-            except Exception as e:
-                print(f"   ⚠️  Erro ao salvar falha: {e}")
+        # Use DataProcessor.process_file to read, standardize, and validate
+        valid_records, validation_errors = processor.process_file(file_path, DataType.FAILURE)
+
+        failure_records_for_save = []
+        for record in valid_records:
+            equipment_code_from_csv = record.get('equipment_id') 
+            if equipment_code_from_csv and equipment_code_from_csv in equipment_map:
+                record['equipment_id'] = equipment_map[equipment_code_from_csv]
+                failure_records_for_save.append(record)
+            else:
+                print(f"   ⚠️  Falha para equipamento '{equipment_code_from_csv}' não encontrado no novo mapeamento de equipamentos. Pulando registro.")
+
+        if failure_records_for_save:
+            # Use DataProcessor.save_to_database for bulk insert/upsert
+            saved_count = await processor.save_to_database(failure_records_for_save, DataType.FAILURE)
+            print(f"   ✅ {saved_count} registros de falhas salvos.")
+        else:
+            print("   ℹ️  Nenhuma falha válida para salvar após mapeamento.")
         
         await session.commit()
-        print(f"   ✅ {saved_count} registros de falhas salvos")
 
 
 async def verify_population():
-    """Verifica dados populados."""
+    """Verifies populated data. (Function remains unchanged)"""
     print("🔍 ETAPA 4: Verificando população...")
     
     async with db_connection.get_session() as session:
@@ -250,31 +249,25 @@ async def verify_population():
 
 
 async def main():
-    """Função principal - popula todos os dados."""
+    """Main function - populates all data."""
     print("🚀 POPULAÇÃO UNIFICADA DE DADOS")
     print("=================================")
     
     try:
-        # Inicializar conexão com banco
         await init_database()
         
-        # Criar tabelas se necessário
-        await create_tables()
-        
-        # Etapa 1: Equipamentos
-        equipment_map = await populate_equipments()
+        # NEW: Call the derived equipment population function
+        equipment_map = await derive_and_populate_equipments()
         
         if not equipment_map:
-            print("❌ Nenhum equipamento processado - abortando")
-            return False
-        
-        # Etapa 2: Manutenções
+            print("❌ Nenhum equipamento processado - abortando população de manutenções e falhas.")
+            return False # Indicate failure if no equipment could be derived
+
+        # The following steps now depend on the equipment_map generated above
         await populate_maintenances(equipment_map)
         
-        # Etapa 3: Falhas
         await populate_failures(equipment_map)
         
-        # Etapa 4: Verificação
         success = await verify_population()
         
         if success:
@@ -293,4 +286,4 @@ async def main():
 
 if __name__ == "__main__":
     success = asyncio.run(main())
-    sys.exit(0 if success else 1) 
+    sys.exit(0 if success else 1)
