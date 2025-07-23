@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     curl \
     postgresql-client \
+    dos2unix \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -41,14 +42,16 @@ COPY docs/ ./docs/
 
 # Copiar e configurar scripts de inicialização
 COPY scripts/setup/entrypoint.sh ./entrypoint.sh
+RUN sed -i 's/\r$//' ./entrypoint.sh
 COPY scripts/setup/wait-for-postgres.sh ./wait-for-postgres.sh
 COPY scripts/setup/setup_complete_database.py ./scripts/setup/setup_complete_database.py
 COPY scripts/setup/create_tables.py ./scripts/setup/create_tables.py
 COPY scripts/setup/populate_database.py ./scripts/setup/populate_database.py
 COPY scripts/setup/check_database.py ./scripts/setup/check_database.py
 
-# Configurar permissões para scripts de inicialização
-RUN chmod +x ./entrypoint.sh ./wait-for-postgres.sh
+# Configurar permissões para scripts de inicialização e converter fim de linha
+RUN chmod +x ./entrypoint.sh ./wait-for-postgres.sh && \
+    dos2unix ./entrypoint.sh ./wait-for-postgres.sh 2>/dev/null || true
 
 # Mudar ownership para usuário não-root
 RUN chown -R proativo:proativo /app

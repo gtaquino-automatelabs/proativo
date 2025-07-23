@@ -12,6 +12,8 @@ sys.path.insert(0, str(project_dir))
 os.environ['PYTHONPATH'] = str(project_dir)
 
 from src.database.connection import db_connection, init_database
+# Import check_database_status directly to use it multiple times
+from scripts.setup.check_database import check_database_status
 
 
 async def run_script(script_name, description):
@@ -61,7 +63,7 @@ async def run_script(script_name, description):
         return False
 
 
-async def check_initial_status():
+async def check_initial_status_wrapper(): # Renomeado para evitar conflito de nome se check_database_status for importado diretamente
     """Verifica o status detalhado do banco e determina que ações são necessárias. (Function remains unchanged)"""
     print("🔍 VERIFICAÇÃO INICIAL")
     print("=" * 50)
@@ -69,7 +71,6 @@ async def check_initial_status():
     try:
         await init_database()
         
-        from scripts.setup.check_database import check_database_status
         status = await check_database_status()
         
         missing_tables = [table for table, info in status.items() if not info['table_exists']]
@@ -120,15 +121,14 @@ def determine_required_scripts(status, status_type):
         'populate_pmm_2': False
     }
     
-    if status_type in ["empty", "missing_tables", "error"]:
+    if status_type in ["Vazio", "Tabelas faltando", "error"]: # Updated status_type names
         # If empty or tables missing, run everything in correct order
         scripts_to_run['create_tables'] = True
         scripts_to_run['import_localidades_sap'] = True # Need SAP locations first
         scripts_to_run['populate_pmm_2'] = True # Need PMM_2 data first
         scripts_to_run['populate_database'] = True # This now derives equipment and populates other data
-        # scripts_to_run['correlate_equipment_locations'] = True # No longer strictly needed for initial setup
     
-    elif status_type == "partial_population":
+    elif status_type == "População parcial": # Updated status_type name
         # If partial, execute only necessary parts
         if not status['equipment']['table_exists'] or not status['maintenance']['table_exists'] or not status['failure']['table_exists'] or not status['sap_location']['table_exists'] or not status['pmm_2']['table_exists']:
             scripts_to_run['create_tables'] = True # Ensure tables exist if any are missing
@@ -146,14 +146,6 @@ def determine_required_scripts(status, status_type):
             status['failure']['needs_population']):
             scripts_to_run['populate_database'] = True
             
-        # Correlate is mostly redundant now for initial linking, but might be kept for other purposes.
-        # For this request, we'll remove it from the 'partial_population' logic as well.
-        # if (not status['equipment']['needs_population'] and 
-        #     not status['sap_location']['needs_population'] and
-        #     status['correlate_equipment_locations'] # This flag would need to be added to status
-        #    ):
-        #    scripts_to_run['correlate_equipment_locations'] = True
-    
     return scripts_to_run
 
 
@@ -167,16 +159,16 @@ async def main():
     print("   3️⃣  Criar tabelas (se necessário)")
     print("   4️⃣  Importar localidades SAP (se necessário)")
     print("   5️⃣  Popular dados PMM_2 (se necessário)")
-    print("   6️⃣  Popular dados básicos (equipamentos, manutenções, falhas) a partir de PMM_2 (se necessário)")
+    print("   6️⃣  Popular dados básicos (equipamentos, manutenções, falhas) a p partir de PMM_2 (se necessário)")
     print("   7️⃣  Verificar resultado final")
     print("=" * 60)
     print("✨ NOVO: Executa apenas os scripts necessários para cada tabela!")
     
     try:
         # ETAPA 1: Verificação inicial
-        status, status_type = await check_initial_status()
+        status, status_type = await check_initial_status_wrapper() # Updated function call
         
-        if status_type == "populated":
+        if status_type == "Populado": # Updated status_type name
             print("\n🎉 BANCO JÁ ESTÁ COMPLETAMENTE CONFIGURADO!")
             print("   Nenhuma ação necessária.")
             return True
@@ -210,6 +202,14 @@ async def main():
             success = await run_script("populate_pmm_2.py", "POPULANDO DADOS PMM_2")
             if not success:
                 print("\n⚠️  FALHA na população de PMM_2 - continuando (mas pode afetar a derivação de equipamentos)")
+            
+            # --- NOVO PASSO CRÍTICO: RE-VALIDAR PMM_2 APÓS POPULAÇÃO ---
+            print("\n🔍 Verificando status de PMM_2 após população...")
+            pmm_2_status_after_populate = await check_database_status()
+            if pmm_2_status_after_populate['pmm_2']['count'] == 0:
+                print("❌ ERRO GRAVE: PMM_2 está vazio APÓS a população! Abortando.")
+                return False
+            print(f"✅ PMM_2 agora tem {pmm_2_status_after_populate['pmm_2']['count']} registros.")
 
         # ETAPA 6: Popular dados básicos (equipamentos, manutenções, falhas) 
         # This now includes equipment derivation from PMM_2 and relies on previous steps
@@ -219,13 +219,10 @@ async def main():
                 print("\n❌ FALHA na população básica - abortando")
                 return False
         
-        # Correlate_equipment_locations is removed from the explicit sequence here,
-        # as the linking is now handled during equipment derivation in populate_database.py
-        # If it serves other purposes, it could be called conditionally elsewhere.
-        # Removed: if scripts_to_run['correlate_equipment_locations']: ...
-        
         # ETAPA 7: Verificação final
-        success = await run_script("check_database.py", "VERIFICAÇÃO FINAL")
+        # Note: We now re-import check_database_empty here to avoid name conflicts with directly imported check_database_status
+        from scripts.setup.check_database import check_database_empty as final_check_database_empty 
+        success = not await final_check_database_empty() # Inverte lógica: True se tem dados (sucesso)
         
         if success:
             print("\n" + "=" * 60)

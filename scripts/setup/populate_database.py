@@ -30,28 +30,44 @@ async def derive_and_populate_equipments():
         repo_manager = RepositoryManager(session)
         processor = DataProcessor(repo_manager) # Use the existing ETL DataProcessor
 
-        # --- IMPORTANT: Clear existing equipment, maintenance, and failure data ---
-        # This ensures a full replacement. Be aware this will DELETE all existing data
-        # in these tables.
-        print("   ⚠️  Limpando tabelas de falhas, manutenções e equipamentos existentes para substituição completa...")
-        try:
-            # Truncate in order of foreign key dependency: failures -> maintenances -> equipments
-            # Ensure CASCADE is handled by your DB schema or truncate order is correct
-            await session.execute(text("TRUNCATE TABLE failures RESTART IDENTITY CASCADE;")) # Added CASCADE
-            await session.execute(text("TRUNCATE TABLE maintenances RESTART IDENTITY CASCADE;")) # Added CASCADE
-            await session.execute(text("TRUNCATE TABLE equipments RESTART IDENTITY CASCADE;")) # Added CASCADE
-            await session.commit() # Commit the truncation
-            print("   ✅ Tabelas limpas com sucesso.")
-        except Exception as e:
-            print(f"   ❌ Erro ao limpar tabelas: {e}. Verifique se não há outras transações ativas ou problemas de permissão.")
-            # If cleanup fails, it's safer to abort as subsequent steps might fail or create inconsistent data.
-            raise 
+        # COMENTANDO/REMOVENDO O BLOCO TRUNCATE
+        # print("   ⚠️  Limpando tabelas de falhas, manutenções e equipamentos existentes para substituição completa...")
+        # try:
+        #     await session.execute(text("TRUNCATE TABLE failures RESTART IDENTITY CASCADE;"))
+        #     await session.execute(text("TRUNCATE TABLE maintenances RESTART IDENTITY CASCADE;"))
+        #     await session.execute(text("TRUNCATE TABLE equipments RESTART IDENTITY CASCADE;"))
+        #     await session.commit()
+        #     print("   ✅ Tabelas limpas com sucesso.")
+        # except Exception as e:
+        #     print(f"   ❌ Erro ao limpar tabelas: {e}. Abortando derivação de equipamentos.")
+        #     await session.rollback()
+        #     raise  
 
-        # --- Fetch data from already populated tables ---
+         # --- Adicionar logs de depuração AQUI ---
         print("   📚 Coletando dados da PMM_2 e localidades SAP do banco de dados...")
-        pmm_2_records = await repo_manager.pmm_2.list_all() # Get all PMM_2 records from DB
-        sap_locations = await repo_manager.sap_location.list_all() # Get all SAP Locations from DB
-        
+        try:
+            # Primeiro, uma contagem bruta na sessão atual
+            current_session_pmm_2_count = await session.execute(text("SELECT COUNT(*) FROM pmm_2;"))
+            count_result = current_session_pmm_2_count.scalar_one()
+            print(f"   DEBUG: Contagem de PMM_2 na sessão atual ANTES do list_all(): {count_result} registros.")
+
+            # Agora, tente o list_all
+            pmm_2_records = await repo_manager.pmm_2.list_all()
+            sap_locations = await repo_manager.sap_location.list_all()
+            
+            print(f"   DEBUG: Quantidade de registros PMM_2 coletados pelo list_all(): {len(pmm_2_records)}")
+            if len(pmm_2_records) > 0:
+                print(f"   DEBUG: Primeiro registro PMM_2: {pmm_2_records[0].__dict__}")
+            else:
+                print("   DEBUG: pmm_2_records está REALMENTE vazio nesta sessão.")
+
+        except Exception as e:
+            print(f"   ❌ ERRO DE DEBUG: Falha ao tentar ler PMM_2 ou SAP Locations: {e}")
+            # Isso capturaria erros se a tabela pmm_2 não existisse, mas pelos logs anteriores ela existe.
+            # Ou se a conexão com o banco se perdeu.
+            pmm_2_records = [] # Define como vazio para o fluxo continuar
+
+        # --- Fim dos logs de depuração ---
         # Create a map for quick lookup of SAP location UUIDs by their code
         sap_location_map = {loc.location_code: str(loc.id) for loc in sap_locations}
 
