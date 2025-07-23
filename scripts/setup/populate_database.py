@@ -28,7 +28,7 @@ async def derive_and_populate_equipments():
     
     async with db_connection.get_session() as session:
         repo_manager = RepositoryManager(session)
-        processor = DataProcessor(repo_manager) # Use the existing ETL DataProcessor
+        processor = DataProcessor(repo_manager)
 
         # COMENTANDO/REMOVENDO O BLOCO TRUNCATE
         # print("   ⚠️  Limpando tabelas de falhas, manutenções e equipamentos existentes para substituição completa...")
@@ -46,14 +46,11 @@ async def derive_and_populate_equipments():
          # --- Adicionar logs de depuração AQUI ---
         print("   📚 Coletando dados da PMM_2 e localidades SAP do banco de dados...")
         try:
-            # Primeiro, uma contagem bruta na sessão atual
-            current_session_pmm_2_count = await session.execute(text("SELECT COUNT(*) FROM pmm_2;"))
-            count_result = current_session_pmm_2_count.scalar_one()
-            print(f"   DEBUG: Contagem de PMM_2 na sessão atual ANTES do list_all(): {count_result} registros.")
-
-            # Agora, tente o list_all
-            pmm_2_records = await repo_manager.pmm_2.list_all()
-            sap_locations = await repo_manager.sap_location.list_all()
+            # CORREÇÃO: Aumentar o limite para buscar todos os registros ou uma quantidade muito grande.
+            # sys.maxsize é um bom valor para "sem limite prático".
+            import sys
+            pmm_2_records = await repo_manager.pmm_2.list_all(limit=sys.maxsize)
+            sap_locations = await repo_manager.sap_location.list_all(limit=sys.maxsize)
             
             print(f"   DEBUG: Quantidade de registros PMM_2 coletados pelo list_all(): {len(pmm_2_records)}")
             if len(pmm_2_records) > 0:
@@ -89,6 +86,9 @@ async def derive_and_populate_equipments():
                 continue
             
             if equipment_code in unique_equipment_codes:
+                # ESTE É O FILTRO PARA GARANTIR QUE APENAS UM REGISTRO DE EQUIPMENTO É CRIADO
+                # PARA CADA CÓDIGO DE EQUIPAMENTO ÚNICO, MESMO QUE ELE APAREÇA EM MÚLTIPLOS
+                # REGISTROS PMM_2.
                 continue # Already processed this equipment from another PMM_2 entry
 
             unique_equipment_codes.add(equipment_code)
@@ -107,29 +107,37 @@ async def derive_and_populate_equipments():
             # Derive equipment_type (e.g., 'CH', 'DJ') from equipment_code
             equipment_type = equipment_code.split('-')[0] if '-' in equipment_code else 'UNKNOWN'
 
+            # Derive substation from installation_location (e.g., MT-S-70113 part)
+            substation_code = sap_location_code if sap_location_code else None
+
             # Construct the new equipment record for DataProcessor.save_to_database
             equipment_record = {
                 'code': equipment_code,
                 'name': f"Equipamento {equipment_code} ({full_installation_code})", 
-                'type': equipment_type, # Derived from equipment_code
+                'equipment_type': equipment_type,
                 'location': full_installation_code, # Store the full string as textual location
+                'substation': substation_code, # Adicionado, usando o código base da localidade SAP
                 'sap_location_id': sap_location_id, # Link to SAP_Location UUID
                 'manufacturer': 'PMM_2 Source', # Placeholder as it's not in PMM_2 data
                 'model': 'Derived', # Placeholder
+                'serial_number': None, # Adicionado
+                'manufacturing_year': None, # Adicionado
                 'installation_date': datetime.now(), # Use current datetime or try to parse from PMM_2 if a relevant date exists
                 'rated_power': 0.0, # Default
-                'voltage_level': 'N/A', # Default
+                'rated_voltage': 0.0, # Corrigido anteriormente
+                'rated_current': 0.0, # Adicionado
                 'status': 'Active', # Default in English for consistency
                 'criticality': 'Medium', # Default in English for consistency
+                'is_critical': False, # Adicionado explicitamente, mesmo que seja o padrão
                 'description': f"Equipamento derivado do plano de manutenção {getattr(pmm_record, 'maintenance_plan_code', 'N/A')} - {getattr(pmm_record, 'maintenance_item_text', 'N/A')}.",
-                'data_source': 'PMM_2_Derived',
-                'source_file': 'PMM_2.csv (derived)',
-                'is_validated': True,
-                'validation_status': 'Valid',
-                'metadata_json': {
+                'metadata_json': { # 'data_source', 'source_file', 'is_validated', 'validation_status' movidos para cá
                     'derived_from_pmm_2_plan_code': getattr(pmm_record, 'maintenance_plan_code', 'N/A'),
                     'original_installation_location': full_installation_code,
-                    'processed_at': datetime.now().isoformat()
+                    'processed_at': datetime.now().isoformat(),
+                    'data_source': 'PMM_2_Derived', 
+                    'source_file': 'PMM_2.csv (derived)',
+                    'is_validated': True,
+                    'validation_status': 'Valid',
                 }
             }
             derived_equipments_for_save.append(equipment_record)
@@ -209,40 +217,43 @@ async def populate_maintenances(equipment_map):
 
 
 async def populate_failures(equipment_map):
-    """Populates failure records in the database, using the new equipment_map."""
+    """
+    Populates failure records in the database, using the new equipment_map.
+    THIS FUNCTION IS NOW INHIBITED AS PER USER REQUEST FOR FUTURE EXPANSION.
+    """
     print("💥 ETAPA 3: Populando falhas...")
+    print("   ℹ️  População de dados de falhas INIBIDA para futura expansão.")
+    # file_path = Path("data/samples/failures_incidents.csv")
+    # if not file_path.exists():
+    #     print("   ⚠️  Arquivo failures_incidents.csv não encontrado")
+    #     return
     
-    file_path = Path("data/samples/failures_incidents.csv")
-    if not file_path.exists():
-        print("   ⚠️  Arquivo failures_incidents.csv não encontrado")
-        return
+    # print(f"   📁 Processando: {file_path.name}")
     
-    print(f"   📁 Processando: {file_path.name}")
-    
-    async with db_connection.get_session() as session:
-        repo_manager = RepositoryManager(session)
-        processor = DataProcessor(repo_manager) # Use the ETL DataProcessor
+    # async with db_connection.get_session() as session:
+    #     repo_manager = RepositoryManager(session)
+    #     processor = DataProcessor(repo_manager) # Use the ETL DataProcessor
         
-        # Use DataProcessor.process_file to read, standardize, and validate
-        valid_records, validation_errors = processor.process_file(file_path, DataType.FAILURE)
+    #     # Use DataProcessor.process_file to read, standardize, and validate
+    #     valid_records, validation_errors = processor.process_file(file_path, DataType.FAILURE)
 
-        failure_records_for_save = []
-        for record in valid_records:
-            equipment_code_from_csv = record.get('equipment_id') 
-            if equipment_code_from_csv and equipment_code_from_csv in equipment_map:
-                record['equipment_id'] = equipment_map[equipment_code_from_csv]
-                failure_records_for_save.append(record)
-            else:
-                print(f"   ⚠️  Falha para equipamento '{equipment_code_from_csv}' não encontrado no novo mapeamento de equipamentos. Pulando registro.")
+    #     failure_records_for_save = []
+    #     for record in valid_records:
+    #         equipment_code_from_csv = record.get('equipment_id') 
+    #         if equipment_code_from_csv and equipment_code_from_csv in equipment_map:
+    #             record['equipment_id'] = equipment_map[equipment_code_from_csv]
+    #             failure_records_for_save.append(record)
+    #         else:
+    #             print(f"   ⚠️  Falha para equipamento '{equipment_code_from_csv}' não encontrado no novo mapeamento de equipamentos. Pulando registro.")
 
-        if failure_records_for_save:
-            # Use DataProcessor.save_to_database for bulk insert/upsert
-            saved_count = await processor.save_to_database(failure_records_for_save, DataType.FAILURE)
-            print(f"   ✅ {saved_count} registros de falhas salvos.")
-        else:
-            print("   ℹ️  Nenhuma falha válida para salvar após mapeamento.")
+    #     if failure_records_for_save:
+    #         # Use DataProcessor.save_to_database for bulk insert/upsert
+    #         saved_count = await processor.save_to_database(failure_records_for_save, DataType.FAILURE)
+    #         print(f"   ✅ {saved_count} registros de falhas salvos.")
+    #     else:
+    #         print("   ℹ️  Nenhuma falha válida para salvar após mapeamento.")
         
-        await session.commit()
+    #     await session.commit()
 
 
 async def verify_population():
@@ -254,7 +265,7 @@ async def verify_population():
         
         equipment_count = await repo_manager.equipment.count()
         maintenance_count = await repo_manager.maintenance.count()
-        failure_count = await repo_manager.failures.count()
+        failure_count = await repo_manager.failures.count() # Ainda irá contar 0 ou o que já existir se não for TRUNCATE
         
         print(f"   📊 Equipamentos: {equipment_count}")
         print(f"   📊 Manutenções: {maintenance_count}")
@@ -282,7 +293,8 @@ async def main():
         # The following steps now depend on the equipment_map generated above
         await populate_maintenances(equipment_map)
         
-        await populate_failures(equipment_map)
+        # COMENTADO/INIBIDO: Chamada para popular falhas
+        await populate_failures(equipment_map) 
         
         success = await verify_population()
         

@@ -335,14 +335,14 @@ class PMM_2Processor:
             df['installation_location'] = df['installation_location'].str.strip()
         
         # Remove duplicatas baseado na chave de negócio
-        duplicate_columns = ['maintenance_plan_code', 'installation_location']
-        available_columns = [col for col in duplicate_columns if col in df.columns]
-        if available_columns:
-            df = df.drop_duplicates(subset=available_columns, keep='first')
+        #duplicate_columns = ['maintenance_plan_code', 'installation_location']
+        #available_columns = [col for col in duplicate_columns if col in df.columns]
+        #if available_columns:
+        #    df = df.drop_duplicates(subset=available_columns, keep='first')
         
-        removed_count = initial_count - len(df)
-        if removed_count > 0:
-            logger.info(f"Removidas {removed_count} linhas inválidas/duplicadas do PMM_2")
+        #removed_count = initial_count - len(df)
+        #if removed_count > 0:
+        #    logger.info(f"Removidas {removed_count} linhas inválidas/duplicadas do PMM_2")
         
         logger.info(f"Dados PMM_2 limpos: {len(df)} linhas restantes")
         return df

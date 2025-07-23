@@ -1,4 +1,9 @@
-# File: src/etl/data_processor.py
+"""
+Classe principal do pipeline ETL.
+
+Orquestra o processamento de dados de diferentes formatos (CSV, XML, XLSX)
+e coordena validação, transformação e carregamento no banco de dados.
+"""
 
 import logging
 import asyncio
@@ -322,35 +327,26 @@ class DataProcessor:
                 
                 # Salva usando repository com lógica upsert
                 saved_count = 0
-                # updated_count = 0 # Não utilizado atualmente para PMM_2, mas poderia ser adicionado para granularidade
+                updated_count = 0
                 for pmm_2_data in pmm_2_objects:
                     try:
-                        # Extrair os componentes da chave composta para o upsert
+                        # Usa upsert baseado no código do plano de manutenção
                         maintenance_plan_code = pmm_2_data.get('maintenance_plan_code')
-                        installation_location = pmm_2_data.get('installation_location')
-                        planned_date = pmm_2_data.get('planned_date') # Pode ser None
-                        
-                        if maintenance_plan_code and installation_location: # installation_location é obrigatório no modelo
-                            # Cria um dicionário com os dados a serem atualizados/inseridos,
-                            # removendo os campos que já estão sendo passados como args nomeados para o upsert.
-                            upsert_data = {k: v for k, v in pmm_2_data.items() if k not in ['maintenance_plan_code', 'installation_location', 'planned_date']}
+                        if maintenance_plan_code:
+                            # Remove o código do plano antes de passar para upsert
+                            upsert_data = {k: v for k, v in pmm_2_data.items() if k != 'maintenance_plan_code'}
                             
-                            # Usa upsert do repository, passando a chave composta completa
-                            await self.repository_manager.pmm_2.upsert(
-                                maintenance_plan_code, 
-                                installation_location, 
-                                planned_date, 
-                                **upsert_data
-                            )
+                            # Usa upsert do repository
+                            await self.repository_manager.pmm_2.upsert(maintenance_plan_code, **upsert_data)
                             saved_count += 1
-                            logger.info(f"PMM_2 processado (upserted): {maintenance_plan_code} ({installation_location})")
+                            logger.info(f"PMM_2 processado: {maintenance_plan_code}")
                         else:
-                            logger.warning("PMM_2 sem código de plano de manutenção ou localização de instalação, ignorando")
+                            logger.warning("PMM_2 sem código de plano de manutenção, ignorando")
                             
                     except Exception as e:
                         logger.error(f"Erro ao salvar PMM_2 {pmm_2_data.get('maintenance_plan_code', 'UNKNOWN')}: {e}")
                 
-                logger.info(f"PMM_2 processados: {saved_count} registros (incluindo atualizações)")
+                logger.info(f"PMM_2 processados: {saved_count} registros")
                 return saved_count
             
         except Exception as e:
@@ -381,10 +377,7 @@ class DataProcessor:
             # Salva no banco se há registros válidos
             saved_count = 0
             if valid_records and self.repository_manager:
-                # O data_type pode ter sido auto-detectado, então o passamos para save_to_database
-                # Se não foi fornecido, detecta novamente
-                final_data_type = data_type or self.detect_data_type(file_path, file_format or self.detect_file_format(file_path))
-                saved_count = await self.save_to_database(valid_records, final_data_type)
+                saved_count = await self.save_to_database(valid_records, data_type or self.detect_data_type(file_path, file_format or self.detect_file_format(file_path)))
             
             processing_time = (datetime.now() - start_time).total_seconds()
             
@@ -463,37 +456,24 @@ class DataProcessor:
         
         return results
     
-    def get_processing_summary(self, records: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Gera resumo do processamento.
+    def get_processing_statistics(self) -> Dict[str, Any]:
+        """Retorna estatísticas de processamento.
         
-        Args:
-            records: Lista de registros processados
-            
         Returns:
-            Dicionário com estatísticas do processamento
+            Dicionário com estatísticas
         """
-        if not records:
-            return {'total_records': 0, 'columns': [], 'data_types': {}}
-        
-        sample_record = records[0]
-        columns = list(sample_record.keys())
-        
-        # Analisa tipos de dados
-        data_types = {}
-        for col in columns:
-            values = [r.get(col) for r in records[:100]]  # Amostra dos primeiros 100
-            non_null_values = [v for v in values if v is not None]
-            
-            if non_null_values:
-                value_type = type(non_null_values[0]).__name__
-                data_types[col] = value_type
+        total_records = self.stats['records_processed']
+        success_rate = (self.stats['records_valid'] / total_records * 100) if total_records > 0 else 0
         
         return {
-            'total_records': len(records),
-            'columns': columns,
-            'data_types': data_types,
-            'sample_record': sample_record
-        } 
+            'files_processed': self.stats['files_processed'],
+            'total_records_processed': self.stats['records_processed'],
+            'valid_records': self.stats['records_valid'],
+            'invalid_records': self.stats['records_invalid'],
+            'success_rate_percent': round(success_rate, 2),
+            'total_errors': len(self.stats['errors']),
+            'error_summary': self.stats['errors'][-10]  # Últimos 10 erros
+        }
     
     def reset_statistics(self):
         """Reseta estatísticas de processamento."""
@@ -503,4 +483,4 @@ class DataProcessor:
             'records_valid': 0,
             'records_invalid': 0,
             'errors': []
-        }
+        } 

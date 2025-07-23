@@ -1,4 +1,9 @@
-# File: src/database/repositories.py
+"""
+Repositories para acesso aos dados usando padrão Repository.
+
+Implementa a camada de abstração entre os modelos SQLAlchemy e a lógica de negócio,
+fornecendo operações CRUD e consultas específicas do domínio.
+"""
 
 import logging
 from typing import List, Optional, Dict, Any, Sequence
@@ -1091,29 +1096,6 @@ class PMM_2Repository(BaseRepository):
             .where(PMM_2.maintenance_plan_code == maintenance_plan_code)
         )
         return result.scalars().first()
-
-    # NOVO MÉTODO: Buscar por chave composta
-    async def find_by_composite_key(self, maintenance_plan_code: str, installation_location: str, planned_date: Optional[datetime]) -> Optional[PMM_2]:
-        """
-        Busca um plano PMM_2 pela chave composta (código do plano, localização de instalação, data planejada).
-        Args:
-            maintenance_plan_code: Código do plano de manutenção.
-            installation_location: Localização de instalação.
-            planned_date: Data planejada para execução (pode ser None).
-        Returns:
-            Plano PMM_2 ou None se não encontrado.
-        """
-        query = select(PMM_2).where(
-            PMM_2.maintenance_plan_code == maintenance_plan_code,
-            PMM_2.installation_location == installation_location
-        )
-        if planned_date is None:
-            query = query.where(PMM_2.planned_date.is_(None))
-        else:
-            query = query.where(PMM_2.planned_date == planned_date)
-
-        result = await self.session.execute(query)
-        return result.scalars().first()
     
     async def find_by_equipment_code(self, equipment_code: str) -> List[PMM_2]:
         """Busca planos pelo código do equipamento.
@@ -1247,39 +1229,35 @@ class PMM_2Repository(BaseRepository):
         result = await self.session.execute(query)
         return list(result.scalars().all())
     
-    # ATUALIZADO: O método upsert agora recebe os campos da chave composta
-    async def upsert(self, maintenance_plan_code: str, installation_location: str, planned_date: Optional[datetime], **kwargs) -> PMM_2:
-        """
-        Insere ou atualiza um plano PMM_2 usando a chave composta para identificação.
+    async def upsert(self, maintenance_plan_code: str, **kwargs) -> PMM_2:
+        """Insere ou atualiza um plano PMM_2.
+        
         Args:
-            maintenance_plan_code: Código do plano de manutenção.
-            installation_location: Localização de instalação.
-            planned_date: Data planejada para execução (pode ser None).
-            **kwargs: Dados adicionais do plano.
+            maintenance_plan_code: Código do plano de manutenção
+            **kwargs: Dados do plano
+            
         Returns:
-            Instância do plano PMM_2 (criada ou atualizada).
+            Instância do plano PMM_2
         """
         try:
-            # Buscar registro existente pela chave composta
-            existing = await self.find_by_composite_key(maintenance_plan_code, installation_location, planned_date)
+            existing = await self.find_by_maintenance_plan_code(maintenance_plan_code)
             
             if existing:
                 # Atualiza registro existente
                 for key, value in kwargs.items():
                     if hasattr(existing, key):
                         setattr(existing, key, value)
+                await self.session.commit()
                 return existing
             else:
-                # Cria novo registro, incluindo os componentes da chave composta
+                # Cria novo registro
                 return await self.create(
                     maintenance_plan_code=maintenance_plan_code,
-                    installation_location=installation_location,
-                    planned_date=planned_date,
                     **kwargs
                 )
         except IntegrityError as e:
             await self.session.rollback()
-            logger.error(f"Erro de integridade ao fazer upsert PMM_2 para ({maintenance_plan_code}, {installation_location}, {planned_date}): {e}")
+            logger.error(f"Erro de integridade ao fazer upsert PMM_2: {e}")
             raise
     
     async def bulk_upsert(self, plans_data: List[Dict[str, Any]]) -> List[PMM_2]:
@@ -1294,12 +1272,8 @@ class PMM_2Repository(BaseRepository):
         results = []
         
         for plan_data in plans_data:
-            # Extrair os componentes da chave composta
             maintenance_plan_code = plan_data.pop('maintenance_plan_code')
-            installation_location = plan_data.pop('installation_location')
-            planned_date = plan_data.pop('planned_date', None) # planned_date pode ser None
-            
-            plan = await self.upsert(maintenance_plan_code, installation_location, planned_date, **plan_data)
+            plan = await self.upsert(maintenance_plan_code, **plan_data)
             results.append(plan)
         
         return results
@@ -1685,4 +1659,4 @@ class RepositoryManager:
     
     async def close(self):
         """Fecha a sessão."""
-        await self.session.close()
+        await self.session.close() 
