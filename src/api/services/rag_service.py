@@ -189,7 +189,7 @@ class RAGService:
         try:
             # Query para buscar equipamentos - usando apenas colunas que existem
             query = text("""
-                SELECT id, code, name, equipment_type, category, description
+                SELECT id, code, name, equipment_type, substation
                 FROM equipments
                 ORDER BY id
             """)
@@ -203,8 +203,7 @@ class RAGService:
                 Equipamento: {equipment.name} (ID: {str(equipment.id)})
                 Código: {equipment.code}
                 Tipo: {equipment.equipment_type}
-                Categoria: {equipment.category}
-                Descrição: {equipment.description or 'Sem descrição'}
+                Localidade: {equipment.substation}
                 """.strip()
                 
                 chunk = DocumentChunk(
@@ -216,7 +215,7 @@ class RAGService:
                         "code": equipment.code,
                         "name": equipment.name,
                         "type": equipment.equipment_type,
-                        "category": equipment.category
+                        "location": equipment.substation
                     }
                 )
                 

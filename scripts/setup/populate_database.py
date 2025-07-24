@@ -7,7 +7,8 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from sqlalchemy import text # Import text for raw SQL queries
-
+from typing import Dict
+import re
 # Configurar paths (already present in your file)
 current_dir = Path(__file__).parent
 project_dir = current_dir.parent.parent
@@ -82,7 +83,7 @@ async def derive_and_populate_equipments():
             full_installation_code = getattr(pmm_record, 'installation_location', None)
 
             if not equipment_code or not full_installation_code:
-                print(f"   ⚠️  Registro PMM_2 ({getattr(pmm_record, 'maintenance_plan_code', 'N/A')}) sem 'equipment_code' ou 'installation_location' completo. Pulando derivação.")
+                print(f"   ⚠️  Registro PMM_2 ({getattr(pmm_record, 'maintenance_plan_code', 'N/A')}) sem 'equipment_code' ou 'installation_location' completo. Pulando derivação de equipamento.")
                 continue
             
             if equipment_code in unique_equipment_codes:
@@ -129,7 +130,7 @@ async def derive_and_populate_equipments():
                 'status': 'Active', # Default in English for consistency
                 'criticality': 'Medium', # Default in English for consistency
                 'is_critical': False, # Adicionado explicitamente, mesmo que seja o padrão
-                'description': f"Equipamento derivado do plano de manutenção {getattr(pmm_record, 'maintenance_plan_code', 'N/A')} - {getattr(pmm_record, 'maintenance_item_text', 'N/A')}.",
+                'description': f"Plano de manutenção {getattr(pmm_record, 'maintenance_plan_code', 'N/A')} - {getattr(pmm_record, 'maintenance_item_text', 'N/A')}.",
                 'metadata_json': { # 'data_source', 'source_file', 'is_validated', 'validation_status' movidos para cá
                     'derived_from_pmm_2_plan_code': getattr(pmm_record, 'maintenance_plan_code', 'N/A'),
                     'original_installation_location': full_installation_code,
@@ -255,10 +256,101 @@ async def populate_failures(equipment_map):
         
     #     await session.commit()
 
+# NOVA FUNÇÃO: Vincular PMM_2 a equipamentos
+async def link_pmm2_to_equipments(equipment_map: Dict[str, str]):
+    """
+    Vincular registros da tabela PMM_2 aos seus IDs de equipamento correspondentes.
+    """
+    print("🔗 ETAPA 4: Vinculando planos PMM_2 a equipamentos...")
+
+    if not equipment_map:
+        print("   ℹ️  Nenhum equipamento mapeado. Pulando vinculação de PMM_2.")
+        return
+
+    async with db_connection.get_session() as session:
+        repo_manager = RepositoryManager(session)
+        
+        pmm2_plans = await repo_manager.pmm_2.list_all(limit=sys.maxsize) # Get all PMM_2 plans
+        linked_count = 0
+        unlinked_count = 0
+
+        for plan in pmm2_plans:
+            if plan.equipment_id:
+                # Skip if already linked
+                # print(f"   Debug: Plano {plan.maintenance_plan_code} já vinculado a {plan.equipment_id}. Pulando.")
+                continue 
+            
+            pmm2_equipment_code = plan.equipment_code # This field is populated by pmm_processor
+
+            if pmm2_equipment_code and pmm2_equipment_code in equipment_map:
+                equipment_id_uuid = equipment_map[pmm2_equipment_code]
+                await repo_manager.pmm_2.update(plan.id, equipment_id=equipment_id_uuid)
+                linked_count += 1
+                # print(f"   ✅ Plano {plan.maintenance_plan_code} vinculado a equipamento {pmm2_equipment_code}")
+            else:
+                unlinked_count += 1
+                # print(f"   ⚠️  Plano {plan.maintenance_plan_code} (equip: {pmm2_equipment_code}) não encontrado no mapeamento de equipamentos.")
+        
+        await session.commit()
+        print(f"   📈 Vinculação de PMM_2 concluída: {linked_count} planos vinculados, {unlinked_count} não vinculados.")
+
+
+async def link_pmm2_to_sap_locations():
+    """
+    Vincular registros da tabela PMM_2 aos seus IDs de localidade SAP correspondentes.
+    Esta lógica foi separada para clareza e para ser executada após a população de SAP Locations.
+    """
+    print("🔗 ETAPA 5: Vinculando planos PMM_2 a localidades SAP...")
+    
+    async with db_connection.get_session() as session:
+        repo_manager = RepositoryManager(session)
+        
+        pmm2_plans = await repo_manager.pmm_2.list_all(limit=sys.maxsize)
+        sap_locations = await repo_manager.sap_location.list_all(limit=sys.maxsize)
+        
+        sap_location_map = {loc.location_code: str(loc.id) for loc in sap_locations}
+        
+        linked_count = 0
+        unlinked_count = 0
+
+        for plan in pmm2_plans:
+            if plan.sap_location_id:
+                continue # Skip if already linked
+
+            # Extrair o código base da localização da instalação (ex: MT-S-70113 de MT-S-70113-FE01-CH-301F7T)
+            location_parts = plan.installation_location.split('-')
+            sap_location_code_base = None
+            if len(location_parts) >= 3 and location_parts[0] and location_parts[1] and location_parts[2]:
+                potential_code = '-'.join(location_parts[0:3])
+                # Check if it matches the typical SAP location code format (e.g., MT-S-XXXXX)
+                if re.match(r'^[A-Z]{2}-\w-\d+$', potential_code):
+                    sap_location_code_base = potential_code
+            
+            sap_location_id = None
+            if sap_location_code_base:
+                sap_location_id = sap_location_map.get(sap_location_code_base)
+                
+                if not sap_location_id:
+                    # Fallback: if exact code not found, try to find by abbreviation from the installation_location
+                    # This relies on the new extraction from maintenance_item_text also being done, but can be
+                    # generalized to look for common abbreviations in installation_location string too.
+                    # For now, let's stick to the mapped `sap_location_map` for robustness.
+                    pass
+
+
+            if sap_location_id:
+                await repo_manager.pmm_2.update(plan.id, sap_location_id=sap_location_id)
+                linked_count += 1
+            else:
+                unlinked_count += 1
+        
+        await session.commit()
+        print(f"   📈 Vinculação de PMM_2 a Localidades SAP concluída: {linked_count} planos vinculados, {unlinked_count} não vinculados.")
+
 
 async def verify_population():
     """Verifies populated data. (Function remains unchanged)"""
-    print("🔍 ETAPA 4: Verificando população...")
+    print("🔍 ETAPA FINAL: Verificando população...")
     
     async with db_connection.get_session() as session:
         repo_manager = RepositoryManager(session)
@@ -266,13 +358,26 @@ async def verify_population():
         equipment_count = await repo_manager.equipment.count()
         maintenance_count = await repo_manager.maintenance.count()
         failure_count = await repo_manager.failures.count() # Ainda irá contar 0 ou o que já existir se não for TRUNCATE
+        pmm2_count = await repo_manager.pmm_2.count()
+        sap_location_count = await repo_manager.sap_location.count()
+
+        pmm2_linked_equipments_count = await session.scalar(
+            text("SELECT COUNT(*) FROM pmm_2 WHERE equipment_id IS NOT NULL")
+        )
+        pmm2_linked_locations_count = await session.scalar(
+            text("SELECT COUNT(*) FROM pmm_2 WHERE sap_location_id IS NOT NULL")
+        )
         
         print(f"   📊 Equipamentos: {equipment_count}")
         print(f"   📊 Manutenções: {maintenance_count}")
         print(f"   📊 Falhas: {failure_count}")
-        print(f"   📊 Total: {equipment_count + maintenance_count + failure_count}")
+        print(f"   📊 Planos PMM_2: {pmm2_count}")
+        print(f"   📊 Localidades SAP: {sap_location_count}")
+        print(f"   📊 PMM_2 vinculados a Equipamentos: {pmm2_linked_equipments_count} ({pmm2_linked_equipments_count/pmm2_count*100:.1f}%)")
+        print(f"   📊 PMM_2 vinculados a Localidades SAP: {pmm2_linked_locations_count} ({pmm2_linked_locations_count/pmm2_count*100:.1f}%)")
+        print(f"   📊 Total geral: {equipment_count + maintenance_count + failure_count + pmm2_count + sap_location_count}")
         
-        return equipment_count > 0
+        return equipment_count > 0 and pmm2_count > 0 and sap_location_count > 0
 
 
 async def main():
@@ -283,18 +388,35 @@ async def main():
     try:
         await init_database()
         
-        # NEW: Call the derived equipment population function
+        # Etapa 0: Certificar que SAP Locations já estão no banco (populados por setup_complete_database)
+        # Se não houver, o populate_database.py irá falhar na derivação de equipamentos
+        # e na vinculação de PMM_2.
+        
+        # Etapa 1: Popular PMM_2 (necessário para derivar equipamentos)
+        from scripts.setup.populate_pmm_2 import main as populate_pmm_2_main
+        success_pmm2 = await populate_pmm_2_main()
+        if not success_pmm2:
+            print("❌ Falha ao popular dados PMM_2. Abortando população de equipamentos e vinculações.")
+            return False
+
+        # Etapa 2: Derivar e popular equipamentos (gera equipment_map)
         equipment_map = await derive_and_populate_equipments()
         
         if not equipment_map:
             print("❌ Nenhum equipamento processado - abortando população de manutenções e falhas.")
             return False # Indicate failure if no equipment could be derived
 
-        # The following steps now depend on the equipment_map generated above
+        # Etapa 3: Popular manutenções
         await populate_maintenances(equipment_map)
         
-        # COMENTADO/INIBIDO: Chamada para popular falhas
+        # Etapa 4: Popular falhas (inibida)
         await populate_failures(equipment_map) 
+
+        # NOVA ETAPA: Vincular PMM_2 a equipamentos
+        await link_pmm2_to_equipments(equipment_map)
+
+        # NOVA ETAPA: Vincular PMM_2 a Localidades SAP
+        await link_pmm2_to_sap_locations()
         
         success = await verify_population()
         

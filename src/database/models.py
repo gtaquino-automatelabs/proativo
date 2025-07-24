@@ -56,10 +56,7 @@ class Equipment(Base):
         nullable=False,
         comment="Tipo do equipamento (ex: Transformador, Disjuntor, etc.)"
     )
-    category: Mapped[Optional[str]] = mapped_column(
-        String(50),
-        comment="Categoria do equipamento"
-    )
+    
     criticality: Mapped[str] = mapped_column(
         String(20), 
         nullable=False, 
@@ -935,7 +932,7 @@ class UploadStatus(Base):
 
 
 class PMM_2(Base):
-    """Modelo para Planos de Manutenção Maestro (PMM_2) - dados importados do SAP."""
+    """Modelo para Planos Mínimo de Manutenção (PMM_2) - dados importados do SAP."""
     
     __tablename__ = "pmm_2"
     

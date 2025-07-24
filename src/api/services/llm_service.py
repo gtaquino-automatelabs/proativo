@@ -20,6 +20,7 @@ from google.api_core import exceptions as google_exceptions
 from ..config import get_settings
 from src.utils.error_handlers import LLMServiceError as LLMError, ValidationError
 from src.utils.logger import get_logger
+from .cache_service import CacheService, CacheStrategy
 # Fallback e cache services serão importados dinamicamente quando disponíveis
 
 # Configurar logger
@@ -80,7 +81,7 @@ class LLMService:
             logger.warning("FallbackService não disponível")
         
         try:
-            from .cache_service import CacheService
+            #from .cache_service import CacheService
             self.cache_service = CacheService()
             logger.info("CacheService inicializado")
         except ImportError:
@@ -445,14 +446,14 @@ Responda diretamente baseado nas informações disponíveis."""
         # Garantir que está entre 0 e 1
         return max(0.0, min(1.0, score))
     
-    async def generate_response(
+    async def generate_response(        
         self,
         user_query: str,
         sql_query: Optional[str] = None,
         query_results: Optional[List[Dict[str, Any]]] = None,
         context: Optional[Dict[str, Any]] = None,
         session_id: Optional[str] = None,
-        cache_strategy: str = "normalized_match"
+        cache_strategy: Union[str, CacheStrategy] = "normalized_match" # Permite str ou Enum
     ) -> Dict[str, Any]:
         """
         Gera resposta usando Google Gemini com cache inteligente e fallback automático.
@@ -498,6 +499,16 @@ Responda diretamente baseado nas informações disponíveis."""
             if query_results is None:
                 query_results = []
             
+            # Converter cache_strategy para o tipo Enum se for string
+            if isinstance(cache_strategy, str):
+                try:
+                    cache_strategy_enum = CacheStrategy(cache_strategy)
+                except ValueError:
+                    logger.warning(f"Estratégia de cache '{cache_strategy}' inválida. Usando NORMALIZED_MATCH.")
+                    cache_strategy_enum = CacheStrategy.NORMALIZED_MATCH
+            else:
+                cache_strategy_enum = cache_strategy # Já é um Enum
+                
             # Tentar buscar no cache primeiro (se disponível)
             cached_response = None
             if self.cache_service:

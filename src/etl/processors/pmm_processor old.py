@@ -1,10 +1,17 @@
+"""
+Processador para arquivos PMM_2 (Plano de Manutenção Maestro) do SAP.
+
+Responsável por ler, validar e transformar dados de planos de manutenção
+do SAP a partir de arquivos CSV, preparando-os para inserção no banco de dados.
+"""
+
 import logging
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, date
 from pathlib import Path
 from decimal import Decimal
-import re # Importar o módulo re
+import re
 
 from ..exceptions import DataProcessingError, ValidationError
 from ...utils.validators import DataValidator
@@ -233,7 +240,6 @@ class PMM_2Processor:
                 r'(TC-[A-Z0-9_]+)',  # Transformadores de corrente
                 r'(PR-[A-Z0-9_]+)',  # Para-raios
                 r'(GM-[A-Z0-9_]+)',  # Geradores
-                r'([A-Z]{2}-\d+)', # General two-letter prefix followed by numbers (e.g., SE-123)
             ]
             
             for pattern in patterns:
@@ -244,14 +250,8 @@ class PMM_2Processor:
             # Se não encontrou padrão específico, tenta pegar a última parte
             parts = installation_location.split('-')
             if len(parts) >= 2:
-                # Pega os dois últimos componentes (e.g., FE01-CH-301F7T -> CH-301F7T)
-                # This might be too broad and needs refinement based on actual data
-                last_part = parts[-1]
-                if re.match(r'^[A-Z]{2}-\d+[A-Z0-9_]*$', last_part): # Check if it looks like an equipment code
-                    return last_part
-                if len(parts) >= 3 and re.match(r'^[A-Z]{2}-\d+[A-Z0-9_]*$', parts[-2] + '-' + parts[-1]):
-                    return parts[-2] + '-' + parts[-1]
-
+                # Pega os dois últimos componentes
+                return '-'.join(parts[-2:])
             
             return None
             
@@ -334,6 +334,16 @@ class PMM_2Processor:
             df = df[df['installation_location'].str.strip() != '']
             df['installation_location'] = df['installation_location'].str.strip()
         
+        # Remove duplicatas baseado na chave de negócio
+        #duplicate_columns = ['maintenance_plan_code', 'installation_location']
+        #available_columns = [col for col in duplicate_columns if col in df.columns]
+        #if available_columns:
+        #    df = df.drop_duplicates(subset=available_columns, keep='first')
+        
+        #removed_count = initial_count - len(df)
+        #if removed_count > 0:
+        #    logger.info(f"Removidas {removed_count} linhas inválidas/duplicadas do PMM_2")
+        
         logger.info(f"Dados PMM_2 limpos: {len(df)} linhas restantes")
         return df
     
@@ -354,54 +364,21 @@ class PMM_2Processor:
             
             # Padroniza nomes das colunas
             df = self.standardize_column_names(df)
-
-            # Extrai código do equipamento da localização (original behavior)
+            
+            # Extrai código do equipamento da localização
             if 'installation_location' in df.columns:
                 df['equipment_code'] = df['installation_location'].apply(self.extract_equipment_code)
-
-            # NOVO: Lógica para extrair Localidade e Equipamento de maintenance_item_text
-            if 'maintenance_item_text' in df.columns:
-                # Regex para capturar (ABREVIACAO) e CODIGO_EQUIPAMENTO no final do texto
-                # Ex: "Teste operativo (BDP) CH-301F7T"
-                # Group 1: ABREVIACAO (BDP)
-                # Group 2: CODIGO_EQUIPAMENTO (CH-301F7T)
-                # Regex patterns for equipment codes:
-                # TR-001, DJ-001, SC-001, PR-001 (from equipment.csv)
-                # CH-301F7T (from initial example)
-                # Combining: ([A-Z]{2,4}-?[A-Z0-9_]+) should cover most
-                regex_pattern = r'\s*\(([^)]+)\)\s*([A-Z]{2,4}-?[A-Z0-9_]+)\s*$'
-
-                def extract_and_clean_item_text(row_text):
-                    if pd.isna(row_text) or not isinstance(row_text, str):
-                        return row_text, None, None # original_text, extracted_abbreviation, extracted_equipment_code
-                    
-                    match = re.search(regex_pattern, row_text)
-                    if match:
-                        original_text_cleaned = re.sub(regex_pattern, '', row_text).strip()
-                        abbreviation = match.group(1).strip()
-                        equipment_code = match.group(2).strip()
-                        return original_text_cleaned, abbreviation, equipment_code
-                    return row_text, None, None
-
-                # Aplica a função e cria novas colunas temporárias
-                df[['maintenance_item_text_cleaned', 'extracted_abbreviation_from_text', 'extracted_equipment_code_from_text']] = df['maintenance_item_text'].apply(lambda x: pd.Series(extract_and_clean_item_text(x)))
-                
-                # Atualiza a coluna original `maintenance_item_text` com a versão limpa
-                # A coluna no banco não será 'maintenance_item_text_cleaned' e sim 'maintenance_item_text'
-                # então renomeamos de volta para o nome original após a limpeza
-                df['maintenance_item_text'] = df['maintenance_item_text_cleaned']
-                df.drop(columns=['maintenance_item_text_cleaned'], inplace=True)
-
+            
             # Converte datas
             date_columns = ['planned_date', 'scheduled_start_date', 'completion_date']
             for col in date_columns:
                 if col in df.columns:
                     df[col] = df[col].apply(self.convert_sap_date)
             
-            # Limpa dados (aplica regras de limpeza gerais)
+            # Limpa dados
             df = self.clean_pmm_2_data(df)
             
-            # Converte para lista de dicionários
+                         # Converte para lista de dicionários
             pmm_2_records = []
             for _, row in df.iterrows():
                 record: Dict[str, Any] = {
@@ -421,15 +398,11 @@ class PMM_2Processor:
                             record[col] = value
                 
                 # Metadados
-                # Inclui as informações extraídas do item_text nos metadados
                 record['metadata_json'] = {
                     'source_file': file_path.name,
                     'processed_at': datetime.now().isoformat(),
                     'original_location': row.get('installation_location', ''),
-                    'extracted_equipment_code': row.get('equipment_code', ''), # equipment_code from installation_location
-                    'original_maintenance_item_text': row.get('maintenance_item_text', ''), # Original text before cleaning
-                    'extracted_abbreviation_from_item_text': row.get('extracted_abbreviation_from_text', None),
-                    'extracted_equipment_code_from_item_text': row.get('extracted_equipment_code_from_text', None)
+                    'extracted_equipment_code': row.get('equipment_code', '')
                 }
                 
                 pmm_2_records.append(record)
@@ -546,4 +519,4 @@ class PMM_2Processor:
             'unique_equipment_codes': len(equipment_codes),
             'date_range': date_range,
             'sample_record': records[0] if records else None
-        }
+        } 
