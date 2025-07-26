@@ -48,7 +48,8 @@ COPY scripts/setup/populate_database.py ./scripts/setup/populate_database.py
 COPY scripts/setup/check_database.py ./scripts/setup/check_database.py
 
 # Configurar permissões para scripts de inicialização
-RUN chmod +x ./entrypoint.sh ./wait-for-postgres.sh
+RUN sed -i 's/\r$//' ./entrypoint.sh ./wait-for-postgres.sh && \
+    chmod +x ./entrypoint.sh ./wait-for-postgres.sh
 
 # Mudar ownership para usuário não-root
 RUN chown -R proativo:proativo /app

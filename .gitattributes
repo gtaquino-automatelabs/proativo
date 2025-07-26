@@ -1,0 +1,33 @@
+# Git attributes para padronizar line endings
+# Garante que scripts shell sempre usem LF (Unix) independente do OS
+
+# Scripts shell - CRÍTICO para containers Docker
+*.sh text eol=lf
+
+# Arquivos Python
+*.py text eol=lf
+
+# Arquivos de configuração Docker
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+docker-compose.yaml text eol=lf
+
+# Arquivos de configuração
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+.env text eol=lf
+.env.* text eol=lf
+
+# Arquivos de documentação
+*.md text eol=lf
+*.txt text eol=lf
+
+# Arquivos de dados - manter como estão
+*.csv binary
+*.xlsx binary
+*.xls binary
+*.xml text eol=lf 
