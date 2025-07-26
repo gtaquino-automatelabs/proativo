@@ -140,22 +140,20 @@ class QueryProcessor:
             # =============================================================================
             equipment_patterns = [
                 # Tipos de equipamentos
-                {"label": "EQUIPMENT_TYPE", "pattern": "transformador", "id": "TR"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "transformadores", "id": "TR"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "disjuntor", "id": "DJ"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "disjuntores", "id": "DJ"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "seccionadora", "id": "SC"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "seccionadoras", "id": "SC"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "motor", "id": "MT"}, # Assuming MT for motor
-                {"label": "EQUIPMENT_TYPE", "pattern": "motores", "id": "MT"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "gerador", "id": "GM"}, # Assuming GM for generator
-                {"label": "EQUIPMENT_TYPE", "pattern": "geradores", "id": "GM"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "para-raios", "id": "PR"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "pararaios", "id": "PR"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "banco de capacitores", "id": "BC"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "bancos de baterias", "id": "BB"},
-                {"label": "EQUIPMENT_TYPE", "pattern": "autotransformadores", "id": "AT"},
-                
+                {"label": "EQUIPMENT_TYPE", "pattern": "transformador", "id": "Transformador"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "transformadores", "id": "Transformador"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "disjuntor", "id": "Disjuntor"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "disjuntores", "id": "Disjuntor"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "seccionadora", "id": "Seccionadora"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "seccionadoras", "id": "Seccionadora"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "motor", "id": "Motor"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "motores", "id": "Motor"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "gerador", "id": "Gerador"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "geradores", "id": "Gerador"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "equipamento", "id": "equipment"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "equipamentos", "id": "equipment"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "para-raios", "id": "Para-raios"},
+                {"label": "EQUIPMENT_TYPE", "pattern": "pararaios", "id": "Para-raios"},
                 
                 # IDs específicos com padrões (ex: TR-001, DJ-002, SC-003, PR-001)
                 {"label": "EQUIPMENT_ID", "pattern": [
@@ -197,19 +195,20 @@ class QueryProcessor:
                 {"label": "WORK_CENTER", "pattern": "centro de trabalho"},
                 {"label": "PLAN_CODE", "pattern": "plano de manutenção"},
                 {"label": "PLAN_CODE", "pattern": "planos de manutenção"},
-                
+                {"label": "PLAN_CODE", "pattern": "PMM_2"},
+                {"label": "PLAN_CODE", "pattern": "PMM2"},
             ]
 
             sap_location_patterns = [
                 {"label": "SAP_LOCATION_CODE", "pattern": [{"TEXT": {"REGEX": r"^[A-Z]{2}-S-\d+$"}}]}, # Ex: MT-S-72183
                 {"label": "SAP_LOCATION_DENOMINATION", "pattern": "Baguari_230 KV"}, # Specific example from data
-                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "Emborcação", "id": "UEM"},
-                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "Bom Despacho", "id": "BDP"},
-                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "Jaguara", "id": "UJG"},
-                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "Nova Ponte", "id": "UNP"},
-                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "São Gotardo", "id": "SGT"},
-                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "São Simão", "id": "USS"},
-                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "Volta Grande", "id": "UVG"},
+                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "UEM", "id": "UEM"},
+                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "BDP", "id": "BDP"},
+                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "UJG", "id": "UJG"},
+                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "UNP", "id": "UNP"},
+                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "SGT", "id": "SGT"},
+                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "USS", "id": "USS"},
+                {"label": "SAP_LOCATION_ABBREVIATION", "pattern": "UVG", "id": "UVG"},
                 # Adicionar mais abreviações SAP conforme necessário
                 {"label": "REGION", "pattern": [{"TEXT": {"REGEX": r"^[A-Z]{2}$"}}]}, # Ex: MT, MG
                 {"label": "SAP_LOCATION_DENOMINATION", "pattern": "subestação"},
@@ -271,35 +270,12 @@ class QueryProcessor:
             
             if self.matcher:
                 try:
-                    # Último/Mais recente + Padrões de Execução/Conclusão
+                    # Último/Mais recente
                     last_patterns = [
-                        # Padrões existentes
                         [{"LOWER": {"IN": ["último", "última", "mais", "recente"]}},
                          {"LOWER": {"IN": ["equipamento", "manutenção", "reparo", "inspeção", "plano"]}}],
-                        [{"LOWER": "quando"}, {"LOWER": {"IN": ["a", "o"]}}, 
+                        [{"LOWER": "quando"}, {"LOWER": "foi"}, {"LOWER": {"IN": ["a", "o"]}}, 
                          {"LOWER": {"IN": ["última", "último"]}}],
-                        
-                        # Novos padrões para manutenções executadas/concluídas
-                        [{"LOWER": "foi"}, {"LOWER": {"IN": ["executado", "executada", "realizado", "realizada", "finalizado", "finalizada"]}}],
-                        [{"LOWER": "data"}, {"LOWER": "de"}, {"LOWER": {"IN": ["execução", "conclusão", "finalização"]}}],
-                        [{"LOWER": "manutenção"}, {"LOWER": {"IN": ["concluída", "executada", "realizada", "finalizada"]}}],
-                        [{"LOWER": {"IN": ["execução", "conclusão", "finalização"]}}, {"LOWER": "da"}, {"LOWER": "manutenção"}],
-                        [{"LOWER": "quando"}, {"LOWER": "foi"}, {"LOWER": {"IN": ["executado", "executada", "concluído", "concluída"]}}],
-                        [{"LOWER": {"IN": ["executado", "executada", "concluído", "concluída", "realizado", "realizada"]}}],
-                        [{"LOWER": "histórico"}, {"LOWER": "de"}, {"LOWER": {"IN": ["execução", "conclusão"]}}],
-                        [{"LOWER": {"IN": ["última", "último"]}}, {"LOWER": {"IN": ["execução", "conclusão", "finalização"]}}],
-                        # Padrões para detecção de última manutenção / manutenção passada
-                        [{"LOWER": "última"}, {"LOWER": {"IN": ["manutenção", "revisão", "inspeção", "intervenção"]}}],
-                        [{"LOWER": "último"}, {"LOWER": {"IN": ["reparo", "conserto", "serviço"]}}],
-                        [{"LOWER": {"IN": ["quando", "que", "qual"]}}, {"LOWER": "foi"}, {"LOWER": "a"}, {"LOWER": "última"}],
-                        [{"LOWER": "histórico"}, {"LOWER": "de"}, {"LOWER": {"IN": ["execução", "conclusão"]}}],
-                        [{"LOWER": {"IN": ["última", "último"]}}, {"LOWER": {"IN": ["execução", "conclusão", "finalização"]}}],
-                        # NOVOS PADRÕES PARA EXECUÇÃO PASSADA
-                        [{"LOWER": {"IN": ["quando", "que"]}}, {"LOWER": "foi"}, {"LOWER": {"IN": ["executado", "executada", "realizado", "realizada"]}}],
-                        [{"LOWER": {"IN": ["foi", "foram"]}}, {"LOWER": {"IN": ["executado", "executada", "realizado", "realizada", "feito", "feita"]}}],
-                        [{"LOWER": {"IN": ["aconteceu", "ocorreu"]}}, {"LOWER": {"IN": ["o", "a"]}}, {"LOWER": {"IN": ["teste", "manutenção", "inspeção"]}}],
-                        [{"LOWER": {"IN": ["já", "já"]}}, {"LOWER": {"IN": ["foi", "foram"]}}, {"LOWER": {"IN": ["executado", "executada", "realizado", "realizada"]}}],
-                        [{"LOWER": {"IN": ["houve", "teve"]}}, {"LOWER": {"IN": ["execução", "realização"]}}]
                     ]
                     
                     # Contagem
@@ -327,10 +303,6 @@ class QueryProcessor:
                         [{"LOWER": "data"}, {"LOWER": "planejada"}], # Added to help identify planned date queries
                         [{"LOWER": "próximo"}, {"LOWER": "teste"}],
                         [{"LOWER": "próxima"}, {"LOWER": "manutenção"}],
-                        [{"LOWER": "quando"}, {"LOWER": "foi"}, {"LOWER": {"IN": ["executado", "executada", "concluído", "concluída"]}}],
-                        [{"LOWER": {"IN": ["executado", "executada", "concluído", "concluída", "realizado", "realizada"]}}],
-                        [{"LOWER": "histórico"}, {"LOWER": "de"}, {"LOWER": {"IN": ["execução", "conclusão"]}}],
-                        [{"LOWER": {"IN": ["última", "último"]}}, {"LOWER": {"IN": ["execução", "conclusão", "finalização"]}}],
                     ]
 
                     # SAP Location specific
@@ -520,21 +492,19 @@ class QueryProcessor:
             
         if entity_type == QueryEntity.EQUIPMENT_TYPE:
             type_mapping = {
-                "transformador": "TR",
-                "transformadores": "TR",
-                "disjuntor": "DJ",
-                "disjuntores": "DJ",
-                "seccionadora": "SC",
-                "seccionadoras": "SC",
-                "motor": "MT", # Assuming MT for motor, needs confirmation from actual data
-                "motores": "MT",
-                "gerador": "GM", # Assuming GM for generator, needs confirmation from actual data
-                "geradores": "GM",
-                "para-raios": "PR",
-                "pararaios": "PR",
-                "banco de capacitores": "BC",
-                "bancos de baterias": "BB",
-                "autotransformadores": "AT",
+                "transformador": "Transformador",
+                "transformadores": "Transformador",
+                "disjuntor": "Disjuntor",
+                "disjuntores": "Disjuntor",
+                "seccionadora": "Seccionadora",
+                "seccionadoras": "Seccionadora",
+                "motor": "Motor",
+                "motores": "Motor",
+                "gerador": "Gerador",
+                "geradores": "Gerador",
+                "para-raios": "Para-raios",
+                "pararaios": "Para-raios",
+                # Removido "equipamento": "equipment" para evitar filtros incorretos
             }
             return type_mapping.get(text.lower(), text.strip()) # Use original case for database if no specific mapping
         
@@ -627,12 +597,10 @@ class QueryProcessor:
                 end_char=match.end()
             ))
         
-        # Detectar datas (formato brasileiro, ISO e variações)
+        # Detectar datas (formato brasileiro e ISO)
         date_patterns_regex = [
             r'\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})\b',  # DD/MM/YYYY or DD-MM-YYYY
-            r'\b(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})\b',    # YYYY-MM-DD or YYYY/MM/DD
-            r'\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b',        # DD.MM.YYYY
-            r'\b(\d{4})\.(\d{1,2})\.(\d{1,2})\b'           # YYYY.MM.DD
+            r'\b(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})\b'    # YYYY-MM-DD
         ]
 
         for date_pattern in date_patterns_regex:
@@ -640,52 +608,26 @@ class QueryProcessor:
                 try:
                     parts = [int(p) for p in match.groups()]
                     if len(parts) == 3:
-                        # Determinar formato da data baseado no primeiro número
-                        if parts[0] > 31:  # YYYY-MM-DD format
+                        if parts[0] > 31: # Assume YYYY-MM-DD if first part is a large number (year)
                             year, month, day = parts
-                        else:  # DD-MM-YYYY format
+                        else: # Assume DD-MM-YYYY
                             day, month, year = parts
                         
-                        # Normalizar ano de 2 dígitos
                         if len(str(year)) == 2:
-                            year = 2000 + year if year < 50 else 1900 + year
+                            year = 2000 + year if year < 50 else 1900 + year # Heuristic for 2-digit year
                         
-                        # Validar valores de data
-                        if 1 <= month <= 12 and 1 <= day <= 31 and 1900 <= year <= 2100:
-                            date_obj = datetime(year, month, day)
-                            entities.append(ExtractedEntity(
-                                type=QueryEntity.DATE_RANGE,
-                                value=match.group(0),
-                                normalized_value=date_obj,
-                                confidence=0.9,
-                                start_char=match.start(),
-                                end_char=match.end()
-                            ))
-                except (ValueError, TypeError):
-                    # Data inválida, ignorar
-                    continue
-        
-        # Detectar padrões de tempo relativos adicionais
-        relative_time_patterns = [
-            (r'\b(ontem|hoje|amanhã)\b', "day_relative"),
-            (r'\b(esta semana|semana passada|próxima semana)\b', "week_relative"),
-            (r'\b(este mês|mês passado|próximo mês)\b', "month_relative"),
-            (r'\b(este ano|ano passado|próximo ano)\b', "year_relative"),
-            (r'\b(há \d+ dias?|em \d+ dias?)\b', "days_offset"),
-            (r'\b(há \d+ semanas?|em \d+ semanas?)\b', "weeks_offset"),
-            (r'\b(há \d+ meses?|em \d+ meses?)\b', "months_offset")
-        ]
-        
-        for pattern, time_type in relative_time_patterns:
-            for match in re.finditer(pattern, query, re.IGNORECASE):
-                entities.append(ExtractedEntity(
-                    type=QueryEntity.TIME_PERIOD,
-                    value=match.group(0),
-                    normalized_value=time_type,
-                    confidence=0.8,
-                    start_char=match.start(),
-                    end_char=match.end()
-                ))
+                        date_obj = datetime(year, month, day)
+                        entities.append(ExtractedEntity(
+                            type=QueryEntity.DATE_RANGE,
+                            value=match.group(0),
+                            normalized_value=date_obj,
+                            confidence=0.9,
+                            start_char=match.start(),
+                            end_char=match.end()
+                        ))
+                except ValueError:
+                    # Invalid date, ignore
+                    pass
         
         return entities
     
@@ -696,16 +638,13 @@ class QueryProcessor:
         
         # Detectar tipos de equipamentos específicos (não incluir "equipamento" genérico)
         equipment_patterns = {
-            r'\btransformador[es]?\b': 'TR',
-            r'\bdisjuntor[es]?\b': 'DJ', 
-            r'\bseccionadora[s]?\b': 'SC',
-            r'\bmotor[es]?\b': 'MT',
-            r'\bgerador[es]?\b': 'GM',
-            r'\bpara-raios\b': 'PR',
-            r'\bbanco de capacitores\b': 'BC',
-            r'\bbancos de baterias\b': 'BB',
-            r'\bautotransformadores\b': 'AT',
-            
+            r'\btransformador[es]?\b': 'Transformador',
+            r'\bdisjuntor[es]?\b': 'Disjuntor', 
+            r'\bseccionadora[s]?\b': 'Seccionadora',
+            r'\bmotor[es]?\b': 'Motor',
+            r'\bgerador[es]?\b': 'Gerador',
+            r'\bpara-raios\b': 'Para-raios',
+            r'\bpararaios\b': 'Para-raios',
         }
         
         for pattern, eq_type in equipment_patterns.items():
@@ -849,14 +788,8 @@ class QueryProcessor:
                         if has_location: return QueryIntent.SAP_LOCATION_SEARCH # Count locations
                         return QueryIntent.COUNT_EQUIPMENT  # Default count
                     
-                    elif label == "EQUIPMENT_SEARCH":
-                        return QueryIntent.EQUIPMENT_SEARCH
-                    elif label == "FAILURE_QUERY":
-                        return QueryIntent.FAILURE_ANALYSIS
                     elif label == "STATUS_QUERY":
                         return QueryIntent.EQUIPMENT_STATUS
-                    elif label == "MAINTENANCE_HISTORY":
-                        return QueryIntent.MAINTENANCE_HISTORY
                     
                     # NOVAS INTENÇÕES DE PMM2 E UPCOMING
                     elif label == "PMM2_PLAN_QUERY":
@@ -877,107 +810,72 @@ class QueryProcessor:
         # Análise baseada em palavras-chave (fallback sempre disponível)
         text = doc.text.lower()
         
-        # --- ANÁLISE DE CONTEXTO TEMPORAL APRIMORADA ---
-        
-        # 1. Detectar verbos no passado e indicadores temporais
-        past_verbs = ["foi", "foram", "executado", "executada", "realizado", "realizada", 
-                      "feito", "feita", "aconteceu", "ocorreu", "completado", "completada"]
-        future_indicators = ["será", "vai ser", "planejado", "agendado", "programado", 
-                           "próximo", "próxima", "futuro", "futura"]
-        
-        has_past_verbs = any(verb in text for verb in past_verbs)
-        has_future_indicators = any(indicator in text for indicator in future_indicators)
-        
-        # 2. Detectar datas específicas e compará-las com hoje
-        today = datetime.now()
-        specific_date_entities = [e for e in entities if e.type == QueryEntity.DATE_RANGE]
-        has_past_date = False
-        has_future_date = False
-        
-        for date_entity in specific_date_entities:
-            if isinstance(date_entity.normalized_value, datetime):
-                if date_entity.normalized_value < today:
-                    has_past_date = True
-                else:
-                    has_future_date = True
-        
-        # --- PRIORIZAÇÃO DAS INTENÇÕES COM CONTEXTO TEMPORAL ---
+        # --- PRIORIZAÇÃO DAS INTENÇÕES ---
 
-        # 1. CONSULTAS SOBRE EXECUÇÃO PASSADA (prioridade alta)
-        # Se tem verbos no passado OU data específica no passado
-        if (has_past_verbs or has_past_date) and not has_future_indicators:
-            if any(word in text for word in ["manutenção", "teste", "inspeção", "reparo", "plano"]):
-                return QueryIntent.LAST_MAINTENANCE
-                
-        # 2. CONSULTAS SOBRE PLANEJAMENTO FUTURO
-        # Se tem indicadores de futuro OU palavra "planejada" OU "próximo"
-        if (has_future_indicators or 
-            any(word in text for word in ["data planejada", "próximo teste", "próxima data", "agenda", "agendado"]) or
-            has_future_date):
-            # Garante que é sobre equipamento/manutenção
-            if (any(e.type in [QueryEntity.EQUIPMENT_TYPE, QueryEntity.EQUIPMENT_ID, QueryEntity.MAINTENANCE_TYPE] for e in entities) or 
-                any(word in text for word in ["disjuntor", "transformador", "equipamento", "manutenção", "plano"])):
+        # 1. Manutenção Programada / Próxima Manutenção (Mais específica para "data planejada" e "próximo teste")
+        if any(word in text for word in ["data planejada", "próximo teste", "próxima data", "teste operativo", "agenda", "agendado"]):
+            # Garante que é sobre equipamento/manutenção e não uma data qualquer
+            if any(e.type in [QueryEntity.EQUIPMENT_TYPE, QueryEntity.EQUIPMENT_ID, QueryEntity.MAINTENANCE_TYPE] for e in entities) or \
+               any(word in text for word in ["disjuntor", "transformador", "equipamento", "manutenção", "plano"]):
                 return QueryIntent.UPCOMING_MAINTENANCE
 
-        # 3. CONSULTAS AMBÍGUAS - usar contexto adicional
-        # Se menciona "quando" sem indicadores claros de passado/futuro
-        if "quando" in text:
-            # Se tem data específica no passado, assume que é sobre execução
-            if has_past_date:
-                return QueryIntent.LAST_MAINTENANCE
-            # Se tem data no futuro ou indicadores de planejamento
-            elif has_future_date or any(word in text for word in ["planejado", "programado", "agendado"]):
-                return QueryIntent.UPCOMING_MAINTENANCE
-            # Default para histórico se ambíguo
-            else:
-                return QueryIntent.MAINTENANCE_HISTORY
-
-        # 4. Última Manutenção / Histórico (mantém lógica existente)
+        # 2. Última Manutenção / Histórico (já existente e importante)
         if any(word in text for word in ["último", "última", "recente", "mais recente"]):
             if any(word in text for word in ["manutenção", "reparo", "inspeção", "plano"]):
                 return QueryIntent.LAST_MAINTENANCE
             else:
-                return QueryIntent.MAINTENANCE_HISTORY
+                return QueryIntent.MAINTENANCE_HISTORY # Generaliza para histórico se não for "última" específica
 
-        # 5. Contagem (mantém lógica existente)
+        # 3. Contagem
         if any(word in text for word in ["quantos", "quantas", "número", "total"]):
             if any(word in text for word in ["equipamento", "equipamentos"]):
                 return QueryIntent.COUNT_EQUIPMENT
             elif any(word in text for word in ["manutenção", "manutenções", "reparo", "reparos"]):
                 return QueryIntent.COUNT_MAINTENANCE
             elif any(word in text for word in ["plano", "planos", "pmm_2", "pmm2"]):
-                return QueryIntent.PMM2_PLAN_SEARCH
+                return QueryIntent.PMM2_PLAN_SEARCH # Count plans
             elif any(word in text for word in ["localidade", "localidades", "subestação", "subestações"]):
-                return QueryIntent.SAP_LOCATION_SEARCH
-            return QueryIntent.GENERAL_QUERY
+                return QueryIntent.SAP_LOCATION_SEARCH # Count locations
+            return QueryIntent.GENERAL_QUERY # Default count if ambiguous
 
-        # 6. Status de equipamento
-        if any(word in text for word in ["status", "estado", "situação", "condição"]):
-            return QueryIntent.EQUIPMENT_STATUS
+        # 4. Status/Estado de Equipamento
+        if any(word in text for word in ["status", "estado", "situação", "como está"]):
+            if any(e.type == QueryEntity.EQUIPMENT_TYPE or e.type == QueryEntity.EQUIPMENT_ID for e in entities) or \
+               any(word in text for word in ["equipamento", "disjuntor", "transformador"]):
+                return QueryIntent.EQUIPMENT_STATUS
 
-        # 7. Falhas e análises
-        if any(word in text for word in ["falha", "problema", "defeito", "avaria"]):
+        # 5. Análise de Falhas
+        if any(word in text for word in ["falha", "problema", "erro", "defeito", "incidente"]):
             return QueryIntent.FAILURE_ANALYSIS
 
-        # 8. Busca de equipamentos
-        if any(word in text for word in ["buscar", "encontrar", "localizar"]) and \
-           any(word in text for word in ["equipamento", "transformador", "disjuntor"]):
-            return QueryIntent.EQUIPMENT_SEARCH
-
-        # 9. PMM2 e planos (mantém lógica existente)
-        if any(word in text for word in ["plano", "pmm", "pmm_2", "pmm2"]):
+        # 6. Histórico de Manutenção (geral, se não for "última" específica)
+        if any(word in text for word in ["histórico", "history", "passado"]):
+            return QueryIntent.MAINTENANCE_HISTORY
+        
+        # 7. Busca por Planos PMM_2 (se menciona PMM_2 ou plano de manutenção)
+        if any(word in text for word in ["plano", "planos", "pmm_2", "pmm2", "ordem de manutenção"]):
             return QueryIntent.PMM2_PLAN_SEARCH
 
-        # 10. Localidades SAP
-        if any(word in text for word in ["localidade", "subestação", "região"]) and \
-           any(e.type in [QueryEntity.SAP_LOCATION_CODE, QueryEntity.SAP_LOCATION_DENOMINATION] for e in entities):
+        # 8. Equipamento por Localidade (se menciona "equipamento em localidade")
+        if (any(e.type == QueryEntity.EQUIPMENT_TYPE or e.type == QueryEntity.EQUIPMENT_ID for e in entities) or \
+            any(word in text for word in ["equipamento", "equipamentos"])) and \
+           (any(e.type in [QueryEntity.SAP_LOCATION_CODE, QueryEntity.SAP_LOCATION_DENOMINATION, QueryEntity.SAP_LOCATION_ABBREVIATION, QueryEntity.REGION] for e in entities) or \
+            any(word in text for word in ["localidade", "subestação", "região"])):
+            return QueryIntent.EQUIPMENT_BY_LOCATION
+        
+        # 9. Busca por Localidade SAP (DEVE SER MAIS BAIXA NA PRIORIDADE)
+        # Só aciona se a pergunta é principalmente sobre a localidade e não sobre algo MAIS ESPECÍFICO (como equipamentos dentro dela).
+        if any(e.type in [QueryEntity.SAP_LOCATION_CODE, QueryEntity.SAP_LOCATION_DENOMINATION, QueryEntity.SAP_LOCATION_ABBREVIATION, QueryEntity.REGION] for e in entities) or \
+           any(word in text for word in ["localidade", "subestacao", "planta", "sitio", "região"]):
             return QueryIntent.SAP_LOCATION_SEARCH
 
-        # 11. Equipamentos por localidade
-        if any(word in text for word in ["equipamentos em", "equipamentos na", "equipamentos da"]):
-            return QueryIntent.EQUIPMENT_BY_LOCATION
+        # 10. Busca por Equipamento (se menciona equipamento mas sem outra intenção clara)
+        if any(e.type == QueryEntity.EQUIPMENT_TYPE for e in entities) or \
+           any(e.type == QueryEntity.EQUIPMENT_ID for e in entities) or \
+           any(word in text for word in ["equipamento", "transformador", "disjuntor", "para-raios"]):
+            return QueryIntent.EQUIPMENT_SEARCH
 
-        # Default: consulta geral
+        # Default: Consulta Geral
         return QueryIntent.GENERAL_QUERY
     
     def _extract_temporal_context(self, doc, entities: List[ExtractedEntity]) -> Optional[Dict[str, Any]]:
@@ -1011,20 +909,20 @@ class QueryProcessor:
         
         parameters = {}
         
-        # Coletar filtros das entidades (removendo duplicatas com list(dict.fromkeys()) para preservar ordem)
-        equipment_types = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.EQUIPMENT_TYPE and e.normalized_value not in ["equipment", "equipamentos"]]))
-        equipment_ids = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.EQUIPMENT_ID]))
-        maintenance_types = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.MAINTENANCE_TYPE]))
+        # Coletar filtros das entidades
+        equipment_types = [e.normalized_value for e in entities if e.type == QueryEntity.EQUIPMENT_TYPE and e.normalized_value not in ["equipment", "equipamentos"]]
+        equipment_ids = [e.normalized_value for e in entities if e.type == QueryEntity.EQUIPMENT_ID]
+        maintenance_types = [e.normalized_value for e in entities if e.type == QueryEntity.MAINTENANCE_TYPE]
         
-        # New entities for PMM_2 and SAPLocation (removendo duplicatas)
-        plan_codes = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.PLAN_CODE]))
-        work_centers = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.WORK_CENTER]))
-        sap_location_codes = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.SAP_LOCATION_CODE]))
-        sap_location_denominations = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.SAP_LOCATION_DENOMINATION]))
-        sap_location_abbreviations = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.SAP_LOCATION_ABBREVIATION]))
-        regions = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.REGION]))
+        # New entities for PMM_2 and SAPLocation
+        plan_codes = [e.normalized_value for e in entities if e.type == QueryEntity.PLAN_CODE]
+        work_centers = [e.normalized_value for e in entities if e.type == QueryEntity.WORK_CENTER]
+        sap_location_codes = [e.normalized_value for e in entities if e.type == QueryEntity.SAP_LOCATION_CODE]
+        sap_location_denominations = [e.normalized_value for e in entities if e.type == QueryEntity.SAP_LOCATION_DENOMINATION]
+        sap_location_abbreviations = [e.normalized_value for e in entities if e.type == QueryEntity.SAP_LOCATION_ABBREVIATION]
+        regions = [e.normalized_value for e in entities if e.type == QueryEntity.REGION]
         
-        status_filter = list(dict.fromkeys([e.normalized_value for e in entities if e.type == QueryEntity.STATUS]))
+        status_filter = [e.normalized_value for e in entities if e.type == QueryEntity.STATUS]
         
         # Debug logging
         logger.info(f"SQL Generation Debug - Intent: {intent.value}")
@@ -1060,71 +958,39 @@ class QueryProcessor:
             """
             
 
-            # Filtrar por tipo de equipamento (Ex: disjuntor) - Corrigir com condições OR manuais
+            # Filtrar por tipo de equipamento (Ex: disjuntor)
             if equipment_types:
-                eq_conditions = []
-                for i, eq_type in enumerate(equipment_types):
-                    param_name = f"equipment_type_{i}"
-                    eq_conditions.append(f"e.equipment_type = :{param_name}")
-                    parameters[param_name] = eq_type
-                sql += f" AND ({' OR '.join(eq_conditions)})"
+                sql += " AND e.equipment_type = ANY(%(equipment_types)s)"
+                parameters['equipment_types'] = equipment_types
             
             # Filtrar por IDs de equipamento (Ex: 4k4)
             if equipment_ids:
-                # Para patterns ILIKE, construir condições OR manualmente ao invés de usar ANY()
-                id_conditions = []
-                for i, eid in enumerate(equipment_ids):
-                    pattern_param = f"equipment_id_pattern_{i}"
-                    id_conditions.append(f"(e.code ILIKE :{pattern_param} OR pmm.equipment_code ILIKE :{pattern_param} OR pmm.installation_location ILIKE :{pattern_param})")
-                    parameters[pattern_param] = f"%{eid}%"
-                
-                sql += f" AND ({' OR '.join(id_conditions)})"
+                # Assuming equipment_ids can be partial codes like "4k4"
+                # Combine original equipment IDs with potential matches in pmm.equipment_code or installation_location
+                id_like_patterns = [f"%{eid}%" for eid in equipment_ids]
+                sql += " AND (e.code ILIKE ANY(%(equipment_id_patterns)s) OR pmm.equipment_code ILIKE ANY(%(equipment_id_patterns)s) OR pmm.installation_location ILIKE ANY(%(equipment_id_patterns)s))"
+                parameters['equipment_id_patterns'] = id_like_patterns
 
             # Filtrar por tipo de manutenção (Ex: teste operativo)
             if maintenance_types:
-                 # Para patterns ILIKE, construir condições OR manualmente
-                 maint_conditions = []
-                 for i, mt in enumerate(maintenance_types):
-                     pattern_param = f"maintenance_type_pattern_{i}"
-                     maint_conditions.append(f"pmm.maintenance_item_text ILIKE :{pattern_param}")
-                     parameters[pattern_param] = f"%{mt}%"
-                 
-                 sql += f" AND ({' OR '.join(maint_conditions)})"
+                # Tentativa de mapear 'Operative Test' para maintenance_item_text
+                # Isso pode ser ajustado com um campo mais específico no PMM_2 se disponível
+                maintenance_type_patterns = [f"%{mt}%" for mt in maintenance_types]
+                sql += " AND pmm.maintenance_item_text ILIKE ANY(%(maintenance_type_patterns)s)"
+                parameters['maintenance_type_patterns'] = maintenance_type_patterns
 
-                         # Filtrar por localidade SAP (Ex: UEM) - Corrigir com condições OR manuais
+            # Filtrar por localidade SAP (Ex: UEM)
             if sap_location_abbreviations:
-                # Construir condições OR manualmente
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    sl_param = f"sap_abbr_sl_{i}"
-                    pattern_param = f"sap_abbr_pattern_{i}"
-                    abbr_conditions.append(f"(sl.abbreviation = :{sl_param} OR pmm.installation_location ILIKE :{pattern_param})")
-                    parameters[sl_param] = abbr
-                    parameters[pattern_param] = f"%{abbr}%"
-                
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
-                 
+                sql += " AND (sl.abbreviation = ANY(%(sap_abbreviations)s) OR pmm.installation_location ILIKE ANY(%(sap_abbreviation_patterns)s))"
+                parameters['sap_abbreviations'] = sap_location_abbreviations
+                parameters['sap_abbreviation_patterns'] = [f"%{abbr}%" for abbr in sap_location_abbreviations]
             elif sap_location_codes:
-                 # Construir condições OR manualmente
-                 code_conditions = []
-                 for i, code in enumerate(sap_location_codes):
-                     sl_param = f"sap_code_sl_{i}"
-                     pattern_param = f"sap_code_pattern_{i}"
-                     code_conditions.append(f"(sl.location_code = :{sl_param} OR pmm.installation_location ILIKE :{pattern_param})")
-                     parameters[sl_param] = code
-                     parameters[pattern_param] = f"%{code}%"
-                 
-                 sql += f" AND ({' OR '.join(code_conditions)})"
-                
+                sql += " AND (sl.location_code = ANY(%(sap_location_codes)s) OR pmm.installation_location ILIKE ANY(%(sap_location_code_patterns)s))"
+                parameters['sap_location_codes'] = sap_location_codes
+                parameters['sap_location_code_patterns'] = [f"%{code}%" for code in sap_location_codes]
             elif sap_location_denominations:
-                # Construir condições OR manualmente para patterns ILIKE
-                denom_conditions = []
-                for i, d in enumerate(sap_location_denominations):
-                    pattern_param = f"sap_denom_pattern_{i}"
-                    denom_conditions.append(f"(sl.denomination ILIKE :{pattern_param} OR pmm.installation_location ILIKE :{pattern_param})")
-                    parameters[pattern_param] = f"%{d}%"
-                
-                sql += f" AND ({' OR '.join(denom_conditions)})"
+                sql += " AND (sl.denomination ILIKE ANY(%(sap_denominations)s) OR pmm.installation_location ILIKE ANY(%(sap_denominations)s))"
+                parameters['sap_denominations'] = [f"%{d}%" for d in sap_location_denominations]
 
             # Filtros temporais adicionais, se houver
             if temporal_context and temporal_context['type'] == 'period':
@@ -1133,7 +999,7 @@ class QueryProcessor:
                     # Garantir que 'start' e 'end' são datetime objects antes de passar para parâmetros
                     start_dt = period['start'] if isinstance(period['start'], datetime) else datetime.combine(period['start'], datetime.min.time())
                     end_dt = period['end'] if isinstance(period['end'], datetime) else datetime.combine(period['end'], datetime.max.time())
-                    sql += " AND pmm.planned_date BETWEEN :start_date AND :end_date"
+                    sql += " AND pmm.planned_date BETWEEN %(start_date)s AND %(end_date)s"
                     parameters['start_date'] = period['start']
                     parameters['end_date'] = period['end']
 
@@ -1141,88 +1007,43 @@ class QueryProcessor:
 
         elif intent == QueryIntent.LAST_MAINTENANCE:
             sql = """
-            SELECT e.code, e.equipment_type, e.criticality, sl.denomination as location_name, sl.location_code,                   
-                   pmm.maintenance_plan_code, pmm.equipment_code, pmm.maintenance_item_text,
-                   pmm.completion_date, pmm.planned_date, pmm.status, pmm.work_center
-            FROM equipments e            
-            LEFT JOIN pmm_2 pmm ON e.id = pmm.equipment_id -- Link to PMM_2 
+            SELECT e.name, e.equipment_type, e.criticality, sl.denomination as location_name, sl.location_code,
+                   COALESCE(m.completion_date, m.start_date, m.scheduled_date) as maintenance_date,
+                   m.maintenance_type, m.status, m.title, m.actual_cost,
+                   pmm.maintenance_plan_code, pmm.work_center, pmm.maintenance_item_text
+            FROM equipments e
+            LEFT JOIN maintenances m ON e.id = m.equipment_id
+            LEFT JOIN pmm_2 pmm ON m.id = pmm.maintenance_id -- Link to PMM_2 if maintenance is related to a plan
             LEFT JOIN sap_locations sl ON e.sap_location_id = sl.id
-            WHERE pmm.completion_date IS NOT NULL 
+            WHERE m.completion_date IS NOT NULL
             """
             
-            # Corrigir equipment_types com condições OR manuais
             if equipment_types:
-                eq_conditions = []
-                for i, eq_type in enumerate(equipment_types):
-                    param_name = f"equipment_type_{i}"
-                    eq_conditions.append(f"e.equipment_type = :{param_name}")
-                    parameters[param_name] = eq_type
-                sql += f" AND ({' OR '.join(eq_conditions)})"
-                
-            # Corrigir equipment_ids com condições OR manuais
+                sql += " AND e.equipment_type = ANY(%(equipment_types)s)"
+                parameters['equipment_types'] = equipment_types
             if equipment_ids:
-                # Para patterns ILIKE, construir condições OR manualmente ao invés de usar ANY()
-                id_conditions = []
-                for i, eid in enumerate(equipment_ids):
-                    param_name = f"equipment_id_pattern_{i}"
-                    id_conditions.append(f"(e.code ILIKE :{param_name} OR pmm.equipment_code ILIKE :{param_name} OR pmm.installation_location ILIKE :{param_name})")
-                    parameters[param_name] = f"%{eid}%"
-                
-                sql += f" AND ({' OR '.join(id_conditions)})"  
-                            
-            # Corrigir maintenance_types com condições OR manuais
+                sql += " AND e.code = ANY(%(equipment_ids)s)" # Assuming e.code is the ID field
+                parameters['equipment_ids'] = equipment_ids
             if maintenance_types:
-                maint_conditions = []
-                for i, maint_type in enumerate(maintenance_types):
-                    param_name = f"maintenance_type_{i}"
-                    maint_conditions.append(f"pmm.maintenance_item_text ILIKE :{param_name}")
-                    parameters[param_name] = f"%{maint_type}%"
-                sql += f" AND ({' OR '.join(maint_conditions)})"
-                
-            # Corrigir status_filter com condições OR manuais
+                sql += " AND m.maintenance_type = ANY(%(maintenance_types)s)"
+                parameters['maintenance_types'] = maintenance_types
             if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"status_{i}"
-                    status_conditions.append(f"pmm.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
-                
-            # Corrigir work_centers com condições OR manuais
+                sql += " AND m.status = ANY(%(status_filter)s)" # Maintenance status
+                parameters['status_filter'] = status_filter
             if work_centers:
-                wc_conditions = []
-                for i, wc in enumerate(work_centers):
-                    param_name = f"work_center_{i}"
-                    wc_conditions.append(f"pmm.work_center = :{param_name}")
-                    parameters[param_name] = wc
-                sql += f" AND ({' OR '.join(wc_conditions)})"
-                
-            # Corrigir plan_codes com condições OR manuais
+                sql += " AND pmm.work_center = ANY(%(work_centers)s)"
+                parameters['work_centers'] = work_centers
             if plan_codes:
-                pc_conditions = []
-                for i, pc in enumerate(plan_codes):
-                    param_name = f"plan_code_{i}"
-                    pc_conditions.append(f"pmm.maintenance_plan_code = :{param_name}")
-                    parameters[param_name] = pc
-                sql += f" AND ({' OR '.join(pc_conditions)})"
-                
-            # Corrigir sap_location_abbreviations com condições OR manuais
+                sql += " AND pmm.maintenance_plan_code = ANY(%(plan_codes)s)"
+                parameters['plan_codes'] = plan_codes
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name = f"sap_abbr_{i}"
-                    abbr_conditions.append(f"sl.abbreviation = :{param_name}")
-                    parameters[param_name] = abbr
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
+                sql += " AND sl.abbreviation = ANY(%(sap_abbreviations)s)"
+                parameters['sap_abbreviations'] = sap_location_abbreviations
             elif sap_location_codes:
-                code_conditions = []
-                for i, code in enumerate(sap_location_codes):
-                    param_name = f"sap_code_{i}"
-                    code_conditions.append(f"sl.location_code = :{param_name}")
-                    parameters[param_name] = code
-                sql += f" AND ({' OR '.join(code_conditions)})"
+                sql += " AND sl.location_code = ANY(%(sap_location_codes)s)"
+                parameters['sap_location_codes'] = sap_location_codes
 
-            sql += " ORDER BY COALESCE(pmm.completion_date, pmm.planned_date) DESC LIMIT 1"
+            sql += " ORDER BY m.completion_date DESC LIMIT 1"
         
         elif intent == QueryIntent.COUNT_EQUIPMENT:
             sql = """
@@ -1231,60 +1052,25 @@ class QueryProcessor:
             LEFT JOIN sap_locations sl ON e.sap_location_id = sl.id
             WHERE 1=1
             """
-            # Corrigir equipment_types com condições OR manuais
             if equipment_types:
-                eq_conditions = []
-                for i, eq_type in enumerate(equipment_types):
-                    param_name = f"equipment_type_{i}"
-                    eq_conditions.append(f"e.equipment_type = :{param_name}")
-                    parameters[param_name] = eq_type
-                sql += f" AND ({' OR '.join(eq_conditions)})"
-                
-            # Corrigir status_filter com condições OR manuais
+                sql += " AND e.equipment_type = ANY(%(equipment_types)s)"
+                parameters['equipment_types'] = equipment_types
             if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"eq_status_{i}"
-                    status_conditions.append(f"e.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
-                
-            # Corrigir sap_location_codes com condições OR manuais
+                sql += " AND e.status = ANY(%(status_filter)s)" # Equipment status
+                parameters['status_filter'] = status_filter
             if sap_location_codes:
-                code_conditions = []
-                for i, code in enumerate(sap_location_codes):
-                    param_name = f"sap_location_code_{i}"
-                    code_conditions.append(f"sl.location_code = :{param_name}")
-                    parameters[param_name] = code
-                sql += f" AND ({' OR '.join(code_conditions)})"
-                
-            # Corrigir sap_location_denominations com condições OR manuais  
+                sql += " AND sl.location_code = ANY(%(sap_location_codes)s)"
+                parameters['sap_location_codes'] = sap_location_codes
             if sap_location_denominations:
-                denom_conditions = []
-                for i, denom in enumerate(sap_location_denominations):
-                    param_name = f"sap_denom_pattern_{i}"
-                    denom_conditions.append(f"sl.denomination ILIKE :{param_name}")
-                    parameters[param_name] = f"%{denom}%"
-                sql += f" AND ({' OR '.join(denom_conditions)})"
-                
-            # Corrigir sap_location_abbreviations com condições OR manuais
+                sql += " AND sl.denomination ILIKE ANY(%(sap_location_denominations)s)"
+                parameters['sap_location_denominations'] = [f"%{d}%" for d in sap_location_denominations]
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name = f"sap_abbr_{i}"
-                    abbr_conditions.append(f"sl.abbreviation = :{param_name}")
-                    parameters[param_name] = abbr
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
-                
-            # Corrigir regions com condições OR manuais
+                sql += " AND sl.abbreviation = ANY(%(sap_location_abbreviations)s)"
+                parameters['sap_location_abbreviations'] = sap_location_abbreviations
             if regions:
-                region_conditions = []
-                for i, region in enumerate(regions):
-                    param_name = f"region_{i}"
-                    region_conditions.append(f"sl.region = :{param_name}")
-                    parameters[param_name] = region
-                sql += f" AND ({' OR '.join(region_conditions)})"
-
+                sql += " AND sl.region = ANY(%(regions)s)"
+                parameters['regions'] = regions
+        
         elif intent == QueryIntent.COUNT_MAINTENANCE:
             sql = """
             SELECT COUNT(DISTINCT m.id) as total 
@@ -1294,147 +1080,69 @@ class QueryProcessor:
             LEFT JOIN sap_locations sl ON e.sap_location_id = sl.id
             WHERE 1=1
             """
-            # Corrigir maintenance_types com condições OR manuais
             if maintenance_types:
-                maint_conditions = []
-                for i, maint_type in enumerate(maintenance_types):
-                    param_name = f"maintenance_type_{i}"
-                    maint_conditions.append(f"pmm.maintenance_item_text ILIKE :{param_name}")
-                    parameters[param_name] = f"%{maint_type}%"
-                sql += f" AND ({' OR '.join(maint_conditions)})"
-                
-            # Corrigir status_filter com condições OR manuais
-            if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"status_{i}"
-                    status_conditions.append(f"pmm.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
-                
-            # Filtros temporais (mantém como está - não usa ANY)
+                sql += " AND m.maintenance_type = ANY(%(maintenance_types)s)"
+                parameters['maintenance_types'] = maintenance_types
+            if status_filter: # Status for Maintenance
+                sql += " AND m.status = ANY(%(status_filter)s)"
+                parameters['status_filter'] = status_filter
             if temporal_context and temporal_context['type'] == 'period':
                 period = temporal_context['period']
                 if 'start' in period and 'end' in period:
-                    sql += " AND COALESCE(m.completion_date, m.start_date, m.scheduled_date) BETWEEN :start_date AND :end_date"
+                    sql += " AND COALESCE(m.completion_date, m.start_date, m.scheduled_date) BETWEEN %(start_date)s AND %(end_date)s"
                     parameters['start_date'] = period['start']
                     parameters['end_date'] = period['end']
-                    
-            # Corrigir work_centers com condições OR manuais
             if work_centers:
-                wc_conditions = []
-                for i, wc in enumerate(work_centers):
-                    param_name = f"work_center_{i}"
-                    wc_conditions.append(f"pmm.work_center = :{param_name}")
-                    parameters[param_name] = wc
-                sql += f" AND ({' OR '.join(wc_conditions)})"
-                
-            # Corrigir plan_codes com condições OR manuais
+                sql += " AND pmm.work_center = ANY(%(work_centers)s)"
+                parameters['work_centers'] = work_centers
             if plan_codes:
-                pc_conditions = []
-                for i, pc in enumerate(plan_codes):
-                    param_name = f"plan_code_{i}"
-                    pc_conditions.append(f"pmm.maintenance_plan_code = :{param_name}")
-                    parameters[param_name] = pc
-                sql += f" AND ({' OR '.join(pc_conditions)})"
-                
-            # Corrigir equipment_ids com condições OR manuais
+                sql += " AND pmm.maintenance_plan_code = ANY(%(plan_codes)s)"
+                parameters['plan_codes'] = plan_codes
             if equipment_ids:
-                id_conditions = []
-                for i, eq_id in enumerate(equipment_ids):
-                    param_name = f"equipment_id_{i}"
-                    id_conditions.append(f"e.code = :{param_name}")
-                    parameters[param_name] = eq_id
-                sql += f" AND ({' OR '.join(id_conditions)})"
-                
-            # Corrigir sap_location_abbreviations com condições OR manuais
+                sql += " AND e.code = ANY(%(equipment_ids)s)"
+                parameters['equipment_ids'] = equipment_ids
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name = f"sap_abbr_{i}"
-                    abbr_conditions.append(f"sl.abbreviation = :{param_name}")
-                    parameters[param_name] = abbr
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
-  
+                sql += " AND sl.abbreviation = ANY(%(sap_abbreviations)s)"
+                parameters['sap_abbreviations'] = sap_location_abbreviations
+
         elif intent == QueryIntent.EQUIPMENT_STATUS:
             sql = """
-             SELECT e.name, e.equipment_type, e.status, e.criticality, e.code,
-                    sl.denomination as location_name, sl.location_code, sl.abbreviation as location_abbreviation,
-                    COALESCE(last_maint.last_maintenance_date, 'Nunca') as last_maintenance_date,
-                    last_maint.last_maintenance_type, last_maint.last_maintenance_status
-             FROM equipments e
-             LEFT JOIN (
-                 SELECT m.equipment_id, MAX(COALESCE(m.completion_date, m.start_date, m.scheduled_date)) as last_maintenance_date,
-                        (ARRAY_AGG(m.maintenance_type ORDER BY COALESCE(m.completion_date, m.start_date, m.scheduled_date) DESC))[1] as last_maintenance_type,
-                        (ARRAY_AGG(m.status ORDER BY COALESCE(m.completion_date, m.start_date, m.scheduled_date) DESC))[1] as last_maintenance_status
-                 FROM maintenances m
-                 GROUP BY m.equipment_id
-             ) last_maint ON e.id = last_maint.equipment_id
-             LEFT JOIN sap_locations sl ON e.sap_location_id = sl.id
-             WHERE 1=1
-             """
-             # Corrigir equipment_types com condições OR manuais
+            SELECT e.name, e.equipment_type, e.status, e.criticality, e.code,
+                   sl.denomination as location_name, sl.location_code, sl.abbreviation as location_abbreviation,
+                   COALESCE(last_maint.last_maintenance_date, 'Nunca') as last_maintenance_date,
+                   last_maint.last_maintenance_type, last_maint.last_maintenance_status
+            FROM equipments e
+            LEFT JOIN (
+                SELECT m.equipment_id, MAX(COALESCE(m.completion_date, m.start_date, m.scheduled_date)) as last_maintenance_date,
+                       (ARRAY_AGG(m.maintenance_type ORDER BY COALESCE(m.completion_date, m.start_date, m.scheduled_date) DESC))[1] as last_maintenance_type,
+                       (ARRAY_AGG(m.status ORDER BY COALESCE(m.completion_date, m.start_date, m.scheduled_date) DESC))[1] as last_maintenance_status
+                FROM maintenances m
+                GROUP BY m.equipment_id
+            ) last_maint ON e.id = last_maint.equipment_id
+            LEFT JOIN sap_locations sl ON e.sap_location_id = sl.id
+            WHERE 1=1
+            """
             if equipment_types:
-                eq_conditions = []
-                for i, eq_type in enumerate(equipment_types):
-                    param_name = f"equipment_type_{i}"
-                    eq_conditions.append(f"e.equipment_type = :{param_name}")
-                    parameters[param_name] = eq_type
-                sql += f" AND ({' OR '.join(eq_conditions)})"
-                 
-             # Corrigir equipment_ids com condições OR manuais  
+                sql += " AND e.equipment_type = ANY(%(equipment_types)s)"
+                parameters['equipment_types'] = equipment_types
             if equipment_ids:
-                id_conditions = []
-                for i, eq_id in enumerate(equipment_ids):
-                    param_name = f"equipment_id_{i}"
-                    id_conditions.append(f"e.code = :{param_name}")
-                    parameters[param_name] = eq_id
-                sql += f" AND ({' OR '.join(id_conditions)})"
-                 
-             # Corrigir status_filter com condições OR manuais
-            if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"status_{i}"
-                    status_conditions.append(f"pmm.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
-                 
-            # Corrigir sap_location_codes com condições OR manuais
+                sql += " AND e.code = ANY(%(equipment_ids)s)"
+                parameters['equipment_ids'] = equipment_ids
+            if status_filter: # Status for Equipment
+                sql += " AND e.status = ANY(%(status_filter)s)"
+                parameters['status_filter'] = status_filter
             if sap_location_codes:
-                code_conditions = []
-                for i, code in enumerate(sap_location_codes):
-                    param_name = f"sap_location_code_{i}"
-                    code_conditions.append(f"sl.location_code = :{param_name}")
-                    parameters[param_name] = code
-                sql += f" AND ({' OR '.join(code_conditions)})"
-                 
-            # Corrigir sap_location_denominations com condições OR manuais
+                sql += " AND sl.location_code = ANY(%(sap_location_codes)s)"
+                parameters['sap_location_codes'] = sap_location_codes
             if sap_location_denominations:
-                denom_conditions = []
-                for i, denom in enumerate(sap_location_denominations):
-                    param_name = f"sap_denom_pattern_{i}"
-                    denom_conditions.append(f"sl.denomination ILIKE :{param_name}")
-                    parameters[param_name] = f"%{denom}%"
-                sql += f" AND ({' OR '.join(denom_conditions)})"
-                 
-            # Corrigir sap_location_abbreviations com condições OR manuais
+                sql += " AND sl.denomination ILIKE ANY(%(sap_location_denominations)s)"
+                parameters['sap_location_denominations'] = [f"%{d}%" for d in sap_location_denominations]
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name = f"sap_abbr_{i}"
-                    abbr_conditions.append(f"sl.abbreviation = :{param_name}")
-                    parameters[param_name] = abbr
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
-                 
-             # Corrigir regions com condições OR manuais
+                sql += " AND sl.abbreviation = ANY(%(sap_location_abbreviations)s)"
+                parameters['sap_location_abbreviations'] = sap_location_abbreviations
             if regions:
-                region_conditions = []
-                for i, region in enumerate(regions):
-                    param_name = f"region_{i}"
-                    region_conditions.append(f"sl.region = :{param_name}")
-                    parameters[param_name] = region
-                sql += f" AND ({' OR '.join(region_conditions)})"
+                sql += " AND sl.region = ANY(%(regions)s)"
+                parameters['regions'] = regions
             
         elif intent == QueryIntent.MAINTENANCE_HISTORY:
             sql = """
@@ -1448,85 +1156,36 @@ class QueryProcessor:
             LEFT JOIN sap_locations sl ON e.sap_location_id = sl.id
             WHERE 1=1
             """
-            # Corrigir equipment_types com condições OR manuais
             if equipment_types:
-                eq_conditions = []
-                for i, eq_type in enumerate(equipment_types):
-                    param_name = f"equipment_type_{i}"
-                    eq_conditions.append(f"e.equipment_type = :{param_name}")
-                    parameters[param_name] = eq_type
-                sql += f" AND ({' OR '.join(eq_conditions)})"
-                
-            # Corrigir equipment_ids com condições OR manuais
+                sql += " AND e.equipment_type = ANY(%(equipment_types)s)"
+                parameters['equipment_types'] = equipment_types
             if equipment_ids:
-                id_conditions = []
-                for i, eq_id in enumerate(equipment_ids):
-                    param_name = f"equipment_id_{i}"
-                    id_conditions.append(f"e.code = :{param_name}")
-                    parameters[param_name] = eq_id
-                sql += f" AND ({' OR '.join(id_conditions)})"
-                
-            # Corrigir maintenance_types com condições OR manuais
+                sql += " AND e.code = ANY(%(equipment_ids)s)"
+                parameters['equipment_ids'] = equipment_ids
             if maintenance_types:
-                maint_conditions = []
-                for i, maint_type in enumerate(maintenance_types):
-                    param_name = f"maintenance_type_{i}"
-                    maint_conditions.append(f"pmm.maintenance_item_text ILIKE :{param_name}")
-                    parameters[param_name] = f"%{maint_type}%"
-                sql += f" AND ({' OR '.join(maint_conditions)})"
-                
-            # Corrigir status_filter com condições OR manuais
-            if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"status_{i}"
-                    status_conditions.append(f"pmm.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
-                
-            # Filtros temporais (mantém como está - não usa ANY)
+                sql += " AND m.maintenance_type = ANY(%(maintenance_types)s)"
+                parameters['maintenance_types'] = maintenance_types
+            if status_filter: # Status for Maintenance
+                sql += " AND m.status = ANY(%(status_filter)s)"
+                parameters['status_filter'] = status_filter
             if temporal_context and temporal_context['type'] == 'period':
                 period = temporal_context['period']
                 if 'start' in period and 'end' in period:
-                    sql += " AND COALESCE(m.completion_date, m.start_date, m.scheduled_date) BETWEEN :start_date AND :end_date"
+                    sql += " AND COALESCE(m.completion_date, m.start_date, m.scheduled_date) BETWEEN %(start_date)s AND %(end_date)s"
                     parameters['start_date'] = period['start']
                     parameters['end_date'] = period['end']
-                    
-            # Corrigir work_centers com condições OR manuais
             if work_centers:
-                wc_conditions = []
-                for i, wc in enumerate(work_centers):
-                    param_name = f"work_center_{i}"
-                    wc_conditions.append(f"pmm.work_center = :{param_name}")
-                    parameters[param_name] = wc
-                sql += f" AND ({' OR '.join(wc_conditions)})"
-                
-            # Corrigir plan_codes com condições OR manuais
+                sql += " AND pmm.work_center = ANY(%(work_centers)s)"
+                parameters['work_centers'] = work_centers
             if plan_codes:
-                pc_conditions = []
-                for i, pc in enumerate(plan_codes):
-                    param_name = f"plan_code_{i}"
-                    pc_conditions.append(f"pmm.maintenance_plan_code = :{param_name}")
-                    parameters[param_name] = pc
-                sql += f" AND ({' OR '.join(pc_conditions)})"
-                
-            # Corrigir sap_location_codes com condições OR manuais
+                sql += " AND pmm.maintenance_plan_code = ANY(%(plan_codes)s)"
+                parameters['plan_codes'] = plan_codes
             if sap_location_codes:
-                code_conditions = []
-                for i, code in enumerate(sap_location_codes):
-                    param_name = f"sap_location_code_{i}"
-                    code_conditions.append(f"sl.location_code = :{param_name}")
-                    parameters[param_name] = code
-                sql += f" AND ({' OR '.join(code_conditions)})"
-                
-            # Corrigir sap_location_abbreviations com condições OR manuais
+                sql += " AND sl.location_code = ANY(%(sap_location_codes)s)"
+                parameters['sap_location_codes'] = sap_location_codes
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name = f"sap_abbr_{i}"
-                    abbr_conditions.append(f"sl.abbreviation = :{param_name}")
-                    parameters[param_name] = abbr
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
+                sql += " AND sl.abbreviation = ANY(%(sap_abbreviations)s)"
+                parameters['sap_abbreviations'] = sap_location_abbreviations
             
             sql += " ORDER BY COALESCE(m.completion_date, m.start_date, m.scheduled_date) DESC"
 
@@ -1541,84 +1200,36 @@ class QueryProcessor:
             LEFT JOIN sap_locations sl ON pmm.sap_location_id = sl.id
             WHERE 1=1
             """
-            # Corrigir plan_codes com condições OR manuais
             if plan_codes:
-                pc_conditions = []
-                for i, pc in enumerate(plan_codes):
-                    param_name = f"plan_code_{i}"
-                    pc_conditions.append(f"pmm.maintenance_plan_code = :{param_name}")
-                    parameters[param_name] = pc
-                sql += f" AND ({' OR '.join(pc_conditions)})"
-                
-            # Corrigir work_centers com condições OR manuais  
+                sql += " AND pmm.maintenance_plan_code = ANY(%(plan_codes)s)"
+                parameters['plan_codes'] = plan_codes
             if work_centers:
-                wc_conditions = []
-                for i, wc in enumerate(work_centers):
-                    param_name = f"work_center_{i}"
-                    wc_conditions.append(f"pmm.work_center = :{param_name}")
-                    parameters[param_name] = wc
-                sql += f" AND ({' OR '.join(wc_conditions)})"
-                
-            # Corrigir equipment_ids com condições OR manuais (combina e.code e pmm.equipment_code)
+                sql += " AND pmm.work_center = ANY(%(work_centers)s)"
+                parameters['work_centers'] = work_centers
             if equipment_ids:
-                id_conditions = []
-                for i, eq_id in enumerate(equipment_ids):
-                    param_name_e = f"equipment_id_e_{i}"
-                    param_name_pmm = f"equipment_id_pmm_{i}"
-                    id_conditions.append(f"(e.code = :{param_name_e} OR pmm.equipment_code = :{param_name_pmm})")
-                    parameters[param_name_e] = eq_id
-                    parameters[param_name_pmm] = eq_id
-                sql += f" AND ({' OR '.join(id_conditions)})"
-                
-            # Corrigir sap_location_codes com condições OR manuais
+                sql += " AND (e.code = ANY(%(equipment_ids)s) OR pmm.equipment_code = ANY(%(equipment_ids)s))" # pmm has equipment_code field
+                parameters['equipment_ids'] = equipment_ids
             if sap_location_codes:
-                code_conditions = []
-                for i, code in enumerate(sap_location_codes):
-                    param_name_sl = f"sap_location_code_sl_{i}"
-                    param_name_pmm = f"sap_location_code_pmm_{i}"
-                    code_conditions.append(f"(sl.location_code = :{param_name_sl} OR pmm.installation_location ILIKE :{param_name_pmm})")
-                    parameters[param_name_sl] = code
-                    parameters[param_name_pmm] = f"%{code}%"
-                sql += f" AND ({' OR '.join(code_conditions)})"
-                
-            # Corrigir sap_location_abbreviations com condições OR manuais
+                sql += " AND (sl.location_code = ANY(%(sap_location_codes)s) OR pmm.installation_location ILIKE ANY(%(sap_location_codes_like)s))" # installation_location can be more specific than sap_location_code
+                parameters['sap_location_codes'] = sap_location_codes
+                parameters['sap_location_codes_like'] = [f"%{code}%" for code in sap_location_codes]
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name_sl = f"sap_abbr_sl_{i}"
-                    param_name_pmm = f"sap_abbr_pmm_{i}"
-                    abbr_conditions.append(f"(sl.abbreviation = :{param_name_sl} OR pmm.installation_location ILIKE :{param_name_pmm})")
-                    parameters[param_name_sl] = abbr
-                    parameters[param_name_pmm] = f"%{abbr}%"
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
-                
-            # Corrigir sap_location_denominations com condições OR manuais
+                sql += " AND (sl.abbreviation = ANY(%(sap_abbreviations)s) OR pmm.installation_location ILIKE ANY(%(sap_abbreviation_patterns)s))"
+                parameters['sap_abbreviations'] = sap_location_abbreviations
+                parameters['sap_abbreviation_patterns'] = [f"%{abbr}%" for abbr in sap_location_abbreviations]
             if sap_location_denominations:
-                denom_conditions = []
-                for i, d in enumerate(sap_location_denominations):
-                    param_name_sl = f"sap_denom_sl_{i}"
-                    param_name_pmm = f"sap_denom_pmm_{i}"
-                    denom_conditions.append(f"(sl.denomination ILIKE :{param_name_sl} OR pmm.installation_location ILIKE :{param_name_pmm})")
-                    parameters[param_name_sl] = f"%{d}%"
-                    parameters[param_name_pmm] = f"%{d}%"
-                sql += f" AND ({' OR '.join(denom_conditions)})"
+                sql += " AND (sl.denomination ILIKE ANY(%(sap_denominations)s) OR pmm.installation_location ILIKE ANY(%(sap_denominations)s))"
+                parameters['sap_denominations'] = [f"%{d}%" for d in sap_location_denominations]
 
-            # Filtros temporais (mantém como está - não usa ANY)
             if temporal_context and temporal_context['type'] == 'period':
                 period = temporal_context['period']
                 if 'start' in period and 'end' in period:
-                    sql += " AND pmm.planned_date BETWEEN :start_date AND :end_date"
+                    sql += " AND pmm.planned_date BETWEEN %(start_date)s AND %(end_date)s"
                     parameters['start_date'] = period['start']
                     parameters['end_date'] = period['end']
-                    
-            # Corrigir status_filter com condições OR manuais
-            if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"pmm_status_{i}"
-                    status_conditions.append(f"pmm.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
+            if status_filter: # Status for PMM_2 plan
+                sql += " AND pmm.status = ANY(%(status_filter)s)"
+                parameters['status_filter'] = status_filter
             
             sql += " ORDER BY pmm.planned_date DESC"
 
@@ -1628,50 +1239,21 @@ class QueryProcessor:
             FROM sap_locations sl
             WHERE 1=1
             """
-            # Corrigir sap_location_codes com condições OR manuais
             if sap_location_codes:
-                code_conditions = []
-                for i, code in enumerate(sap_location_codes):
-                    param_name = f"sap_location_code_{i}"
-                    code_conditions.append(f"sl.location_code = :{param_name}")
-                    parameters[param_name] = code
-                sql += f" AND ({' OR '.join(code_conditions)})"
-                
-            # Corrigir sap_location_denominations com condições OR manuais
+                sql += " AND sl.location_code = ANY(%(sap_location_codes)s)"
+                parameters['sap_location_codes'] = sap_location_codes
             if sap_location_denominations:
-                denom_conditions = []
-                for i, denom in enumerate(sap_location_denominations):
-                    param_name = f"sap_denom_pattern_{i}"
-                    denom_conditions.append(f"sl.denomination ILIKE :{param_name}")
-                    parameters[param_name] = f"%{denom}%"
-                sql += f" AND ({' OR '.join(denom_conditions)})"
-                
-            # Corrigir sap_location_abbreviations com condições OR manuais
+                sql += " AND sl.denomination ILIKE ANY(%(sap_location_denominations)s)"
+                parameters['sap_location_denominations'] = [f"%{d}%" for d in sap_location_denominations]
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name = f"sap_abbr_{i}"
-                    abbr_conditions.append(f"sl.abbreviation = :{param_name}")
-                    parameters[param_name] = abbr
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
-                
-            # Corrigir regions com condições OR manuais
+                sql += " AND sl.abbreviation = ANY(%(sap_location_abbreviations)s)"
+                parameters['sap_location_abbreviations'] = sap_location_abbreviations
             if regions:
-                region_conditions = []
-                for i, region in enumerate(regions):
-                    param_name = f"region_{i}"
-                    region_conditions.append(f"sl.region = :{param_name}")
-                    parameters[param_name] = region
-                sql += f" AND ({' OR '.join(region_conditions)})"
-                
-            # Corrigir status_filter com condições OR manuais
-            if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"sap_status_{i}"
-                    status_conditions.append(f"sl.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
+                sql += " AND sl.region = ANY(%(regions)s)"
+                parameters['regions'] = regions
+            if status_filter: # Status for SAPLocation
+                sql += " AND sl.status = ANY(%(status_filter)s)"
+                parameters['status_filter'] = status_filter
             
             sql += " ORDER BY sl.denomination ASC"
 
@@ -1683,68 +1265,27 @@ class QueryProcessor:
             JOIN sap_locations sl ON e.sap_location_id = sl.id
             WHERE 1=1
             """
-            # Corrigir sap_location_codes com condições OR manuais
             if sap_location_codes:
-                code_conditions = []
-                for i, code in enumerate(sap_location_codes):
-                    param_name = f"sap_location_code_{i}"
-                    code_conditions.append(f"sl.location_code = :{param_name}")
-                    parameters[param_name] = code
-                sql += f" AND ({' OR '.join(code_conditions)})"
-                
-            # Corrigir sap_location_denominations com condições OR manuais
+                sql += " AND sl.location_code = ANY(%(sap_location_codes)s)"
+                parameters['sap_location_codes'] = sap_location_codes
             if sap_location_denominations:
-                denom_conditions = []
-                for i, denom in enumerate(sap_location_denominations):
-                    param_name = f"sap_denom_pattern_{i}"
-                    denom_conditions.append(f"sl.denomination ILIKE :{param_name}")
-                    parameters[param_name] = f"%{denom}%"
-                sql += f" AND ({' OR '.join(denom_conditions)})"
-                
-            # Corrigir sap_location_abbreviations com condições OR manuais
+                sql += " AND sl.denomination ILIKE ANY(%(sap_location_denominations)s)"
+                parameters['sap_location_denominations'] = [f"%{d}%" for d in sap_location_denominations]
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name = f"sap_abbr_{i}"
-                    abbr_conditions.append(f"sl.abbreviation = :{param_name}")
-                    parameters[param_name] = abbr
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
-                
-            # Corrigir regions com condições OR manuais
+                sql += " AND sl.abbreviation = ANY(%(sap_location_abbreviations)s)"
+                parameters['sap_location_abbreviations'] = sap_location_abbreviations
             if regions:
-                region_conditions = []
-                for i, region in enumerate(regions):
-                    param_name = f"region_{i}"
-                    region_conditions.append(f"sl.region = :{param_name}")
-                    parameters[param_name] = region
-                sql += f" AND ({' OR '.join(region_conditions)})"
-                
-            # Corrigir equipment_types com condições OR manuais
+                sql += " AND sl.region = ANY(%(regions)s)"
+                parameters['regions'] = regions
             if equipment_types:
-                eq_conditions = []
-                for i, eq_type in enumerate(equipment_types):
-                    param_name = f"equipment_type_{i}"
-                    eq_conditions.append(f"e.equipment_type = :{param_name}")
-                    parameters[param_name] = eq_type
-                sql += f" AND ({' OR '.join(eq_conditions)})"
-                
-            # Corrigir equipment_ids com condições OR manuais
+                sql += " AND e.equipment_type = ANY(%(equipment_types)s)"
+                parameters['equipment_types'] = equipment_types
             if equipment_ids:
-                id_conditions = []
-                for i, eq_id in enumerate(equipment_ids):
-                    param_name = f"equipment_id_{i}"
-                    id_conditions.append(f"e.code = :{param_name}")
-                    parameters[param_name] = eq_id
-                sql += f" AND ({' OR '.join(id_conditions)})"
-                
-            # Corrigir status_filter com condições OR manuais
+                sql += " AND e.code = ANY(%(equipment_ids)s)"
+                parameters['equipment_ids'] = equipment_ids
             if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"eq_status_{i}"
-                    status_conditions.append(f"e.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
+                sql += " AND e.status = ANY(%(status_filter)s)"
+                parameters['status_filter'] = status_filter
 
             sql += " ORDER BY sl.denomination, e.name ASC"
 
@@ -1758,58 +1299,27 @@ class QueryProcessor:
             LEFT JOIN sap_locations sl ON e.sap_location_id = sl.id
             WHERE 1=1
             """
-            # Corrigir equipment_ids com condições OR manuais
             if equipment_ids:
-                id_conditions = []
-                for i, eq_id in enumerate(equipment_ids):
-                    param_name = f"equipment_id_{i}"
-                    id_conditions.append(f"e.code = :{param_name}")
-                    parameters[param_name] = eq_id
-                sql += f" AND ({' OR '.join(id_conditions)})"
-                
-            # Corrigir equipment_types com condições OR manuais
+                sql += " AND e.code = ANY(%(equipment_ids)s)"
+                parameters['equipment_ids'] = equipment_ids
             if equipment_types:
-                eq_conditions = []
-                for i, eq_type in enumerate(equipment_types):
-                    param_name = f"equipment_type_{i}"
-                    eq_conditions.append(f"e.equipment_type = :{param_name}")
-                    parameters[param_name] = eq_type
-                sql += f" AND ({' OR '.join(eq_conditions)})"
-                
-            # Corrigir status_filter com condições OR manuais
-            if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"failure_status_{i}"
-                    status_conditions.append(f"f.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
-                
-            # Filtros temporais (mantém como está - não usa ANY)
+                sql += " AND e.equipment_type = ANY(%(equipment_types)s)"
+                parameters['equipment_types'] = equipment_types
+            if status_filter: # Status for Failure
+                sql += " AND f.status = ANY(%(status_filter)s)"
+                parameters['status_filter'] = status_filter
             if temporal_context and temporal_context['type'] == 'period':
                 period = temporal_context['period']
                 if 'start' in period and 'end' in period:
-                    sql += " AND f.failure_date BETWEEN :start_date AND :end_date"
+                    sql += " AND f.failure_date BETWEEN %(start_date)s AND %(end_date)s"
                     parameters['start_date'] = period['start']
                     parameters['end_date'] = period['end']
-                    
-            # Corrigir sap_location_abbreviations com condições OR manuais
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name = f"sap_abbr_{i}"
-                    abbr_conditions.append(f"sl.abbreviation = :{param_name}")
-                    parameters[param_name] = abbr
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
-                
-            # Corrigir sap_location_codes com condições OR manuais
+                sql += " AND sl.abbreviation = ANY(%(sap_abbreviations)s)"
+                parameters['sap_abbreviations'] = sap_location_abbreviations
             elif sap_location_codes:
-                code_conditions = []
-                for i, code in enumerate(sap_location_codes):
-                    param_name = f"sap_location_code_{i}"
-                    code_conditions.append(f"sl.location_code = :{param_name}")
-                    parameters[param_name] = code
-                sql += f" AND ({' OR '.join(code_conditions)})"
+                sql += " AND sl.location_code = ANY(%(sap_location_codes)s)"
+                parameters['sap_location_codes'] = sap_location_codes
 
             sql += " ORDER BY f.failure_date DESC"
 
@@ -1824,63 +1334,27 @@ class QueryProcessor:
             # Allow searching by name, code, or description (if available)
             if 'query' in parameters: # This would come from a general search if query is not broken down
                  search_pattern = f"%{parameters['query']}%"
-                 sql += " AND (e.name ILIKE :search_pattern OR e.code ILIKE :search_pattern OR e.description ILIKE :search_pattern)"
+                 sql += " AND (e.name ILIKE %(search_pattern)s OR e.code ILIKE %(search_pattern)s OR e.description ILIKE %(search_pattern)s)"
                  parameters['search_pattern'] = search_pattern
                  del parameters['query'] # Remove general query term
-                 
-            # Corrigir equipment_types com condições OR manuais
             if equipment_types:
-                eq_conditions = []
-                for i, eq_type in enumerate(equipment_types):
-                    param_name = f"equipment_type_{i}"
-                    eq_conditions.append(f"e.equipment_type = :{param_name}")
-                    parameters[param_name] = eq_type
-                sql += f" AND ({' OR '.join(eq_conditions)})"
-                
-            # Corrigir equipment_ids com condições OR manuais
+                sql += " AND e.equipment_type = ANY(%(equipment_types)s)"
+                parameters['equipment_types'] = equipment_types
             if equipment_ids:
-                id_conditions = []
-                for i, eq_id in enumerate(equipment_ids):
-                    param_name = f"equipment_id_{i}"
-                    id_conditions.append(f"e.code = :{param_name}")
-                    parameters[param_name] = eq_id
-                sql += f" AND ({' OR '.join(id_conditions)})"
-                
-            # Corrigir status_filter com condições OR manuais
+                sql += " AND e.code = ANY(%(equipment_ids)s)"
+                parameters['equipment_ids'] = equipment_ids
             if status_filter:
-                status_conditions = []
-                for i, status in enumerate(status_filter):
-                    param_name = f"eq_status_{i}"
-                    status_conditions.append(f"e.status = :{param_name}")
-                    parameters[param_name] = status
-                sql += f" AND ({' OR '.join(status_conditions)})"
-                
-            # Corrigir sap_location_abbreviations com condições OR manuais
+                sql += " AND e.status = ANY(%(status_filter)s)"
+                parameters['status_filter'] = status_filter
             if sap_location_abbreviations:
-                abbr_conditions = []
-                for i, abbr in enumerate(sap_location_abbreviations):
-                    param_name = f"sap_abbr_{i}"
-                    abbr_conditions.append(f"sl.abbreviation = :{param_name}")
-                    parameters[param_name] = abbr
-                sql += f" AND ({' OR '.join(abbr_conditions)})"
-                
-            # Corrigir sap_location_codes com condições OR manuais
+                sql += " AND sl.abbreviation = ANY(%(sap_abbreviations)s)"
+                parameters['sap_abbreviations'] = sap_location_abbreviations
             elif sap_location_codes:
-                code_conditions = []
-                for i, code in enumerate(sap_location_codes):
-                    param_name = f"sap_location_code_{i}"
-                    code_conditions.append(f"sl.location_code = :{param_name}")
-                    parameters[param_name] = code
-                sql += f" AND ({' OR '.join(code_conditions)})"
-                
-            # Corrigir sap_location_denominations com condições OR manuais
+                sql += " AND sl.location_code = ANY(%(sap_location_codes)s)"
+                parameters['sap_location_codes'] = sap_location_codes
             elif sap_location_denominations:
-                denom_conditions = []
-                for i, denom in enumerate(sap_location_denominations):
-                    param_name = f"sap_denom_pattern_{i}"
-                    denom_conditions.append(f"sl.denomination ILIKE :{param_name}")
-                    parameters[param_name] = f"%{denom}%"
-                sql += f" AND ({' OR '.join(denom_conditions)})"
+                sql += " AND sl.denomination ILIKE ANY(%(sap_denominations)s)"
+                parameters['sap_denominations'] = [f"%{d}%" for d in sap_location_denominations]
 
             sql += " ORDER BY e.name ASC"
 
@@ -1916,8 +1390,7 @@ class QueryProcessor:
             QueryIntent.SAP_LOCATION_SEARCH: [QueryEntity.SAP_LOCATION_CODE, QueryEntity.SAP_LOCATION_DENOMINATION, QueryEntity.SAP_LOCATION_ABBREVIATION, QueryEntity.REGION],
             QueryIntent.EQUIPMENT_BY_LOCATION: [QueryEntity.SAP_LOCATION_CODE, QueryEntity.EQUIPMENT_TYPE, QueryEntity.SAP_LOCATION_ABBREVIATION],
             QueryIntent.FAILURE_ANALYSIS: [QueryEntity.EQUIPMENT_TYPE, QueryEntity.EQUIPMENT_ID, QueryEntity.TIME_PERIOD],
-            QueryIntent.EQUIPMENT_STATUS: [QueryEntity.EQUIPMENT_TYPE, QueryEntity.EQUIPMENT_ID, QueryEntity.SAP_LOCATION_CODE, QueryEntity.SAP_LOCATION_ABBREVIATION],
-            QueryIntent.LAST_MAINTENANCE: [QueryEntity.EQUIPMENT_TYPE, QueryEntity.EQUIPMENT_ID, QueryEntity.MAINTENANCE_TYPE, QueryEntity.TIME_PERIOD, QueryEntity.SAP_LOCATION_ABBREVIATION, QueryEntity.SAP_LOCATION_CODE],
+            QueryIntent.EQUIPMENT_STATUS: [QueryEntity.EQUIPMENT_TYPE, QueryEntity.EQUIPMENT_ID, QueryEntity.SAP_LOCATION_CODE, QueryEntity.SAP_LOCATION_ABBREVIATION]
             # Add other specific intents and their relevant entities
         }
 
@@ -1970,7 +1443,7 @@ class QueryProcessor:
         elif intent == QueryIntent.LAST_MAINTENANCE:
             suggestions.extend([
                 "Histórico completo de manutenções",
-                "Quais manutenções foram executadas no último mês?",
+                "Próximas manutenções programadas",
                 "Equipamentos com manutenção em atraso"
             ])
         elif intent == QueryIntent.COUNT_EQUIPMENT:

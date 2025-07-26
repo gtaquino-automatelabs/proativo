@@ -20,7 +20,7 @@ from google.api_core import exceptions as google_exceptions
 from ..config import get_settings
 from src.utils.error_handlers import LLMServiceError as LLMError, ValidationError
 from src.utils.logger import get_logger
-from .cache_service import CacheService, CacheStrategy
+from .cache_service import CacheService, CacheStrategy, CacheStatus # Import CacheStatus here
 # Fallback e cache services serão importados dinamicamente quando disponíveis
 
 # Configurar logger
@@ -152,15 +152,32 @@ REGRAS OBRIGATÓRIAS:
 4. Use linguagem técnica profissional, mas clara
 5. Foque na RESPOSTA, não no processo de busca
 
+REGRAS TEMPORAIS ESPECÍFICAS:
+6. Para perguntas sobre EXECUÇÃO passada (ex: "Quando foi executado...?"):
+   - Se NÃO há dados de execução: "Não há registro de execução deste teste/manutenção"
+   - Se há dados planejados mas não executados: "Este teste estava planejado para [data], mas não há registro de execução"
+   - NUNCA diga que algo passado "está planejado"
+
+7. Para perguntas sobre PLANEJAMENTO futuro (ex: "Quando está planejado...?"):
+   - Responda com as datas planejadas encontradas
+   - Se não há planejamento: "Não há planejamento registrado para este teste/manutenção"
+
+8. Para datas específicas mencionadas na pergunta:
+   - Se a data está no passado e não há execução registrada: "Não há registro de execução em [data]"
+   - Se a data está no futuro e há planejamento: "Está planejado para [data]"
+
 EXEMPLOS DO QUE NÃO FAZER:
 ❌ "Com base nos dados do sistema, encontrei 5 registros..."
 ❌ "Sua consulta sobre equipamentos retornou..."
 ❌ "Encontrei informações relevantes no banco..."
+❌ "O teste operativo está planejado para..." (quando perguntado sobre execução passada)
 
 EXEMPLOS CORRETOS:
 ✅ "No parque elétrico temos 8 transformadores e 12 disjuntores."
 ✅ "O transformador T001 teve manutenção preventiva em 15/12/2024."
 ✅ "Os disjuntores críticos são: DJ-001, DJ-005 e DJ-012."
+✅ "Não há registro de execução do teste operativo em 11/04/2025."
+✅ "O teste estava planejado para 11/04/2025, mas não foi executado."
 
 RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema fazendo busca."""
 
@@ -181,7 +198,7 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
         Returns:
             str: Prompt formatado para o usuário
         """
-        # Organizar apenas os dados relevantes, sem metadados técnicos
+        # Organizar dados relevantes
         equipment_info = ""
         maintenance_info = ""
         
@@ -199,37 +216,56 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
                         # Formato genérico para outros tipos de dados
                         equipment_info += f"- {str(record)}\n"
         
-        # Processar dados estruturados da SQL (MAIS IMPORTANTE)
-        structured_data = context.get("structured_data", [])
+        # Processar dados estruturados do SQL (com contexto temporal)
+        structured_data = context.get('structured_data', [])
+        query_intent = context.get('query_intent', '')
+        
+        # Determinar tipo de consulta temporal
+        temporal_context = ""
+        if 'foi executado' in user_query.lower() or 'foi realizado' in user_query.lower():
+            temporal_context = "\n**TIPO DE CONSULTA:** Busca por execução passada (dados de completion_date)\n"
+        elif 'está planejado' in user_query.lower() or 'quando será' in user_query.lower():
+            temporal_context = "\n**TIPO DE CONSULTA:** Busca por planejamento futuro (dados de planned_date)\n"
+        elif 'quando' in user_query.lower():
+            # Consulta ambígua sobre tempo - fornecer contexto sobre o que foi encontrado
+            if query_intent == 'last_maintenance':
+                temporal_context = "\n**TIPO DE CONSULTA:** Busca por execução passada (somente manutenções completadas)\n"
+            elif query_intent == 'upcoming_maintenance':
+                temporal_context = "\n**TIPO DE CONSULTA:** Busca por planejamento futuro (manutenções agendadas)\n"
+        
         if structured_data:
-            maintenance_info += "\n**DADOS PRECISOS DO BANCO:**\n"
+            # Add header baseado no tipo de consulta
+            if query_intent == 'last_maintenance':
+                maintenance_info += "\n**MANUTENÇÕES EXECUTADAS:**\n"
+            elif query_intent == 'upcoming_maintenance':
+                maintenance_info += "\n**MANUTENÇÕES PLANEJADAS:**\n"
+            else:
+                maintenance_info += "\n**DADOS DE MANUTENÇÃO:**\n"
+            
             for record in structured_data:
                 if isinstance(record, dict):
-                    # Formatação específica para diferentes tipos de query
-                    if 'maintenance_date' in record:
-                        # Query de última manutenção
-                        name = record.get('name', 'Equipamento não identificado')
-                        maintenance_date = record.get('maintenance_date', 'Data não disponível')
-                        maintenance_type = record.get('maintenance_type', 'Tipo não especificado')
-                        status = record.get('status', 'Status desconhecido')
-                        title = record.get('title', '')
+                    # Formatar registros de manutenção com contexto temporal claro
+                    if 'maintenance_plan_code' in record:
+                        item_text = record.get('maintenance_item_text', 'Item não especificado')
+                        eq_name = record.get('equipment_name', record.get('equipment_code', 'Equipamento não identificado'))
+                        location_abbr = record.get('location_abbreviation', '')
                         
-                        maintenance_info += f"- **{name}**: {maintenance_type} realizada em {maintenance_date}"
-                        if status: 
-                            maintenance_info += f" (Status: {status})"
-                        if title:
-                            maintenance_info += f" - {title}"
-                        maintenance_info += "\n"
+                        # Dados de execução (completion_date)
+                        if record.get('completion_date'):
+                            completion_date_str = record['completion_date'].strftime('%d/%m/%Y') if isinstance(record['completion_date'], datetime) else str(record['completion_date'])
+                            maintenance_info += f"- Plano **{record['maintenance_plan_code']}**: {item_text} no equipamento **{eq_name}** ({location_abbr}). **EXECUTADO em: {completion_date_str}**.\n"
+                        
+                        # Dados de planejamento (planned_date)
+                        elif record.get('planned_date'):
+                            planned_date_str = record['planned_date'].strftime('%d/%m/%Y') if isinstance(record['planned_date'], datetime) else str(record['planned_date'])
+                            maintenance_info += f"- Plano **{record['maintenance_plan_code']}**: {item_text} no equipamento **{eq_name}** ({location_abbr}). **PLANEJADO para: {planned_date_str}**.\n"
+                        
+                        else:
+                            maintenance_info += f"- Plano **{record['maintenance_plan_code']}**: {item_text} no equipamento **{eq_name}** ({location_abbr}). **Sem data definida**.\n"
                     
-                    elif 'equipment_type' in record and 'name' in record:
-                        # Query de equipamentos
-                        name = record.get('name', 'Nome não disponível')
-                        equipment_type = record.get('equipment_type', 'Tipo não especificado')
-                        equipment_info += f"- **{name}** ({equipment_type})\n"
-                    
+                    # Formatar outros tipos de registros
                     else:
-                        # Formato genérico para outros dados estruturados
-                        maintenance_info += f"- {record}\n"
+                        maintenance_info += f"- {str(record)}\n"
         
         # Montar contexto limpo
         context_parts = []
@@ -242,9 +278,16 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
         
         context_section = "\n".join(context_parts) if context_parts else ""
         
+        # Adicionar orientação específica baseada no contexto temporal
+        guidance = ""
+        if not structured_data and 'foi executado' in user_query.lower():
+            guidance = "\n**ORIENTAÇÃO:** Como não há dados de execução, responda que não há registro de execução."
+        elif not structured_data and ('está planejado' in user_query.lower() or 'quando será' in user_query.lower()):
+            guidance = "\n**ORIENTAÇÃO:** Como não há dados de planejamento, responda que não há planejamento registrado."
+        
         return f"""PERGUNTA: {user_query}
 
-{context_section}
+{temporal_context}{context_section}{guidance}
 
 Responda diretamente baseado nas informações disponíveis."""
 
@@ -516,7 +559,7 @@ Responda diretamente baseado nas informações disponíveis."""
                     cached_response = await self.cache_service.get(
                         query=user_query,
                         context=context,
-                        strategy=cache_strategy
+                        strategy=cache_strategy_enum # Use o Enum aqui
                     )
                 except Exception as e:
                     logger.warning(f"Erro no cache: {e}")
@@ -527,7 +570,7 @@ Responda diretamente baseado nas informações disponíveis."""
                 
                 logger.info("Resposta servida do cache inteligente", extra={
                     "session_id": session_id,
-                    "cache_strategy": cache_strategy,
+                    "cache_strategy": cache_strategy_enum.value, # Use .value aqui
                     "cache_status": cached_response.get("cache_status"),
                     "processing_time": processing_time
                 })
@@ -540,7 +583,7 @@ Responda diretamente baseado nas informações disponíveis."""
                 "session_id": session_id,
                 "query_length": len(user_query),
                 "data_records": len(query_results),
-                "cache_strategy": cache_strategy
+                "cache_strategy": cache_strategy_enum.value # Use .value aqui
             })
             
             try:
@@ -689,10 +732,13 @@ Responda diretamente baseado nas informações disponíveis."""
                 "sources": ["emergency_fallback"],
                 "suggestions": ["Tente uma pergunta mais simples", "Recarregue a página"],
                 "processing_time": processing_time,
+                "data_records_used": 0,
                 "cache_used": False,
                 "fallback_used": True,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "fallback_reason": "emergency_fallback",
+                "actionable": False,
+                "timestamp": datetime.now().isoformat(),
+                "error": "Sistema de fallback falhou"
             }
     
     def _generate_cache_tags(
@@ -842,8 +888,7 @@ Responda diretamente baseado nas informações disponíveis."""
             return {
                 "response": "Desculpe, estou com dificuldades técnicas no momento. Tente novamente em alguns instantes ou reformule sua pergunta.",
                 "confidence_score": 0.1,
-                "sources": ["emergency_fallback"],
-                "suggestions": [
+                "sources": [
                     "Recarregue a página",
                     "Tente uma pergunta mais simples",
                     "Verifique sua conexão"

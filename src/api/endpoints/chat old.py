@@ -24,15 +24,12 @@ from ..models.chat import (
     ChatContext,
     ChatMessage,
 )
-from ..dependencies import get_database_session, get_current_settings, get_llm_service, get_query_processor, get_repository_manager 
+from ..dependencies import get_database_session, get_current_settings, get_llm_service, get_query_processor, get_repository_manager # Importar get_repository_manager
 from ..config import Settings
 from ...utils.error_handlers import LLMServiceError, DataProcessingError
 from ..services.llm_service import LLMService
 from ..services.rag_service import RAGService
-from ...database.repositories import RepositoryManager 
-
-# IMPORTANTE: Importe QueryEntity diretamente do módulo query_processor
-from ..services.query_processor import QueryEntity # <--- ADICIONE ESTA LINHA
+from ...database.repositories import RepositoryManager # Importar RepositoryManager
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -156,7 +153,7 @@ async def chat_endpoint(
     settings: Settings = Depends(get_current_settings),
     llm_service: LLMService = Depends(get_llm_service),
     query_processor = Depends(get_query_processor),
-    repo_manager: RepositoryManager = Depends(get_repository_manager), 
+    repo_manager: RepositoryManager = Depends(get_repository_manager), # Adicionar esta dependência
 ) -> ChatResponse:
     """
     Endpoint principal para chat com IA sobre manutenção de equipamentos.
@@ -220,8 +217,7 @@ async def chat_endpoint(
             # NOVO: Resolver SAP Location ID a partir da abreviação (se houver)
             # Este passo é crucial para que o SQL possa usar o UUID
             sap_location_id_filter = None
-            # Acessando QueryEntity diretamente da classe importada
-            sap_location_abbreviations = [e.normalized_value for e in query_analysis.entities if e.type == QueryEntity.SAP_LOCATION_ABBREVIATION]
+            sap_location_abbreviations = [e.normalized_value for e in query_analysis.entities if e.type == query_processor.QueryEntity.SAP_LOCATION_ABBREVIATION]
             
             if sap_location_abbreviations:
                 # Assumimos que o primeiro é o mais relevante
@@ -273,10 +269,6 @@ async def chat_endpoint(
                     if sap_location_id_filter:
                         sql_parameters['sap_location_id'] = sap_location_id_filter
                     
-                    # Debug logging detalhado
-                    logger.info(f"SQL Debug - Query: {query_analysis.sql_query[:200]}...")
-                    logger.info(f"SQL Debug - Parameters: {sql_parameters}")
-                    
                     # Executar consulta SQL do Query Processor
                     result = await db.execute(
                         text(query_analysis.sql_query),
@@ -289,18 +281,12 @@ async def chat_endpoint(
                         columns = result.keys()
                         structured_data = [dict(zip(columns, row)) for row in rows]
                         logger.info(f"SQL query executed: {len(structured_data)} rows returned")
-                    else:
-                        logger.info("SQL query executed successfully but returned no rows")
                     
                 except Exception as sql_error:
-                    logger.error(f"SQL query execution failed: {sql_error}")
-                    logger.error(f"SQL Query: {query_analysis.sql_query}")
-                    logger.error(f"SQL Parameters: {sql_parameters}")
-                    import traceback
-                    logger.error(f"Stack trace: {traceback.format_exc()}")
+                    logger.warning(f"SQL query execution failed: {sql_error}")
                     structured_data = None
             
-            # 4. USAR LLM COM CONTEXTO ENRICHED
+            # 4. USAR LLM COM CONTEXTO ENRIQUECIDO
             llm_result = await llm_service.generate_response(
                 user_query=request.message,
                 sql_query=query_analysis.sql_query, # Passar a SQL gerada para o LLMService para debugging
@@ -333,7 +319,7 @@ async def chat_endpoint(
             "count_maintenance": QueryType.MAINTENANCE_HISTORY,
             "equipment_status": QueryType.EQUIPMENT_INFO,
             "failure_analysis": QueryType.FAILURE_ANALYSIS,
-            "upcoming_maintenance": QueryType.MAINTENANCE_SCHEDULE, # Mapear para MAINTENANCE_SCHEDULE
+            "upcoming_maintenance": QueryType.MAINTENANCE_HISTORY, # Mapear para MAINTENANCE_HISTORY por enquanto, ou criar novo QueryType.UPCOMING_MAINTENANCE
             "overdue_maintenance": QueryType.MAINTENANCE_HISTORY,
             "general_query": QueryType.GENERAL_QUERY,
             # NOVOS MAPPINGS PARA AS NOVAS INTENÇÕES
