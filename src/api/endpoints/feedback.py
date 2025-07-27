@@ -23,7 +23,7 @@ from ...utils.error_handlers import ValidationError, DataProcessingError
 logger = logging.getLogger(__name__)
 
 # Criar router para endpoints de feedback
-router = APIRouter(prefix="/feedback", tags=["feedback"])
+router = APIRouter(prefix="/feedback", tags=["Feedback"])
 
 
 async def process_feedback_metrics_background(
@@ -151,61 +151,6 @@ async def submit_feedback(
         )
 
 
-@router.get("/session/{session_id}")
-async def get_session_feedback(
-    session_id: UUID,
-    repo_manager: RepositoryManager = Depends(get_repository_manager),
-    settings: Settings = Depends(get_current_settings)
-) -> Dict[str, Any]:
-    """
-    Recupera todo o feedback de uma sessão específica.
-    
-    Args:
-        session_id: ID da sessão para recuperar feedback
-        repo_manager: Gerenciador de repositories
-        settings: Configurações da aplicação
-        
-    Returns:
-        Dict com feedback da sessão
-    """
-    try:
-        logger.info(f"Retrieving feedback for session: {session_id}")
-        
-        # Buscar feedback por sessão no banco
-        session_feedback_list = await repo_manager.user_feedback.list_by_session(str(session_id))
-        
-        # Calcular estatísticas
-        total_feedback = len(session_feedback_list)
-        positive_feedback = sum(1 for f in session_feedback_list if f.helpful)
-        negative_feedback = total_feedback - positive_feedback
-        
-        # Converter para formato de resposta
-        feedback_items = [
-            {
-                "message_id": f.message_id,
-                "helpful": f.helpful,
-                "rating": f.rating,
-                "comment": f.comment,
-                "timestamp": f.created_at.isoformat() if f.created_at else None
-            }
-            for f in session_feedback_list
-        ]
-        
-        return {
-            "session_id": str(session_id),
-            "total_feedback": total_feedback,
-            "positive_feedback": positive_feedback,
-            "negative_feedback": negative_feedback,
-            "satisfaction_rate": positive_feedback / total_feedback if total_feedback > 0 else 0,
-            "feedback_items": feedback_items
-        }
-        
-    except Exception as e:
-        logger.error(f"Error retrieving session feedback: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao recuperar feedback da sessão"
-        )
 
 
 @router.get("/stats")
@@ -300,51 +245,7 @@ async def get_feedback_stats(
         )
 
 
-@router.delete("/session/{session_id}")
-async def clear_session_feedback(
-    session_id: UUID,
-    repo_manager: RepositoryManager = Depends(get_repository_manager),
-    settings: Settings = Depends(get_current_settings)
-) -> Dict[str, Any]:
-    """
-    Remove todo o feedback de uma sessão específica.
-    
-    Args:
-        session_id: ID da sessão para limpar feedback
-        repo_manager: Gerenciador de repositories
-        settings: Configurações da aplicação
-        
-    Returns:
-        Dict com confirmação da operação
-    """
-    try:
-        logger.info(f"Clearing feedback for session: {session_id}")
-        
-        # Buscar feedback da sessão e remover individualmente
-        session_feedback = await repo_manager.user_feedback.list_by_session(str(session_id))
-        items_removed = 0
-        
-        for feedback in session_feedback:
-            await repo_manager.user_feedback.delete(feedback.id)
-            items_removed += 1
-        
-        await repo_manager.commit()
-        
-        logger.info(f"Cleared {items_removed} feedback items for session {session_id}")
-        
-        return {
-            "message": f"Feedback da sessão {session_id} removido com sucesso",
-            "session_id": str(session_id),
-            "items_removed": items_removed
-        }
-        
-    except Exception as e:
-        logger.error(f"Error clearing session feedback: {str(e)}")
-        await repo_manager.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao limpar feedback da sessão"
-        )
+
 
 
 @router.get("/message/{message_id}")

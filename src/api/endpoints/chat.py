@@ -34,7 +34,7 @@ from ..services.rag_service import RAGService
 logger = logging.getLogger(__name__)
 
 # Criar router para endpoints de chat
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
 async def process_chat_message_background(

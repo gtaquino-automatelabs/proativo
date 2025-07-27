@@ -25,7 +25,7 @@ from ...utils.error_handlers import ValidationError, DataProcessingError
 logger = logging.getLogger(__name__)
 
 # Criar router para endpoints de exportação
-router = APIRouter(prefix="/export", tags=["metrics-export"])
+router = APIRouter(prefix="/export", tags=["Metrics Export"])
 
 
 class ExportFormat(str, Enum):
@@ -338,7 +338,7 @@ def _export_xlsx(data: Dict[str, Any]) -> Response:
     """
     try:
         import openpyxl
-        from openpyxl.styles import Font, PatternFill
+        from openpyxl.styles import Font
         
         wb = openpyxl.Workbook()
         
@@ -362,7 +362,7 @@ def _export_xlsx(data: Dict[str, Any]) -> Response:
         for category, category_data in metrics.items():
             if isinstance(category_data, dict) and not category_data.get("error"):
                 ws = wb.create_sheet(title=category.capitalize())
-                _write_dict_to_excel_sheet(ws, category_data)
+                _write_dict_to_excel_sheet(ws, category_data, Font)
         
         # Salvar em buffer
         buffer = io.BytesIO()
@@ -382,25 +382,26 @@ def _export_xlsx(data: Dict[str, Any]) -> Response:
         return _export_csv(data)
 
 
-def _write_dict_to_excel_sheet(worksheet, data: Dict[str, Any], start_row: int = 1):
+def _write_dict_to_excel_sheet(worksheet, data: Dict[str, Any], font_class, start_row: int = 1):
     """
     Escreve dicionário em planilha Excel.
     
     Args:
         worksheet: Planilha do Excel
         data: Dados do dicionário
+        font_class: Classe Font do openpyxl
         start_row: Linha inicial
     """
     row = start_row
     
     # Headers
-    worksheet.cell(row, 1, "Métrica").font = Font(bold=True)
-    worksheet.cell(row, 2, "Valor").font = Font(bold=True)
+    worksheet.cell(row, 1, "Métrica").font = font_class(bold=True)
+    worksheet.cell(row, 2, "Valor").font = font_class(bold=True)
     row += 1
     
     for key, value in data.items():
         if isinstance(value, dict):
-            worksheet.cell(row, 1, f"=== {key.upper()} ===").font = Font(bold=True)
+            worksheet.cell(row, 1, f"=== {key.upper()} ===").font = font_class(bold=True)
             row += 1
             for sub_key, sub_value in value.items():
                 worksheet.cell(row, 1, f"  {sub_key}")

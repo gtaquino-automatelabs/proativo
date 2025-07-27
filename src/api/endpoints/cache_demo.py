@@ -1,11 +1,11 @@
 """
-Endpoints de demonstração e administração do sistema de cache inteligente.
+Endpoints de administração do sistema de cache inteligente.
 
 Este módulo fornece endpoints para:
-- Testar funcionamento do cache
-- Visualizar métricas detalhadas
+- Visualizar métricas detalhadas do cache
 - Administrar cache (limpeza, invalidação)
-- Health check do sistema de cache
+- Configurar parâmetros dinamicamente
+- Obter informações específicas de queries
 """
 
 from typing import Dict, Any, List, Optional
@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 import logging
 
 from ..dependencies import get_cache_service
-from ..services.cache_service import CacheService, CacheStrategy
+from ..services.cache_service import CacheService
 from ...utils.logger import get_logger
 
 # Configurar logger
@@ -25,14 +25,6 @@ router = APIRouter(prefix="/cache", tags=["Cache Management"])
 
 
 # Modelos de request/response
-class CacheTestRequest(BaseModel):
-    """Request para teste de cache."""
-    query: str = Field(..., description="Query para testar no cache")
-    context: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Contexto adicional")
-    strategy: CacheStrategy = Field(default=CacheStrategy.NORMALIZED_MATCH, description="Estratégia de cache")
-    response_data: Dict[str, Any] = Field(..., description="Dados da resposta para cachear")
-    ttl: Optional[int] = Field(default=None, description="TTL customizado em segundos")
-    tags: Optional[List[str]] = Field(default_factory=list, description="Tags para categorização")
 
 
 class CacheInfoResponse(BaseModel):
@@ -51,85 +43,7 @@ class CacheInvalidationRequest(BaseModel):
     older_than_hours: Optional[int] = Field(default=None, description="Invalidar entradas mais antigas que X horas")
 
 
-@router.post("/test", response_model=Dict[str, Any])
-async def test_cache_system(
-    request: CacheTestRequest,
-    cache_service: CacheService = Depends(get_cache_service)
-) -> Dict[str, Any]:
-    """
-    Testa o sistema de cache com uma query e resposta.
-    
-    Este endpoint permite:
-    1. Cachear uma resposta com configurações customizadas
-    2. Testar busca no cache com diferentes estratégias
-    3. Verificar detecção de similaridade
-    
-    Args:
-        request: Dados para teste do cache
-        cache_service: Serviço de cache
-        
-    Returns:
-        Dict: Resultados do teste incluindo métricas
-    """
-    try:
-        start_time = datetime.now()
-        
-        # Primeiro, tentar buscar no cache
-        cached_response = await cache_service.get(
-            query=request.query,
-            context=request.context,
-            strategy=request.strategy
-        )
-        
-        cache_hit = cached_response is not None
-        
-        if not cache_hit:
-            # Cachear a resposta fornecida
-            tags_set = set(request.tags) if request.tags else set()
-            cache_key = await cache_service.set(
-                query=request.query,
-                response=request.response_data,
-                context=request.context,
-                ttl=request.ttl,
-                tags=tags_set
-            )
-            
-            # Buscar novamente para confirmar
-            cached_response = await cache_service.get(
-                query=request.query,
-                context=request.context,
-                strategy=request.strategy
-            )
-        
-        # Obter informações detalhadas
-        cache_info = await cache_service.get_cache_info(request.query)
-        
-        # Métricas atuais
-        metrics = await cache_service.get_metrics()
-        
-        processing_time = (datetime.now() - start_time).total_seconds() * 1000
-        
-        return {
-            "test_results": {
-                "cache_hit": cache_hit,
-                "cache_created": not cache_hit,
-                "strategy_used": request.strategy.value,
-                "processing_time_ms": round(processing_time, 2)
-            },
-            "cached_response": cached_response,
-            "cache_info": cache_info,
-            "cache_metrics": {
-                "total_requests": metrics.total_requests,
-                "hit_rate": metrics.hit_rate,
-                "cache_size": metrics.cache_size,
-                "memory_usage_mb": metrics.memory_usage_mb
-            },
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Erro no teste de cache: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro no teste de cache: {str(e)}")
+
 
 
 @router.get("/metrics", response_model=Dict[str, Any])
@@ -299,96 +213,10 @@ async def clear_cache(
         raise HTTPException(status_code=500, detail=f"Erro na limpeza: {str(e)}")
 
 
-@router.get("/health", response_model=Dict[str, Any])
-async def cache_health_check(
-    cache_service: CacheService = Depends(get_cache_service)
-) -> Dict[str, Any]:
-    """
-    Verifica saúde do sistema de cache.
-    
-    Returns:
-        Dict: Status de saúde detalhado
-    """
-    try:
-        health_status = await cache_service.get_health_status()
-        
-        return {
-            "service": "cache_system",
-            "status": health_status["status"],
-            "details": health_status,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Erro no health check do cache: {str(e)}")
-        return {
-            "service": "cache_system",
-            "status": "critical",
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
 
 
-@router.get("/stats/similarity", response_model=Dict[str, Any])
-async def test_similarity(
-    query1: str = Query(..., description="Primeira query"),
-    query2: str = Query(..., description="Segunda query"),
-    cache_service: CacheService = Depends(get_cache_service)
-) -> Dict[str, Any]:
-    """
-    Testa o algoritmo de similaridade entre duas queries.
-    
-    Args:
-        query1: Primeira query
-        query2: Segunda query
-        cache_service: Serviço de cache
-        
-    Returns:
-        Dict: Análise de similaridade
-    """
-    try:
-        normalizer = cache_service.normalizer
-        
-        # Normalizar queries
-        norm1 = normalizer.normalize(query1)
-        norm2 = normalizer.normalize(query2)
-        
-        # Calcular similaridade
-        similarity = normalizer.calculate_similarity(query1, query2)
-        
-        # Análise detalhada
-        words1 = set(norm1.split())
-        words2 = set(norm2.split())
-        
-        common_words = words1.intersection(words2)
-        unique_words1 = words1 - words2
-        unique_words2 = words2 - words1
-        
-        return {
-            "queries": {
-                "original_1": query1,
-                "original_2": query2,
-                "normalized_1": norm1,
-                "normalized_2": norm2
-            },
-            "similarity": {
-                "score": round(similarity, 3),
-                "would_match": similarity >= cache_service.similarity_threshold,
-                "threshold": cache_service.similarity_threshold
-            },
-            "analysis": {
-                "common_words": list(common_words),
-                "unique_to_query1": list(unique_words1),
-                "unique_to_query2": list(unique_words2),
-                "word_count_1": len(words1),
-                "word_count_2": len(words2)
-            },
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Erro no teste de similaridade: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro no teste: {str(e)}")
+
+
 
 
 # Endpoints administrativos

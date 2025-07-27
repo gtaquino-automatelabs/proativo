@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool, QueuePool
 from sqlalchemy import event, text
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,10 @@ class DatabaseSettings(BaseSettings):
     database_pool_recycle: int = 3600
     debug: bool = False
     
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore"
+    )
 
 
 class Base(DeclarativeBase):

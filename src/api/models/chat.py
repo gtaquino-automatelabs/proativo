@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID, uuid4
 from enum import Enum
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class QueryType(str, Enum):
@@ -55,8 +55,8 @@ class ChatMessage(BaseModel):
         description="Metadados adicionais da mensagem"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "content": "Qual é o status do transformador T001?",
                 "role": "user",
@@ -64,6 +64,7 @@ class ChatMessage(BaseModel):
                 "metadata": None
             }
         }
+    )
 
 
 class ChatContext(BaseModel):
@@ -91,15 +92,16 @@ class ChatContext(BaseModel):
         description="Timestamp da última atualização"
     )
     
-    @validator('conversation_history')
+    @field_validator('conversation_history')
+    @classmethod
     def validate_conversation_history(cls, v):
         """Valida que o histórico não excede o limite."""
         if len(v) > 100:
             return v[-100:]  # Manter apenas as últimas 100 mensagens
         return v
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "session_id": "123e4567-e89b-12d3-a456-426614174000",
                 "conversation_history": [
@@ -114,6 +116,7 @@ class ChatContext(BaseModel):
                 "updated_at": "2024-01-15T10:30:00Z"
             }
         }
+    )
 
 
 class ChatRequest(BaseModel):
@@ -143,15 +146,16 @@ class ChatRequest(BaseModel):
         description="Número máximo de resultados a retornar"
     )
     
-    @validator('message')
+    @field_validator('message')
+    @classmethod
     def validate_message(cls, v):
         """Valida que a mensagem não está vazia após strip."""
         if not v.strip():
             raise ValueError('Mensagem não pode estar vazia')
         return v.strip()
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "message": "Qual é o status atual dos transformadores da planta?",
                 "session_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -160,6 +164,7 @@ class ChatRequest(BaseModel):
                 "max_results": 10
             }
         }
+    )
 
 
 class ChatResponse(BaseModel):
@@ -216,8 +221,8 @@ class ChatResponse(BaseModel):
         description="Informações de debug (apenas se solicitado)"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "session_id": "123e4567-e89b-12d3-a456-426614174000",
                 "response": "Encontrei 3 transformadores ativos na planta. O T001 está operando normalmente, o T002 precisa de manutenção preventiva em 15 dias, e o T003 foi reparado recentemente.",
@@ -238,6 +243,7 @@ class ChatResponse(BaseModel):
                 "debug_info": None
             }
         }
+    )
 
 
 class ChatErrorResponse(BaseModel):
@@ -266,8 +272,8 @@ class ChatErrorResponse(BaseModel):
         description="Timestamp do erro"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "error": True,
                 "error_code": "LLM_SERVICE_ERROR",
@@ -279,6 +285,7 @@ class ChatErrorResponse(BaseModel):
                 "timestamp": "2024-01-15T10:30:00Z"
             }
         }
+    )
 
 
 class ChatHistoryResponse(BaseModel):
@@ -301,8 +308,8 @@ class ChatHistoryResponse(BaseModel):
         description="Timestamp da última atividade"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "session_id": "123e4567-e89b-12d3-a456-426614174000",
                 "messages": [
@@ -322,6 +329,7 @@ class ChatHistoryResponse(BaseModel):
                 "last_activity": "2024-01-15T10:30:45Z"
             }
         }
+    )
 
 
 class FeedbackRequest(BaseModel):
@@ -352,8 +360,8 @@ class FeedbackRequest(BaseModel):
         description="Categoria do feedback (opcional)"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "message_id": "123e4567-e89b-12d3-a456-426614174000",
                 "session_id": "987fcdeb-51d3-12a4-b567-123456789abc",
@@ -363,6 +371,7 @@ class FeedbackRequest(BaseModel):
                 "category": "quality"
             }
         }
+    )
 
 
 class FeedbackResponse(BaseModel):
@@ -376,10 +385,11 @@ class FeedbackResponse(BaseModel):
         description="Timestamp do processamento do feedback"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "message": "Obrigado pelo feedback positivo! Continuaremos melhorando para atendê-lo melhor.",
                 "timestamp": "2024-01-15T10:35:00Z"
             }
-        } 
+        }
+    ) 

@@ -138,14 +138,14 @@ def create_app() -> FastAPI:
     # Configurar tratamento centralizado de erros
     setup_error_handlers(app)
     
-    # Incluir routers
-    app.include_router(health.router, prefix="/api/v1", tags=["Health"])
-    app.include_router(chat.router, prefix="/api/v1", tags=["Chat"])
-    app.include_router(feedback.router, prefix="/api/v1", tags=["Feedback"])
-    app.include_router(upload.router, prefix="/api/v1", tags=["File Upload"])
-    app.include_router(fallback_demo.router, prefix="/api/v1", tags=["Fallback Demo"])
-    app.include_router(cache_demo.router, prefix="/api/v1", tags=["Cache Demo"])
-    app.include_router(metrics_export.router, prefix="/api/v1", tags=["Metrics Export"])
+    # Incluir routers (tags definidas nos próprios routers)
+    app.include_router(health.router, prefix="/api/v1")
+    app.include_router(chat.router, prefix="/api/v1")
+    app.include_router(feedback.router, prefix="/api/v1")
+    app.include_router(upload.router, prefix="/api/v1")
+    app.include_router(fallback_demo.router, prefix="/api/v1")
+    app.include_router(cache_demo.router, prefix="/api/v1")
+    app.include_router(metrics_export.router, prefix="/api/v1")
     
     return app
 

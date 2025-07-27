@@ -10,7 +10,7 @@ from typing import Optional, List
 from uuid import UUID, uuid4
 from enum import Enum
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class UploadStatus(str, Enum):
@@ -45,14 +45,15 @@ class UploadRequest(BaseModel):
         description="Se deve sobrescrever dados existentes"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "file_type": "equipment",
                 "description": "Arquivo de equipamentos da planta industrial",
                 "overwrite_existing": False
             }
         }
+    )
 
 
 class UploadResponse(BaseModel):
@@ -83,8 +84,8 @@ class UploadResponse(BaseModel):
         description="Timestamp do upload"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "upload_id": "123e4567-e89b-12d3-a456-426614174000",
                 "filename": "equipamentos.csv",
@@ -95,6 +96,7 @@ class UploadResponse(BaseModel):
                 "uploaded_at": "2024-01-15T10:30:00Z"
             }
         }
+    )
 
 
 class UploadStatusResponse(BaseModel):
@@ -148,8 +150,8 @@ class UploadStatusResponse(BaseModel):
         description="Tempo total de processamento em segundos"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "upload_id": "123e4567-e89b-12d3-a456-426614174000",
                 "filename": "equipamentos.csv",
@@ -164,6 +166,7 @@ class UploadStatusResponse(BaseModel):
                 "processing_time_seconds": 165.3
             }
         }
+    )
 
 
 class UploadHistoryResponse(BaseModel):
@@ -177,8 +180,8 @@ class UploadHistoryResponse(BaseModel):
         description="Número total de uploads"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "uploads": [
                     {
@@ -195,6 +198,7 @@ class UploadHistoryResponse(BaseModel):
                 "total_count": 1
             }
         }
+    )
 
 
 class UploadErrorResponse(BaseModel):
@@ -215,8 +219,8 @@ class UploadErrorResponse(BaseModel):
         description="Detalhes adicionais do erro"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "error": True,
                 "error_code": "FILE_TOO_LARGE",
@@ -226,4 +230,5 @@ class UploadErrorResponse(BaseModel):
                     "max_size": 50331648
                 }
             }
-        } 
+        }
+    ) 
