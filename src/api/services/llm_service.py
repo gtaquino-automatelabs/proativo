@@ -20,6 +20,7 @@ from google.api_core import exceptions as google_exceptions
 from ..config import get_settings
 from src.utils.error_handlers import LLMServiceError as LLMError, ValidationError
 from src.utils.logger import get_logger
+from .cache_service import CacheStrategy
 # Fallback e cache services serão importados dinamicamente quando disponíveis
 
 # Configurar logger
@@ -461,7 +462,7 @@ Responda baseado no seu conhecimento sobre equipamentos elétricos e sistemas de
         query_results: Optional[List[Dict[str, Any]]] = None,
         context: Optional[Dict[str, Any]] = None,
         session_id: Optional[str] = None,
-        cache_strategy: str = "normalized_match"
+        cache_strategy: Union[str, CacheStrategy] = "normalized_match"
     ) -> Dict[str, Any]:
         """
         Gera resposta usando Google Gemini com cache inteligente e fallback automático.
@@ -507,6 +508,16 @@ Responda baseado no seu conhecimento sobre equipamentos elétricos e sistemas de
             if query_results is None:
                 query_results = []
             
+            # Converter cache_strategy para enum se for string
+            if isinstance(cache_strategy, str):
+                try:
+                    cache_strategy_enum = CacheStrategy(cache_strategy)
+                except ValueError:
+                    logger.warning(f"Cache strategy inválida: {cache_strategy}, usando padrão")
+                    cache_strategy_enum = CacheStrategy.NORMALIZED_MATCH
+            else:
+                cache_strategy_enum = cache_strategy
+            
             # Tentar buscar no cache primeiro (se disponível)
             cached_response = None
             if self.cache_service:
@@ -514,7 +525,7 @@ Responda baseado no seu conhecimento sobre equipamentos elétricos e sistemas de
                     cached_response = await self.cache_service.get(
                         query=user_query,
                         context=context,
-                        strategy=cache_strategy
+                        strategy=cache_strategy_enum
                     )
                 except Exception as e:
                     logger.warning(f"Erro no cache: {e}")
@@ -525,7 +536,7 @@ Responda baseado no seu conhecimento sobre equipamentos elétricos e sistemas de
                 
                 logger.info("Resposta servida do cache inteligente", extra={
                     "session_id": session_id,
-                    "cache_strategy": cache_strategy,
+                    "cache_strategy": cache_strategy_enum.value,
                     "cache_status": cached_response.get("cache_status"),
                     "processing_time": processing_time
                 })
@@ -539,7 +550,7 @@ Responda baseado no seu conhecimento sobre equipamentos elétricos e sistemas de
                 "query_length": len(user_query),
                 "data_records": len(query_results) if query_results is not None else 0,
                 "rag_enabled": query_results is not None,
-                "cache_strategy": cache_strategy
+                "cache_strategy": cache_strategy_enum.value
             })
             
             try:
