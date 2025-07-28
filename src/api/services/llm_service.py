@@ -166,7 +166,7 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
     def _create_user_prompt(
         self, 
         user_query: str, 
-        retrieved_data: List[Dict[str, Any]], 
+        retrieved_data: Optional[List[Dict[str, Any]]], 
         context: Dict[str, Any]
     ) -> str:
         """
@@ -174,7 +174,7 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
         
         Args:
             user_query: Pergunta do usuário
-            retrieved_data: Dados encontrados no banco (RAG)
+            retrieved_data: Dados RAG (None=não executado, []=vazio, [data]=dados)
             context: Contexto adicional incluindo structured_data (SQL)
             
         Returns:
@@ -184,19 +184,23 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
         equipment_info = ""
         maintenance_info = ""
         
-        # Processar dados do RAG
-        if retrieved_data:
-            for record in retrieved_data[:10]:  # Limitar a 10 registros
-                # Extrair informações úteis sem expor estrutura técnica
-                if isinstance(record, dict):
-                    if 'source' in record:
-                        if record['source'] == 'equipment':
-                            equipment_info += f"- {record.get('content', '')}\n"
-                        elif record['source'] == 'maintenance':
-                            maintenance_info += f"- {record.get('content', '')}\n"
-                    else:
-                        # Formato genérico para outros tipos de dados
-                        equipment_info += f"- {str(record)}\n"
+        # Processar dados do RAG APENAS se foi executado
+        if retrieved_data is not None:  # RAG foi executado
+            if retrieved_data:  # E retornou dados
+                for record in retrieved_data[:10]:  # Limitar a 10 registros
+                    # Extrair informações úteis sem expor estrutura técnica
+                    if isinstance(record, dict):
+                        if 'source' in record:
+                            if record['source'] == 'equipment':
+                                equipment_info += f"- {record.get('content', '')}\n"
+                            elif record['source'] == 'maintenance':
+                                maintenance_info += f"- {record.get('content', '')}\n"
+                        else:
+                            # Formato genérico para outros tipos de dados
+                            equipment_info += f"- {str(record)}\n"
+            else:  # RAG executado mas vazio
+                maintenance_info += "\n**BUSCA COMPLEMENTAR:**\nNenhum dado adicional encontrado.\n"
+        # Se retrieved_data is None: RAG não foi executado - não mencionar
         
         # Processar dados estruturados da SQL (MAIS IMPORTANTE)
         structured_data = context.get("structured_data", [])
@@ -241,11 +245,16 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
         
         context_section = "\n".join(context_parts) if context_parts else ""
         
-        return f"""PERGUNTA: {user_query}
+        if context_section:
+            return f"""PERGUNTA: {user_query}
 
 {context_section}
 
 Responda diretamente baseado nas informações disponíveis."""
+        else:
+            return f"""PERGUNTA: {user_query}
+
+Responda baseado no seu conhecimento sobre equipamentos elétricos e sistemas de manutenção."""
 
     async def _call_gemini_with_retry(
         self, 
@@ -528,7 +537,8 @@ Responda diretamente baseado nas informações disponíveis."""
             logger.info("Gerando resposta com Gemini", extra={
                 "session_id": session_id,
                 "query_length": len(user_query),
-                "data_records": len(query_results),
+                "data_records": len(query_results) if query_results is not None else 0,
+                "rag_enabled": query_results is not None,
                 "cache_strategy": cache_strategy
             })
             
@@ -580,7 +590,7 @@ Responda diretamente baseado nas informações disponíveis."""
                 suggestions = self._generate_suggestions(user_query, query_results)
                 
                 sources = ["gemini_llm"]
-                if query_results:
+                if query_results is not None and query_results:
                     sources.extend(["equipment_data", "maintenance_data"])
                 if sql_query:
                     sources.append("sql_database")
@@ -591,7 +601,7 @@ Responda diretamente baseado nas informações disponíveis."""
                     "sources": list(set(sources)),
                     "suggestions": suggestions,
                     "processing_time": processing_time,
-                    "data_records_used": len(query_results),
+                    "data_records_used": len(query_results) if query_results is not None else 0,
                     "cache_used": False,
                     "fallback_used": False,
                     "timestamp": datetime.now().isoformat()
@@ -850,7 +860,7 @@ Responda diretamente baseado nas informações disponíveis."""
     def _generate_suggestions(
         self, 
         user_query: str, 
-        query_results: List[Dict[str, Any]]
+        query_results: Optional[List[Dict[str, Any]]]
     ) -> List[str]:
         """
         Gera sugestões de próximas perguntas baseadas no contexto.
@@ -895,8 +905,8 @@ Responda diretamente baseado nas informações disponíveis."""
                 "Análise de padrões de falhas por período"
             ])
         
-        # Sugestões baseadas nos resultados
-        if query_results:
+        # Sugestões baseadas nos resultados (se RAG estava habilitado e retornou dados)
+        if query_results is not None and query_results:
             suggestions.append("Gere relatório detalhado sobre estes resultados")
             suggestions.append("Quais são as recomendações para estes equipamentos?")
         

@@ -28,7 +28,7 @@ from ..dependencies import get_database_session, get_current_settings, get_llm_s
 from ..config import Settings
 from ...utils.error_handlers import LLMServiceError, DataProcessingError
 from ..services.llm_service import LLMService
-from ..services.rag_service import RAGService
+# from ..services.rag_service import RAGService  # Comentado temporariamente - RAG desabilitado
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -210,34 +210,49 @@ async def chat_endpoint(
             query_results = []
             
             # 2. BUSCAR DADOS RELEVANTES VIA RAG
-            try:
-                # Inicializar RAG service
-                rag_service = RAGService()
+            # TODO: RAG System - Temporariamente desabilitado (sem documentos para indexação)
+            # PARA REATIVAR: Alterar RAG_ENABLED = True e descomentar código abaixo
+            # MOTIVO: Não temos documentos de texto para indexação ainda
+            # PLANO: Reativar quando houver manuais técnicos, documentação de equipamentos, etc.
+            RAG_ENABLED = False
+            
+            if RAG_ENABLED:
+                # try:
+                #     # Inicializar RAG service
+                #     rag_service = RAGService()
+                #     
+                #     # Indexar dados (cache interno do RAG service evita reindexação)
+                #     await rag_service.index_data_sources()
+                #     logger.info("RAG service initialized successfully")
+                #     
+                #     # Recuperar contexto relevante
+                #     rag_context = await rag_service.retrieve_context(
+                #         query=request.message,
+                #         max_chunks=5
+                #     )
+                #     
+                #     # Preparar dados para o LLM
+                #     query_results = []
+                #     for chunk in rag_context.chunks:
+                #         query_results.append({
+                #             "source": chunk.source,
+                #             "content": chunk.content,
+                #             "metadata": chunk.metadata,
+                #             "relevance_score": chunk.relevance_score
+                #         })
+                #     
+                #     logger.info(f"RAG context retrieved: {len(query_results)} chunks found")
+                #     
+                # except Exception as rag_error:
+                #     logger.warning(f"RAG service error (using fallback): {rag_error}")
+                #     query_results = []
                 
-                # Indexar dados (cache interno do RAG service evita reindexação)
-                await rag_service.index_data_sources()
-                logger.info("RAG service initialized successfully")
-                
-                # Recuperar contexto relevante
-                rag_context = await rag_service.retrieve_context(
-                    query=request.message,
-                    max_chunks=5
-                )
-                
-                # Preparar dados para o LLM
-                for chunk in rag_context.chunks:
-                    query_results.append({
-                        "source": chunk.source,
-                        "content": chunk.content,
-                        "metadata": chunk.metadata,
-                        "relevance_score": chunk.relevance_score
-                    })
-                
-                logger.info(f"RAG context retrieved: {len(query_results)} chunks found")
-                
-            except Exception as rag_error:
-                logger.warning(f"RAG service error (using fallback): {rag_error}")
+                # RAG habilitado mas código comentado por enquanto
                 query_results = []
+            else:
+                # RAG completamente desabilitado - não passar dados RAG para LLM
+                query_results = None
+                logger.info("RAG disabled - using SQL data only")
             
             # 3. EXECUTAR SQL QUERY SE GERADA PELO QUERY PROCESSOR
             structured_data = None
@@ -261,10 +276,10 @@ async def chat_endpoint(
                     structured_data = None
             
             # 4. USAR LLM COM CONTEXTO ENRIQUECIDO
-            llm_result = await llm_service.generate_response(
-                user_query=request.message,
-                query_results=query_results,
-                context={
+            # Construir argumentos dinamicamente baseado em RAG estar habilitado ou não
+            llm_kwargs = {
+                "user_query": request.message,
+                "context": {
                     "query_analysis": {
                         "intent": query_analysis.intent.value,
                         "entities": [{"type": e.type.value, "value": e.value} for e in query_analysis.entities],
@@ -273,8 +288,14 @@ async def chat_endpoint(
                     "structured_data": structured_data,
                     "session_context": context.dict() if context else None
                 },
-                session_id=str(session_id)
-            )
+                "session_id": str(session_id)
+            }
+            
+            # Só passar query_results se RAG foi executado (não None)
+            if query_results is not None:
+                llm_kwargs["query_results"] = query_results
+            
+            llm_result = await llm_service.generate_response(**llm_kwargs)
             
         except Exception as e:
             logger.error(f"Error in LLM service: {str(e)}")
@@ -300,7 +321,7 @@ async def chat_endpoint(
         mapped_query_type = query_type_mapping.get(query_analysis.intent.value, QueryType.GENERAL_QUERY)
         
         # Calcular dados encontrados: RAG + SQL results
-        total_data_found = len(query_results)
+        total_data_found = len(query_results) if query_results is not None else 0
         if structured_data:
             total_data_found += len(structured_data)
         

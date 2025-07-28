@@ -11,7 +11,7 @@ Sistema conversacional inteligente para consultas em linguagem natural sobre dad
 ## ✨ Principais Características
 
 - 🤖 **IA Conversacional** com Google Gemini 2.5 Flash
-- 🔍 **Sistema RAG** para recuperação contextual de informações  
+- 🔍 **Sistema RAG** para recuperação contextual de informações ⚠️ *[Temporariamente desabilitado](docs/desativacao-temporaria-rag.md)*  
 - 📊 **Pipeline ETL** automatizado (CSV, XML, XLSX)
 - 🧠 **Cache Inteligente** com detecção de similaridade
 - 🛡️ **Sistema de Fallback** robusto
@@ -153,8 +153,15 @@ DATABASE_URL=postgresql+asyncpg://...
 
 ## 📖 Documentação
 
+### ⚠️ **Status Atual do Sistema**
+- **RAG System**: **Temporariamente desabilitado** devido à ausência de documentos para indexação
+- **Funcionalidade**: Sistema **100% funcional** usando dados SQL estruturados
+- **Próximos passos**: Adicionar manuais técnicos e reativar RAG conforme [documentação](docs/desativacao-temporaria-rag.md)
+
 ### Documentação Técnica Detalhada
 - 📐 [Arquitetura da Camada de IA](docs/arquitetura-camada-ia-proativo.md)
+- 🤖 [Relatório Técnico LLM](docs/relatorio-camada-llm-proativo.md)
+- ⚠️ [Desativação Temporária RAG](docs/desativacao-temporaria-rag.md)
 - 🗄️ [Estrutura do Banco de Dados](docs/estrutura-banco-dados.md)
 - 🤖 [LLM Service Detalhado](docs/llm-service-detalhado.md)
 - 📊 [Pipeline ETL](docs/pipeline-etl-explicacao-usuarios.md)
