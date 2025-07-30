@@ -18,8 +18,8 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from google.api_core import exceptions as google_exceptions
 
 from ..config import get_settings
-from src.utils.error_handlers import LLMServiceError as LLMError, ValidationError
-from src.utils.logger import get_logger
+from ...utils.error_handlers import LLMServiceError as LLMError, ValidationError
+from ...utils.logger import get_logger
 from .cache_service import CacheService, CacheStrategy, CacheStatus # Import CacheStatus here
 # Fallback e cache services serão importados dinamicamente quando disponíveis
 
@@ -218,7 +218,8 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
         
         # Processar dados estruturados do SQL (com contexto temporal)
         structured_data = context.get('structured_data', [])
-        query_intent = context.get('query_intent', '')
+        query_analysis = context.get('query_analysis', {})
+        query_intent = query_analysis.get('intent', '')
         
         # Determinar tipo de consulta temporal
         temporal_context = ""
@@ -234,8 +235,13 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
                 temporal_context = "\n**TIPO DE CONSULTA:** Busca por planejamento futuro (manutenções agendadas)\n"
         
         if structured_data:
+            # Determinar qual seção usar baseado no intent
+            is_equipment_query = query_intent in ['count_equipment', 'equipment_search', 'equipment_status', 'general_query']
+            
             # Add header baseado no tipo de consulta
-            if query_intent == 'last_maintenance':
+            if is_equipment_query:
+                equipment_info += "\n**DADOS DE EQUIPAMENTOS:**\n"
+            elif query_intent == 'last_maintenance':
                 maintenance_info += "\n**MANUTENÇÕES EXECUTADAS:**\n"
             elif query_intent == 'upcoming_maintenance':
                 maintenance_info += "\n**MANUTENÇÕES PLANEJADAS:**\n"
@@ -244,6 +250,9 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
             
             for record in structured_data:
                 if isinstance(record, dict):
+                    # Determinar onde adicionar as informações
+                    target_info = equipment_info if is_equipment_query else maintenance_info
+                    
                     # Formatar registros de manutenção com contexto temporal claro
                     if 'maintenance_plan_code' in record:
                         item_text = record.get('maintenance_item_text', 'Item não especificado')
@@ -263,9 +272,34 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
                         else:
                             maintenance_info += f"- Plano **{record['maintenance_plan_code']}**: {item_text} no equipamento **{eq_name}** ({location_abbr}). **Sem data definida**.\n"
                     
-                    # Formatar outros tipos de registros
+                    # Formatar queries de COUNT e agregação
+                    elif 'count' in record:
+                        count_value = record['count'] if isinstance(record['count'], int) else record.get('count', 0)
+                        if is_equipment_query:
+                            equipment_info += f"**TOTAL DE EQUIPAMENTOS**: {count_value}\n"
+                        else:
+                            maintenance_info += f"**TOTAL DE RESULTADOS**: {count_value}\n"
+                    
+                    # Formatar outros tipos de registros estruturados  
                     else:
-                        maintenance_info += f"- {str(record)}\n"
+                        # Tentar extrair valores numéricos importantes
+                        for key, value in record.items():
+                            if isinstance(value, (int, float)) and value > 0:
+                                if 'count' in key.lower() or 'total' in key.lower():
+                                    if is_equipment_query:
+                                        equipment_info += f"**{key.upper()}**: {value}\n"
+                                    else:
+                                        maintenance_info += f"**{key.upper()}**: {value}\n"
+                                else:
+                                    if is_equipment_query:
+                                        equipment_info += f"- {key}: {value}\n"
+                                    else:
+                                        maintenance_info += f"- {key}: {value}\n"
+                            else:
+                                if is_equipment_query:
+                                    equipment_info += f"- {key}: {value}\n"
+                                else:
+                                    maintenance_info += f"- {key}: {value}\n"
         
         # Montar contexto limpo
         context_parts = []
@@ -278,16 +312,29 @@ RESPONDA SEMPRE como um especialista que conhece os dados, nunca como um sistema
         
         context_section = "\n".join(context_parts) if context_parts else ""
         
+        # Debug: Log dos dados formatados para o LLM
+        logger.info(f"LLM Context Debug - Equipment info: {equipment_info[:200]}...")
+        logger.info(f"LLM Context Debug - Maintenance info: {maintenance_info[:200]}...")
+        logger.info(f"LLM Context Debug - Query intent: {query_intent}")
+        
         # Adicionar orientação específica baseada no contexto temporal
         guidance = ""
         if not structured_data and 'foi executado' in user_query.lower():
             guidance = "\n**ORIENTAÇÃO:** Como não há dados de execução, responda que não há registro de execução."
         elif not structured_data and ('está planejado' in user_query.lower() or 'quando será' in user_query.lower()):
             guidance = "\n**ORIENTAÇÃO:** Como não há dados de planejamento, responda que não há planejamento registrado."
+        else:
+            guidance = ""
+        
+        # Adicionar orientação específica para queries de contagem
+        if structured_data and any('count' in str(record).lower() for record in structured_data):
+            count_guidance = "\n**IMPORTANTE:** Use APENAS os números mostrados em **TOTAL DE EQUIPAMENTOS** ou valores similares em negrito. Ignore qualquer outro número."
+        else:
+            count_guidance = ""
         
         return f"""PERGUNTA: {user_query}
 
-{temporal_context}{context_section}{guidance}
+{temporal_context}{context_section}{guidance}{count_guidance}
 
 Responda diretamente baseado nas informações disponíveis."""
 
@@ -582,7 +629,8 @@ Responda diretamente baseado nas informações disponíveis."""
             logger.info("Gerando resposta com Gemini", extra={
                 "session_id": session_id,
                 "query_length": len(user_query),
-                "data_records": len(query_results),
+                "rag_chunks": len(query_results),  # Renomeado para clareza
+                "sql_records": len(context.get('structured_data', [])) if context else 0,
                 "cache_strategy": cache_strategy_enum.value # Use .value aqui
             })
             
@@ -669,7 +717,8 @@ Responda diretamente baseado nas informações disponíveis."""
                     "session_id": session_id,
                     "confidence": confidence_score,
                     "processing_time": processing_time,
-                    "data_records": len(query_results),
+                    "rag_chunks": len(query_results),
+                    "sql_records": len(context.get('structured_data', [])) if context else 0,
                     "cache_ttl": self._calculate_cache_ttl(confidence_score, len(query_results))
                 })
                 

@@ -18,6 +18,7 @@ from .cache_service import CacheService
 from .fallback_service import FallbackService
 from .sql_validator import SQLValidator
 from .prompt_templates import PromptTemplateService
+from .vanna_service import VannaService
 
 __all__ = [
     "LLMService",
@@ -27,4 +28,5 @@ __all__ = [
     "FallbackService",
     "SQLValidator",
     "PromptTemplateService",
+    "VannaService",
 ] 

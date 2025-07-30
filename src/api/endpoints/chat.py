@@ -213,109 +213,132 @@ async def chat_endpoint(
             
             logger.info(f"Query analysis: intent={query_analysis.intent.value}, "
                        f"entities={len(query_analysis.entities)}, "
-                       f"confidence={query_analysis.confidence_score:.2f}")
+                       f"confidence={query_analysis.confidence_score:.2f}, "
+                       f"method={query_analysis.processing_method}")
             
+            # Inicializar variáveis comuns para ambos os fluxos
             query_results = []
-            
-            # NOVO: Resolver SAP Location ID a partir da abreviação (se houver)
-            # Este passo é crucial para que o SQL possa usar o UUID
-            sap_location_id_filter = None
-            # Acessando QueryEntity diretamente da classe importada
-            sap_location_abbreviations = [e.normalized_value for e in query_analysis.entities if e.type == QueryEntity.SAP_LOCATION_ABBREVIATION]
-            
-            if sap_location_abbreviations:
-                # Assumimos que o primeiro é o mais relevante
-                abbreviation_to_search = sap_location_abbreviations[0]
-                sap_location_obj = await repo_manager.sap_location.get_by_abbreviation(abbreviation_to_search)
-                if sap_location_obj:
-                    sap_location_id_filter = str(sap_location_obj.id)
-                    logger.info(f"Resolved SAP Location ID for {abbreviation_to_search}: {sap_location_id_filter}")
-                else:
-                    logger.warning(f"SAP Location object not found for abbreviation: {abbreviation_to_search}")
-
-
-            # 2. BUSCAR DADOS RELEVANTES VIA RAG
-            try:
-                # Inicializar RAG service
-                rag_service = RAGService()
-                
-                # Indexar dados (cache interno do RAG service evita reindexação)
-                await rag_service.index_data_sources()
-                logger.info("RAG service initialized successfully")
-                
-                # Recuperar contexto relevante
-                rag_context = await rag_service.retrieve_context(
-                    query=request.message,
-                    max_chunks=5
-                )
-                
-                # Preparar dados para o LLM
-                for chunk in rag_context.chunks:
-                    query_results.append({
-                        "source": chunk.source,
-                        "content": chunk.content,
-                        "metadata": chunk.metadata,
-                        "relevance_score": chunk.relevance_score
-                    })
-                
-                logger.info(f"RAG context retrieved: {len(query_results)} chunks found")
-                
-            except Exception as rag_error:
-                logger.warning(f"RAG service error (using fallback): {rag_error}")
-                query_results = []
-            
-            # 3. EXECUTAR SQL QUERY SE GERADA PELO QUERY PROCESSOR
             structured_data = None
-            if query_analysis.sql_query:
-                try:
-                    # Passar o sap_location_id_filter para os parâmetros da query
-                    sql_parameters = query_analysis.parameters.copy()
-                    if sap_location_id_filter:
-                        sql_parameters['sap_location_id'] = sap_location_id_filter
-                    
-                    # Debug logging detalhado
-                    logger.info(f"SQL Debug - Query: {query_analysis.sql_query[:200]}...")
-                    logger.info(f"SQL Debug - Parameters: {sql_parameters}")
-                    
-                    # Executar consulta SQL do Query Processor
-                    result = await db.execute(
-                        text(query_analysis.sql_query),
-                        sql_parameters # Usar os parâmetros atualizados
-                    )
-                    rows = result.fetchall()
-                    
-                    # Converter resultado para formato estruturado
-                    if rows:
-                        columns = result.keys()
-                        structured_data = [dict(zip(columns, row)) for row in rows]
-                        logger.info(f"SQL query executed: {len(structured_data)} rows returned")
-                    else:
-                        logger.info("SQL query executed successfully but returned no rows")
-                    
-                except Exception as sql_error:
-                    logger.error(f"SQL query execution failed: {sql_error}")
-                    logger.error(f"SQL Query: {query_analysis.sql_query}")
-                    logger.error(f"SQL Parameters: {sql_parameters}")
-                    import traceback
-                    logger.error(f"Stack trace: {traceback.format_exc()}")
-                    structured_data = None
             
-            # 4. USAR LLM COM CONTEXTO ENRICHED
-            llm_result = await llm_service.generate_response(
-                user_query=request.message,
-                sql_query=query_analysis.sql_query, # Passar a SQL gerada para o LLMService para debugging
-                query_results=query_results,
-                context={
-                    "query_analysis": {
-                        "intent": query_analysis.intent.value,
-                        "entities": [{"type": e.type.value, "value": e.value} for e in query_analysis.entities],
-                        "confidence": query_analysis.confidence_score
+            # Se Vanna complete workflow foi usado, pular RAG/LLM e usar resposta direta
+            if query_analysis.processing_method == "vanna_complete":
+                logger.info("Using Vanna complete workflow response directly")
+                
+                # Extrair resposta já pronta do QueryAnalysis
+                llm_result = {
+                    "response": query_analysis.explanation or "Resposta processada pelo Vanna.ai",
+                    "confidence_score": query_analysis.confidence_score,
+                    "suggestions": query_analysis.suggestions,
+                    "sources": ["vanna_complete"],
+                    "processing_time": int((time.time() - processing_start_time) * 1000)
+                }
+                
+                # Pular para criação da resposta final
+                processing_time_ms = llm_result["processing_time"]
+                
+            else:
+                # Fluxo tradicional: RAG + LLM Service
+                logger.info("Using traditional RAG + LLM workflow")
+                
+                # NOVO: Resolver SAP Location ID a partir da abreviação (se houver)
+                # Este passo é crucial para que o SQL possa usar o UUID
+                sap_location_id_filter = None
+                # Acessando QueryEntity diretamente da classe importada
+                sap_location_abbreviations = [e.normalized_value for e in query_analysis.entities if e.type == QueryEntity.SAP_LOCATION_ABBREVIATION]
+                
+                if sap_location_abbreviations:
+                    # Assumimos que o primeiro é o mais relevante
+                    abbreviation_to_search = sap_location_abbreviations[0]
+                    sap_location_obj = await repo_manager.sap_location.get_by_abbreviation(abbreviation_to_search)
+                    if sap_location_obj:
+                        sap_location_id_filter = str(sap_location_obj.id)
+                        logger.info(f"Resolved SAP Location ID for {abbreviation_to_search}: {sap_location_id_filter}")
+                    else:
+                        logger.warning(f"SAP Location object not found for abbreviation: {abbreviation_to_search}")
+
+
+                # 2. BUSCAR DADOS RELEVANTES VIA RAG
+                try:
+                    # Inicializar RAG service
+                    rag_service = RAGService()
+                    
+                    # Indexar dados (cache interno do RAG service evita reindexação)
+                    await rag_service.index_data_sources()
+                    logger.info("RAG service initialized successfully")
+                    
+                    # Recuperar contexto relevante
+                    rag_context = await rag_service.retrieve_context(
+                        query=request.message,
+                        max_chunks=5
+                    )
+                    
+                    # Preparar dados para o LLM
+                    for chunk in rag_context.chunks:
+                        query_results.append({
+                            "source": chunk.source,
+                            "content": chunk.content,
+                            "metadata": chunk.metadata,
+                            "relevance_score": chunk.relevance_score
+                        })
+                    
+                    logger.info(f"RAG context retrieved: {len(query_results)} chunks found")
+                    
+                except Exception as rag_error:
+                    logger.warning(f"RAG service error (using fallback): {rag_error}")
+                    query_results = []
+                
+                # 3. EXECUTAR SQL QUERY SE GERADA PELO QUERY PROCESSOR
+                structured_data = None
+                if query_analysis.sql_query:
+                    try:
+                        # Passar o sap_location_id_filter para os parâmetros da query
+                        sql_parameters = query_analysis.parameters.copy()
+                        if sap_location_id_filter:
+                            sql_parameters['sap_location_id'] = sap_location_id_filter
+                        
+                        # Debug logging detalhado
+                        logger.info(f"SQL Debug - Query: {query_analysis.sql_query[:200]}...")
+                        logger.info(f"SQL Debug - Parameters: {sql_parameters}")
+                        
+                        # Executar consulta SQL do Query Processor
+                        result = await db.execute(
+                            text(query_analysis.sql_query),
+                            sql_parameters # Usar os parâmetros atualizados
+                        )
+                        rows = result.fetchall()
+                        
+                        # Converter resultado para formato estruturado
+                        if rows:
+                            columns = result.keys()
+                            structured_data = [dict(zip(columns, row)) for row in rows]
+                            logger.info(f"SQL query executed: {len(structured_data)} rows returned")
+                        else:
+                            logger.info("SQL query executed successfully but returned no rows")
+                        
+                    except Exception as sql_error:
+                        logger.error(f"SQL query execution failed: {sql_error}")
+                        logger.error(f"SQL Query: {query_analysis.sql_query}")
+                        logger.error(f"SQL Parameters: {sql_parameters}")
+                        import traceback
+                        logger.error(f"Stack trace: {traceback.format_exc()}")
+                        structured_data = None
+                
+                # 4. USAR LLM COM CONTEXTO ENRICHED
+                llm_result = await llm_service.generate_response(
+                    user_query=request.message,
+                    sql_query=query_analysis.sql_query, # Passar a SQL gerada para o LLMService para debugging
+                    query_results=query_results,
+                    context={
+                        "query_analysis": {
+                            "intent": query_analysis.intent.value,
+                            "entities": [{"type": e.type.value, "value": e.value} for e in query_analysis.entities],
+                            "confidence": query_analysis.confidence_score
+                        },
+                        "structured_data": structured_data,
+                        "session_context": context.dict() if context else None
                     },
-                    "structured_data": structured_data,
-                    "session_context": context.dict() if context else None
-                },
-                session_id=str(session_id)
-            )
+                    session_id=str(session_id)
+                )
             
         except Exception as e:
             logger.error(f"Error in LLM service: {str(e)}")

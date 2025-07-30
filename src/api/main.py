@@ -8,7 +8,7 @@ Este módulo configura a aplicação FastAPI com:
 - Configuração de logging
 - Documentação automática
 """
-
+import logging
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
@@ -21,7 +21,7 @@ from typing import AsyncGenerator
 from ..utils.logger import get_logger, LogContext
 from ..utils.error_handlers import setup_error_handlers
 from .config import get_settings
-from .endpoints import health, chat, feedback, fallback_demo, cache_demo, metrics_export, upload
+from .endpoints import health, chat, feedback, fallback_demo, cache_demo, metrics_export, upload, vanna_admin
 
 # Configurar logger
 logger = get_logger(__name__)
@@ -146,7 +146,8 @@ def create_app() -> FastAPI:
     app.include_router(fallback_demo.router, prefix="/api/v1", tags=["Fallback Demo"])
     app.include_router(cache_demo.router, prefix="/api/v1", tags=["Cache Demo"])
     app.include_router(metrics_export.router, prefix="/api/v1", tags=["Metrics Export"])
-    
+    app.include_router(vanna_admin.router, prefix="/api/v1", tags=["Vanna Admin"])
+
     return app
 
 

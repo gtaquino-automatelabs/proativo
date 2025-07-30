@@ -105,6 +105,43 @@ class Settings(BaseSettings):
     gemini_max_tokens: int = 2048
     gemini_timeout: int = 30
     gemini_max_retries: int = 3
+
+    # =============================================================================
+    # CONFIGURAÇÕES DO VANNA.AI
+    # =============================================================================
+    
+    vanna_llm_provider: str = Field(default="gemini", env="VANNA_LLM_PROVIDER")
+    vanna_gemini_model: str = Field(default="gemini-2.5-flash", env="VANNA_GEMINI_MODEL")
+    vanna_model_name: str = Field(default="proativo-maintenance-model", env="VANNA_MODEL_NAME")
+    vanna_confidence_threshold: float = Field(default=0.7, env="VANNA_CONFIDENCE_THRESHOLD")
+    vanna_enable_training: bool = Field(default=True, env="VANNA_ENABLE_TRAINING")
+    vanna_vector_db_path: str = Field(default="./data/vanna_vectordb", env="VANNA_VECTOR_DB_PATH")
+    vanna_auto_train_interval: int = Field(default=30, env="VANNA_AUTO_TRAIN_INTERVAL")  # minutos
+    vanna_max_results: int = Field(default=5, env="VANNA_MAX_RESULTS")  # Número máximo de resultados do ChromaDB
+    
+    @field_validator("vanna_confidence_threshold")
+    @classmethod
+    def validate_vanna_confidence_threshold(cls, v):
+        """Valida o threshold de confiança do Vanna."""
+        if not 0.0 <= v <= 1.0:
+            raise ValueError("Vanna confidence threshold deve estar entre 0.0 e 1.0")
+        return v
+    
+    @field_validator("vanna_auto_train_interval")
+    @classmethod
+    def validate_vanna_auto_train_interval(cls, v):
+        """Valida o intervalo de auto-treinamento do Vanna."""
+        if v < 5:
+            raise ValueError("Vanna auto train interval deve ser pelo menos 5 minutos")
+        return v
+    
+    @field_validator("vanna_max_results")
+    @classmethod
+    def validate_vanna_max_results(cls, v):
+        """Valida o número máximo de resultados do Vanna."""
+        if v < 1 or v > 50:
+            raise ValueError("Vanna max results deve estar entre 1 e 50")
+        return v
     
     @field_validator("google_api_key")
     @classmethod
@@ -231,6 +268,41 @@ class Settings(BaseSettings):
         if async_fallback and not self.database_url.startswith("postgresql+asyncpg://"):
             return self.database_url.replace("postgresql://", "postgresql+asyncpg://")
         return self.database_url
+    
+    @property
+    def database_host(self) -> str:
+        """Extrai o host da URL do banco de dados."""
+        from urllib.parse import urlparse
+        parsed = urlparse(self.database_url)
+        return parsed.hostname or 'localhost'
+    
+    @property
+    def database_port(self) -> int:
+        """Extrai a porta da URL do banco de dados."""
+        from urllib.parse import urlparse
+        parsed = urlparse(self.database_url)
+        return parsed.port or 5432
+    
+    @property
+    def database_name(self) -> str:
+        """Extrai o nome do banco da URL do banco de dados."""
+        from urllib.parse import urlparse
+        parsed = urlparse(self.database_url)
+        return parsed.path.lstrip('/') if parsed.path else 'proativo_db'
+    
+    @property
+    def database_user(self) -> str:
+        """Extrai o usuário da URL do banco de dados."""
+        from urllib.parse import urlparse
+        parsed = urlparse(self.database_url)
+        return parsed.username or 'proativo_user'
+    
+    @property
+    def database_password(self) -> str:
+        """Extrai a senha da URL do banco de dados."""
+        from urllib.parse import urlparse
+        parsed = urlparse(self.database_url)
+        return parsed.password or 'proativo_password'
     
     def is_development(self) -> bool:
         """Verifica se está em ambiente de desenvolvimento."""

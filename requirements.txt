@@ -30,6 +30,13 @@ google-generativeai>=0.3.2
 google-cloud-aiplatform==1.38.1
 openai==1.6.1  # fallback/future use
 
+# ---- Vanna.ai Text-to-SQL ----
+vanna[chromadb,gemini,postgres]
+# vanna>=0.7.9
+# chromadb>=0.4.0,<0.5.0  # Vector database para Vanna (compatibilidade NumPy)
+google-generativeai>=0.3.0  # Google Gemini SDK
+numpy>=1.21.0,<2.0.0  # Manter compatibilidade com ChromaDB
+
 # ---- Utilitários ----
 python-dotenv==1.0.0
 python-multipart==0.0.6

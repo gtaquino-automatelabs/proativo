@@ -306,45 +306,58 @@ def get_rag_service():
 @lru_cache()
 def get_query_processor():
     """
-    Dependência para obter processador de queries (singleton).
+    Dependência para obter processador de queries híbrido (singleton).
     
-    Implementa processamento inteligente de consultas em linguagem natural
-    usando spaCy com padrões específicos para manutenção de equipamentos.
+    Implementa processamento híbrido que usa Vanna.ai como principal
+    e QueryProcessor estático como fallback para manutenção de equipamentos.
     
     Returns:
-        QueryProcessor: Processador de consultas em linguagem natural
+        VannaQueryProcessor: Processador híbrido de consultas
     """
     try:
-        from .services.query_processor import QueryProcessor
+        from .services.vanna_query_processor import VannaQueryProcessor
         
-        service = QueryProcessor()
-        logger.info("Real Query Processor created successfully")
+        service = VannaQueryProcessor()
+        logger.info("Hybrid Vanna Query Processor created successfully")
         return service
         
-    except Exception as e:
-        logger.error(f"Failed to create query processor: {str(e)}", exc_info=True)
+    except Exception as vanna_error:
+        logger.error(f"Failed to create hybrid processor: {str(vanna_error)}", exc_info=True)
         
-        # Fallback para processador simples
-        class SimpleQueryProcessor:
-            def __init__(self):
-                self.configured = True
-                
-            async def process_query(self, query: str):
-                from .services.query_processor import QueryAnalysis, QueryIntent
-                return QueryAnalysis(
-                    original_query=query,
-                    intent=QueryIntent.GENERAL_QUERY,
-                    entities=[],
-                    temporal_context=None,
-                    sql_query=None,
-                    parameters={},
-                    confidence_score=0.5,
-                    suggestions=["Status dos equipamentos", "Últimas manutenções", "Equipamentos críticos"]
-                )
-        
-        service = SimpleQueryProcessor()
-        logger.warning("Using simple query processor fallback")
-        return service
+        # Fallback para processador estático
+        try:
+            from .services.query_processor import QueryProcessor
+            
+            service = QueryProcessor()
+            logger.warning("Using static Query Processor fallback (Vanna unavailable)")
+            return service
+            
+        except Exception as static_error:
+            logger.error(f"Failed to create static processor: {str(static_error)}", exc_info=True)
+            
+            # Fallback final para processador simples
+            class SimpleQueryProcessor:
+                def __init__(self):
+                    self.configured = True
+                    
+                async def process_query(self, query: str):
+                    from .services.query_processor import QueryAnalysis, QueryIntent
+                    return QueryAnalysis(
+                        original_query=query,
+                        intent=QueryIntent.GENERAL_QUERY,
+                        entities=[],
+                        temporal_context=None,
+                        sql_query=None,
+                        parameters={},
+                        confidence_score=0.5,
+                        suggestions=["Status dos equipamentos", "Últimas manutenções", "Equipamentos críticos"],
+                        processing_method="simple_fallback",
+                        explanation=None  # Simple fallback não gera explicação
+                    )
+            
+            service = SimpleQueryProcessor()
+            logger.warning("Using simple query processor fallback (all processors failed)")
+            return service
 
 
 @lru_cache()

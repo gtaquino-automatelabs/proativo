@@ -71,6 +71,8 @@ class QueryAnalysis:
     parameters: Dict[str, Any]
     confidence_score: float
     suggestions: List[str]
+    processing_method: Optional[str] = None  # "vanna", "fallback", "static", etc.
+    explanation: Optional[str] = None  # Explicação da consulta/resposta
 
 # =============================================================================
 # QUERY PROCESSOR PRINCIPAL
@@ -414,7 +416,9 @@ class QueryProcessor:
             sql_query=sql_query,
             parameters=parameters,
             confidence_score=confidence,
-            suggestions=suggestions
+            suggestions=suggestions,
+            processing_method="static",
+            explanation=None  # Processamento estático não gera explicação
         )
         
         logger.info(f"Query processed: intent={intent.value}, entities={len(entities)}, confidence={confidence:.2f}")
@@ -462,7 +466,9 @@ class QueryProcessor:
             sql_query=sql_query,
             parameters=parameters,
             confidence_score=0.6,  # Confiança média para fallback
-            suggestions=self._generate_suggestions(intent, entities)
+            suggestions=self._generate_suggestions(intent, entities),
+            processing_method="static_fallback",
+            explanation=None  # Fallback estático não gera explicação
         )
     
     def _extract_entities(self, doc, original_query: str) -> List[ExtractedEntity]:
