@@ -58,7 +58,7 @@ pre-commit==3.6.0
 validators==0.22.0
 bleach==6.1.0
 python-dateutil==2.8.2
-sqlparse==0.4.4
+sqlparse==0.5.4
 
 # ---- Cache e Performance ----
 redis==5.0.1
@@ -75,3 +75,4 @@ psutil==5.9.6
 # ---- Processamento de Linguagem Natural ----
 spacy>=3.7.0
 # Para instalar modelo português: python -m spacy download pt_core_news_sm 
+urllib3>=2.6.0 # not directly required, pinned by Snyk to avoid a vulnerability
