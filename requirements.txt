@@ -75,3 +75,4 @@ psutil==5.9.6
 # ---- Processamento de Linguagem Natural ----
 spacy>=3.7.0
 # Para instalar modelo português: python -m spacy download pt_core_news_sm 
+urllib3>=2.6.3 # not directly required, pinned by Snyk to avoid a vulnerability
